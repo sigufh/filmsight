@@ -25,10 +25,12 @@ class ImageProcessor(private val context: Context? = null) {
     
     /**
      * 处理图像（支持RAW和普通图片）
+     * @param previewMode 预览模式，如果为true则使用较低分辨率以提高性能
      */
     suspend fun processImage(
         imageUri: String,
-        params: FilmParams
+        params: FilmParams,
+        previewMode: Boolean = true
     ): Bitmap? = withContext(Dispatchers.Default) {
         try {
             if (context == null) {
@@ -45,16 +47,25 @@ class ImageProcessor(private val context: Context? = null) {
             if (isRawFile) {
                 try {
                     // 对于URI格式，需要先获取实际文件路径或复制到临时文件
+                    android.util.Log.d("ImageProcessor", "Detected RAW file, getting file path...")
                     val filePath = getFilePathFromUri(context, uri)
                     if (filePath != null) {
                         android.util.Log.d("ImageProcessor", "Processing RAW file: $filePath")
                         val linearImage = rawProcessor.loadRaw(filePath)
+                        android.util.Log.d("ImageProcessor", "RAW file loaded, processing linear image...")
                         if (linearImage != null) {
-                            return@withContext processLinearImage(linearImage, params)
+                            val result = processLinearImage(linearImage, params, previewMode)
+                            android.util.Log.d("ImageProcessor", "RAW processing completed")
+                            return@withContext result
+                        } else {
+                            android.util.Log.e("ImageProcessor", "Failed to load RAW file, linearImage is null")
                         }
+                    } else {
+                        android.util.Log.e("ImageProcessor", "Failed to get file path from URI")
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("ImageProcessor", "Failed to process RAW file", e)
+                    e.printStackTrace()
                     // 继续尝试作为普通图片处理
                 }
             }
@@ -91,10 +102,19 @@ class ImageProcessor(private val context: Context? = null) {
             }
             
             // 确保 Bitmap 格式正确
-            val rgbaBitmap = if (bitmap.config != Bitmap.Config.ARGB_8888) {
+            var rgbaBitmap = if (bitmap.config != Bitmap.Config.ARGB_8888) {
                 bitmap.copy(Bitmap.Config.ARGB_8888, false)
             } else {
                 bitmap
+            }
+            
+            // 预览模式：降低分辨率以提高性能
+            if (previewMode && (rgbaBitmap.width > 1200 || rgbaBitmap.height > 1200)) {
+                val scale = minOf(1200f / rgbaBitmap.width, 1200f / rgbaBitmap.height)
+                val scaledWidth = (rgbaBitmap.width * scale).toInt()
+                val scaledHeight = (rgbaBitmap.height * scale).toInt()
+                rgbaBitmap = Bitmap.createScaledBitmap(rgbaBitmap, scaledWidth, scaledHeight, true)
+                android.util.Log.d("ImageProcessor", "Preview mode: scaled to ${scaledWidth}x${scaledHeight}")
             }
             
             return@withContext processBitmap(rgbaBitmap, params)
@@ -126,12 +146,23 @@ class ImageProcessor(private val context: Context? = null) {
      */
     private suspend fun processLinearImage(
         linearImage: LinearImageNative,
-        params: FilmParams
+        params: FilmParams,
+        previewMode: Boolean = true
     ): Bitmap? {
         try {
             val nativeParams = convertToNativeParams(params)
             val processedImage = filmEngine.process(linearImage, nativeParams) ?: return null
-            val bitmap = imageConverter.linearToBitmap(processedImage)
+            var bitmap = imageConverter.linearToBitmap(processedImage)
+            
+            // 预览模式：如果图像太大，缩放以提高性能
+            if (previewMode && bitmap != null && (bitmap.width > 1200 || bitmap.height > 1200)) {
+                val scale = minOf(1200f / bitmap.width, 1200f / bitmap.height)
+                val scaledWidth = (bitmap.width * scale).toInt()
+                val scaledHeight = (bitmap.height * scale).toInt()
+                bitmap = Bitmap.createScaledBitmap(bitmap, scaledWidth, scaledHeight, true)
+                android.util.Log.d("ImageProcessor", "Preview mode: scaled linear image to ${scaledWidth}x${scaledHeight}")
+            }
+            
             imageConverter.release(linearImage)
             imageConverter.release(processedImage)
             return bitmap

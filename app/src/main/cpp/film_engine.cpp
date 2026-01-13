@@ -1,6 +1,8 @@
 #include "film_engine.h"
 #include <algorithm>
 #include <cmath>
+#include <thread>
+#include <vector>
 
 namespace filmtracker {
 
@@ -164,15 +166,31 @@ LinearImage FilmEngine::process(const LinearImage& input,
     applyHSL(output, params.hsl);
     
     // 应用全局饱和度（在响应曲线和基础色调之后）
+    // 使用多线程优化大图像处理
     if (params.saturation != 1.0f) {
         const uint32_t pixelCount = output.width * output.height;
-        for (uint32_t i = 0; i < pixelCount; ++i) {
-            float luminance = 0.299f * output.r[i] + 
-                             0.587f * output.g[i] + 
-                             0.114f * output.b[i];
-            output.r[i] = luminance + (output.r[i] - luminance) * params.saturation;
-            output.g[i] = luminance + (output.g[i] - luminance) * params.saturation;
-            output.b[i] = luminance + (output.b[i] - luminance) * params.saturation;
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+            
+            threads.emplace_back([&output, start, end, &params]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    float luminance = 0.299f * output.r[i] + 
+                                     0.587f * output.g[i] + 
+                                     0.114f * output.b[i];
+                    output.r[i] = luminance + (output.r[i] - luminance) * params.saturation;
+                    output.g[i] = luminance + (output.g[i] - luminance) * params.saturation;
+                    output.b[i] = luminance + (output.b[i] - luminance) * params.saturation;
+                }
+            });
+        }
+        
+        for (auto& thread : threads) {
+            thread.join();
         }
     }
     

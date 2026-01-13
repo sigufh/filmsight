@@ -4,6 +4,11 @@
 #include <algorithm>
 #include <cctype>
 #include <string>
+#include <android/log.h>
+
+#define LOG_TAG "RawProcessor"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace filmtracker {
 
@@ -18,14 +23,20 @@ RawProcessor::~RawProcessor() {
  * 实际项目中应使用 libraw 或类似库
  */
 LinearImage RawProcessor::loadRaw(const char* filePath, RawMetadata& metadata) {
+    LOGI("loadRaw: Starting, filePath=%s", filePath);
+    
     if (!filePath) {
+        LOGE("loadRaw: File path is null");
         throw std::runtime_error("File path is null");
     }
     
     std::ifstream file(filePath, std::ios::binary);
     if (!file.is_open()) {
+        LOGE("loadRaw: Failed to open file: %s", filePath);
         throw std::runtime_error("Failed to open RAW file");
     }
+    
+    LOGI("loadRaw: File opened successfully");
     
     // 读取文件头，识别文件格式
     uint8_t header[16];
@@ -37,8 +48,10 @@ LinearImage RawProcessor::loadRaw(const char* filePath, RawMetadata& metadata) {
     bool isArw = false;
     if (header[0] == 0x49 && header[1] == 0x49) {  // "II" (Intel byte order)
         isArw = true;
+        LOGI("loadRaw: Detected ARW (Intel byte order)");
     } else if (header[0] == 0x4D && header[1] == 0x4D) {  // "MM" (Motorola byte order)
         isArw = true;
+        LOGI("loadRaw: Detected ARW (Motorola byte order)");
     }
     
     // 检查文件扩展名
@@ -47,12 +60,16 @@ LinearImage RawProcessor::loadRaw(const char* filePath, RawMetadata& metadata) {
     std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
     if (ext == "arw" || ext == "srf" || ext == "sr2") {
         isArw = true;
+        LOGI("loadRaw: Detected ARW by extension: %s", ext.c_str());
     }
     
     if (isArw) {
+        LOGI("loadRaw: Processing as ARW file");
         // ARW文件处理（简化实现）
         // 实际应解析TIFF/ARW结构
-        return loadArwFile(file, metadata);
+        LinearImage result = loadArwFile(file, metadata);
+        LOGI("loadRaw: ARW file processed successfully, size=%dx%d", metadata.width, metadata.height);
+        return result;
     }
     
     // 其他RAW格式的占位实现
@@ -79,6 +96,8 @@ LinearImage RawProcessor::loadRaw(const char* filePath, RawMetadata& metadata) {
  * 加载ARW文件（Sony ARW格式）
  */
 LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata) {
+    LOGI("loadArwFile: Starting");
+    
     // ARW文件是TIFF格式的变体
     // 简化实现：读取基本信息和占位数据
     // 实际应解析TIFF IFD结构
@@ -87,11 +106,12 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     file.seekg(0, std::ios::end);
     size_t fileSize = file.tellg();
     file.seekg(0, std::ios::beg);
+    LOGI("loadArwFile: File size = %zu bytes", fileSize);
     
     // 限制图像尺寸，避免创建过大的图像导致内存问题
-    // 使用较小的尺寸作为预览
-    uint32_t maxWidth = 2000;
-    uint32_t maxHeight = 2000;
+    // 使用较小的尺寸作为预览（进一步减小以提高性能）
+    uint32_t maxWidth = 1200;
+    uint32_t maxHeight = 1200;
     
     // 默认ARW参数（使用较小的预览尺寸）
     metadata.width = maxWidth;
@@ -101,6 +121,8 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     metadata.blackLevel = 512.0f;  // ARW典型黑电平
     metadata.whiteLevel = 16383.0f;  // 14位RAW
     
+    LOGI("loadArwFile: Creating image %dx%d", metadata.width, metadata.height);
+    
     // 设置CFA模式（ARW通常使用RGGB）
     metadata.cfaPattern[0] = 0;  // R
     metadata.cfaPattern[1] = 1;  // G
@@ -108,17 +130,37 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     metadata.cfaPattern[3] = 2;  // B
     
     // 创建线性图像
+    LOGI("loadArwFile: Allocating LinearImage memory");
     LinearImage image(metadata.width, metadata.height);
+    LOGI("loadArwFile: LinearImage allocated successfully");
     
-    // 简化实现：填充占位数据（灰色）
-    // 实际应从文件中读取Bayer数据并去马赛克
+    // 生成测试图案（渐变）以便调试，而不是纯灰色
+    // 这样可以看到图像是否正确加载和处理
     const uint32_t pixelCount = image.width * image.height;
-    for (uint32_t i = 0; i < pixelCount; ++i) {
-        image.r[i] = 0.5f;
-        image.g[i] = 0.5f;
-        image.b[i] = 0.5f;
+    LOGI("loadArwFile: Filling %u pixels with test pattern", pixelCount);
+    
+    // 创建渐变测试图案
+    for (uint32_t y = 0; y < image.height; ++y) {
+        for (uint32_t x = 0; x < image.width; ++x) {
+            uint32_t idx = y * image.width + x;
+            
+            // 创建渐变测试图案
+            float fx = static_cast<float>(x) / static_cast<float>(image.width);
+            float fy = static_cast<float>(y) / static_cast<float>(image.height);
+            
+            // RGB渐变：左上角偏红，右上角偏绿，左下角偏蓝，右下角偏白
+            image.r[idx] = fx * 0.8f + 0.2f;  // 0.2-1.0
+            image.g[idx] = (1.0f - fx) * 0.6f + fy * 0.4f + 0.2f;  // 0.2-1.0
+            image.b[idx] = fy * 0.8f + 0.2f;  // 0.2-1.0
+            
+            // 应用曝光调整（模拟RAW数据，使其看起来更真实）
+            image.r[idx] *= 0.5f;
+            image.g[idx] *= 0.5f;
+            image.b[idx] *= 0.5f;
+        }
     }
     
+    LOGI("loadArwFile: Completed successfully with test pattern");
     return image;
 }
 

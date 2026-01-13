@@ -111,16 +111,17 @@ fun ProcessingScreen(
         }
     }
     
-    // 参数变化时的防抖处理（延迟500ms）
+    // 参数变化时的防抖处理（延迟150ms，更快响应）
     LaunchedEffect(filmParams) {
         processingJob?.cancel()
         if (imageUri != null && !isProcessing && processedBitmap != null) {
-            delay(500) // 防抖延迟
+            delay(150) // 防抖延迟，减少到150ms以提高响应速度
             if (imageUri != null && !isProcessing) {
                 isProcessing = true
                 processingJob = coroutineScope.launch(kotlinx.coroutines.Dispatchers.Default) {
                     try {
-                        val result = imageProcessor.processImage(imageUri, filmParams)
+                        // 使用预览模式以提高性能
+                        val result = imageProcessor.processImage(imageUri, filmParams, previewMode = true)
                         processedBitmap = result
                     } catch (e: Exception) {
                         android.util.Log.e("ProcessingScreen", "Error processing image", e)

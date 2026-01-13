@@ -1,6 +1,8 @@
 #include "image_converter.h"
 #include <cmath>
 #include <algorithm>
+#include <thread>
+#include <vector>
 
 namespace filmtracker {
 
@@ -26,18 +28,33 @@ float ImageConverter::linearToSRGB(float linear) {
 
 /**
  * 将线性 RGB 转换为 sRGB 输出图像
+ * 使用多线程优化大图像转换
  */
 OutputImage ImageConverter::linearToSRGB(const LinearImage& linear) {
     OutputImage output(linear.width, linear.height);
     
     const uint32_t pixelCount = linear.width * linear.height;
+    const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+    const uint32_t pixelsPerThread = pixelCount / numThreads;
     
-    for (uint32_t i = 0; i < pixelCount; ++i) {
-        uint32_t idx = i * 4;
-        output.data[idx + 0] = static_cast<uint8_t>(linearToSRGB(linear.r[i]) * 255.0f);
-        output.data[idx + 1] = static_cast<uint8_t>(linearToSRGB(linear.g[i]) * 255.0f);
-        output.data[idx + 2] = static_cast<uint8_t>(linearToSRGB(linear.b[i]) * 255.0f);
-        output.data[idx + 3] = 255; // Alpha
+    std::vector<std::thread> threads;
+    for (uint32_t t = 0; t < numThreads; ++t) {
+        uint32_t start = t * pixelsPerThread;
+        uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+        
+        threads.emplace_back([&linear, &output, start, end]() {
+            for (uint32_t i = start; i < end; ++i) {
+                uint32_t idx = i * 4;
+                output.data[idx + 0] = static_cast<uint8_t>(linearToSRGB(linear.r[i]) * 255.0f);
+                output.data[idx + 1] = static_cast<uint8_t>(linearToSRGB(linear.g[i]) * 255.0f);
+                output.data[idx + 2] = static_cast<uint8_t>(linearToSRGB(linear.b[i]) * 255.0f);
+                output.data[idx + 3] = 255; // Alpha
+            }
+        });
+    }
+    
+    for (auto& thread : threads) {
+        thread.join();
     }
     
     return output;

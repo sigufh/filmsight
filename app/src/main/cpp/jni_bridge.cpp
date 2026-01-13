@@ -50,14 +50,21 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRaw(
         return 0;
     }
     
+    LOGI("nativeLoadRaw: Starting, path=%s", path);
+    
     RawMetadata metadata;
     
     try {
+        LOGI("nativeLoadRaw: Calling processor->loadRaw");
         LinearImage image = processor->loadRaw(path, metadata);
+        LOGI("nativeLoadRaw: loadRaw completed, image size=%dx%d", image.width, image.height);
+        
         env->ReleaseStringUTFChars(filePath, path);
         
+        LOGI("nativeLoadRaw: Creating LinearImage pointer");
         // 将图像数据存储在堆上，返回指针
         LinearImage* imagePtr = new LinearImage(std::move(image));
+        LOGI("nativeLoadRaw: Successfully created LinearImage pointer");
         return reinterpret_cast<jlong>(imagePtr);
     } catch (const std::exception& e) {
         env->ReleaseStringUTFChars(filePath, path);
