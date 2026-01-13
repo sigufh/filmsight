@@ -22,6 +22,14 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.gestures.*
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.max
+import kotlin.math.min
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -58,11 +66,20 @@ fun ProcessingScreen(
     onExport: (FilmParams) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var filmParams by remember { mutableStateOf(FilmParams.portra400()) }
+    var filmParams by remember { mutableStateOf(FilmParams.portra400().apply {
+        // 默认开启所有选项
+        enableRgbCurve = true
+        enableRedCurve = true
+        enableGreenCurve = true
+        enableBlueCurve = true
+        enableHSL = true
+    }) }
     var selectedMode by remember { mutableStateOf<EditMode?>(null) }
     var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var isProcessing by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
-    val imageProcessor = remember { ImageProcessor() }
+    val context = LocalContext.current
+    val imageProcessor = remember { ImageProcessor(context) }
     val beautyAnalyzer = remember { BeautyAIAnalyzer() }
     
     // 上拉面板状态
@@ -70,58 +87,110 @@ fun ProcessingScreen(
         skipPartiallyExpanded = true
     )
     
-    // 当参数变化时，重新处理图像
+    // 当参数变化时，重新处理图像（实时预览）
     LaunchedEffect(filmParams, imageUri) {
-        if (imageUri != null) {
-            // TODO: 实际处理图像
-            // processedBitmap = imageProcessor.processRaw(imageUri, filmParams)
+        if (imageUri != null && !isProcessing) {
+            isProcessing = true
+            coroutineScope.launch {
+                val result = imageProcessor.processImage(imageUri, filmParams)
+                processedBitmap = result
+                isProcessing = false
+            }
         }
     }
     
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("FilmTracker") },
-                actions = {
-                    IconButton(onClick = { onExport(filmParams) }) {
-                        Icon(Icons.Default.FileDownload, "导出")
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(padding)
+    // LR移动版风格：深色背景，底部工具栏
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF1A1A1A)) // LR移动版深色背景
+    ) {
+        // 图像预览区域（全屏，不包含padding）
+        ImagePreviewSection(
+            imageUri = imageUri,
+            processedBitmap = processedBitmap,
+            onSelectImage = onSelectImage,
+            modifier = Modifier.fillMaxSize()
+        )
+        
+        // 顶部栏（LR移动版风格：半透明，深色）
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(),
+            color = Color(0xFF1A1A1A).copy(alpha = 0.9f)
         ) {
-            // 图像预览区域（全屏）
-            ImagePreviewSection(
-                imageUri = imageUri,
-                processedBitmap = processedBitmap,
-                onSelectImage = onSelectImage,
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // 底部模式切换栏
-            BottomModeSelector(
-                selectedMode = selectedMode,
-                onModeSelected = { mode ->
-                    selectedMode = if (selectedMode == mode) null else mode
-                },
+            Row(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-            )
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "FilmTracker",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
+                )
+                IconButton(
+                    onClick = { 
+                        coroutineScope.launch {
+                            if (processedBitmap != null) {
+                                onExport(filmParams)
+                            }
+                        }
+                    },
+                    enabled = processedBitmap != null
+                ) {
+                    Icon(
+                        Icons.Default.FileDownload,
+                        "导出",
+                        tint = if (processedBitmap != null) Color.White else Color.Gray
+                    )
+                }
+            }
+        }
+        
+        // 底部模式切换栏（LR移动版风格：半透明，深色）
+        BottomModeSelector(
+            selectedMode = selectedMode,
+            onModeSelected = { mode ->
+                selectedMode = if (selectedMode == mode) null else mode
+            },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        )
+        
+        // 处理中指示器
+        if (isProcessing) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                    .padding(16.dp)
+            ) {
+                CircularProgressIndicator(color = Color.White)
+            }
         }
     }
     
-    // 上拉调色器面板
+    // 上拉调色器面板（LR移动版风格：不遮挡图片，使用侧边栏或底部抽屉）
     if (selectedMode != null) {
         ModalBottomSheet(
             onDismissRequest = { selectedMode = null },
             sheetState = bottomSheetState,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            containerColor = Color(0xFF2A2A2A), // LR移动版深色背景
+            dragHandle = {
+                Box(
+                    modifier = Modifier
+                        .width(40.dp)
+                        .height(4.dp)
+                        .background(Color.Gray.copy(alpha = 0.5f), RoundedCornerShape(2.dp))
+                        .padding(vertical = 12.dp)
+                )
+            }
         ) {
             when (selectedMode) {
                 EditMode.BASIC -> BasicTonePanel(
@@ -170,7 +239,7 @@ fun ProcessingScreen(
 }
 
 /**
- * 图像预览区域（适应缩放）
+ * 图像预览区域（支持缩放和平移，LR移动版风格）
  */
 @Composable
 fun ImagePreviewSection(
@@ -179,16 +248,44 @@ fun ImagePreviewSection(
     onSelectImage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var lastScale by remember { mutableStateOf(1f) }
+    var lastOffset by remember { mutableStateOf(Offset.Zero) }
+    
     Box(
         modifier = modifier
             .pointerInput(Unit) {
-                // 点击空白区域选择图像
-            },
+                detectTransformGestures { _, pan, zoom, _ ->
+                    scale = (lastScale * zoom).coerceIn(1f, 5f)
+                    offset = lastOffset + pan
+                }
+            }
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                            lastScale = 1f
+                            lastOffset = Offset.Zero
+                        } else {
+                            scale = 2f
+                            lastScale = 2f
+                        }
+                    }
+                )
+            }
+            .graphicsLayer(
+                scaleX = scale,
+                scaleY = scale,
+                translationX = offset.x,
+                translationY = offset.y
+            ),
         contentAlignment = Alignment.Center
     ) {
         when {
             processedBitmap != null -> {
-                // 显示处理后的图像
                 Image(
                     bitmap = processedBitmap.asImageBitmap(),
                     contentDescription = "处理后的图像",
@@ -197,7 +294,6 @@ fun ImagePreviewSection(
                 )
             }
             imageUri != null -> {
-                // 显示原始图像（使用Coil加载）
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(imageUri)
@@ -209,7 +305,6 @@ fun ImagePreviewSection(
                 )
             }
             else -> {
-                // 空状态 - 可点击选择图像
                 Column(
                     modifier = Modifier
                         .clickable { onSelectImage() }
@@ -257,7 +352,7 @@ fun BottomModeSelector(
     
     Surface(
         modifier = modifier,
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+        color = Color(0xFF1A1A1A).copy(alpha = 0.95f), // LR移动版深色
         shadowElevation = 8.dp
     ) {
         // 模式切换栏（可横向滑动）
@@ -284,21 +379,21 @@ fun BottomModeSelector(
                         contentDescription = modeItem.label,
                         modifier = Modifier.size(32.dp),
                         tint = if (isSelected) 
-                            MaterialTheme.colorScheme.primary 
+                            Color(0xFF007AFF) // LR移动版蓝色
                         else 
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            Color.White.copy(alpha = 0.6f)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         modeItem.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isSelected) 
-                            MaterialTheme.colorScheme.primary 
+                            Color(0xFF007AFF)
                         else 
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            Color.White.copy(alpha = 0.6f)
                     )
                     
-                    // 选中指示器
+                    // 选中指示器（LR移动版风格）
                     if (isSelected) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
@@ -306,7 +401,7 @@ fun BottomModeSelector(
                                 .width(24.dp)
                                 .height(3.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(Color(0xFF007AFF))
                         )
                     }
                 }

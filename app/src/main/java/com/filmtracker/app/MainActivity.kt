@@ -98,14 +98,14 @@ class MainActivity : ComponentActivity() {
             return
         }
         
-        val imageProcessor = ImageProcessor()
+        val imageProcessor = ImageProcessor(this)
         val imageExporter = ImageExporter(this)
         
         lifecycleScope.launch {
             Toast.makeText(this@MainActivity, "正在处理图像...", Toast.LENGTH_SHORT).show()
             
-            // 处理图像
-            val bitmap = imageProcessor.processRaw(imageUri, params)
+            // 处理图像（支持RAW和普通图片）
+            val bitmap = imageProcessor.processImage(imageUri, params)
             
             if (bitmap != null) {
                 // 导出到相册

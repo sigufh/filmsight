@@ -18,6 +18,7 @@ import com.filmtracker.app.ui.components.*
 import com.filmtracker.app.ui.components.SuggestionItem
 import com.filmtracker.app.ui.components.CurveEditor
 import com.filmtracker.app.ui.components.CurveType
+import com.filmtracker.app.ui.components.MultiCurveEditor
 import com.filmtracker.app.ui.components.HSLAdjuster
 import com.filmtracker.app.ui.components.HSLHueSegment
 
@@ -101,7 +102,7 @@ fun BasicTonePanel(
 }
 
 /**
- * 曲线面板
+ * 曲线面板（重新设计：一张图显示所有曲线，按钮切换编辑通道）
  */
 @Composable
 fun CurvePanel(
@@ -115,116 +116,26 @@ fun CurvePanel(
         title = "色调曲线",
         onDismiss = onDismiss
     ) {
-        // 曲线类型选择器
+        // 曲线类型选择器（按钮切换）
         CurveSelector(
             selectedCurve = selectedCurveType,
             onCurveSelected = { selectedCurveType = it },
             modifier = Modifier.padding(bottom = 16.dp)
         )
         
-        // 根据选择的曲线类型显示对应的曲线编辑器
-        when (selectedCurveType) {
-            CurveType.RGB -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("RGB 总曲线")
-                    Switch(
-                        checked = filmParams.enableRgbCurve,
-                        onCheckedChange = {
-                            onParamsChange(filmParams.copy(enableRgbCurve = it))
-                        }
-                    )
-                }
-                if (filmParams.enableRgbCurve) {
-                    CurveEditor(
-                        curve = filmParams.rgbCurve,
-                        onCurveChange = { newCurve ->
-                            onParamsChange(filmParams.copy(rgbCurve = newCurve))
-                        },
-                        curveColor = Color.White,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-            CurveType.RED -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("红色通道")
-                    Switch(
-                        checked = filmParams.enableRedCurve,
-                        onCheckedChange = {
-                            onParamsChange(filmParams.copy(enableRedCurve = it))
-                        }
-                    )
-                }
-                if (filmParams.enableRedCurve) {
-                    CurveEditor(
-                        curve = filmParams.redCurve,
-                        onCurveChange = { newCurve ->
-                            onParamsChange(filmParams.copy(redCurve = newCurve))
-                        },
-                        curveColor = Color.Red,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-            CurveType.GREEN -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("绿色通道")
-                    Switch(
-                        checked = filmParams.enableGreenCurve,
-                        onCheckedChange = {
-                            onParamsChange(filmParams.copy(enableGreenCurve = it))
-                        }
-                    )
-                }
-                if (filmParams.enableGreenCurve) {
-                    CurveEditor(
-                        curve = filmParams.greenCurve,
-                        onCurveChange = { newCurve ->
-                            onParamsChange(filmParams.copy(greenCurve = newCurve))
-                        },
-                        curveColor = Color.Green,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-            CurveType.BLUE -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("蓝色通道")
-                    Switch(
-                        checked = filmParams.enableBlueCurve,
-                        onCheckedChange = {
-                            onParamsChange(filmParams.copy(enableBlueCurve = it))
-                        }
-                    )
-                }
-                if (filmParams.enableBlueCurve) {
-                    CurveEditor(
-                        curve = filmParams.blueCurve,
-                        onCurveChange = { newCurve ->
-                            onParamsChange(filmParams.copy(blueCurve = newCurve))
-                        },
-                        curveColor = Color.Blue,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-        }
+        // 多曲线编辑器：在一张图上显示所有曲线，通过按钮选择编辑
+        MultiCurveEditor(
+            rgbCurve = filmParams.rgbCurve,
+            redCurve = filmParams.redCurve,
+            greenCurve = filmParams.greenCurve,
+            blueCurve = filmParams.blueCurve,
+            selectedCurve = selectedCurveType,
+            onRgbCurveChange = { onParamsChange(filmParams.copy(rgbCurve = it)) },
+            onRedCurveChange = { onParamsChange(filmParams.copy(redCurve = it)) },
+            onGreenCurveChange = { onParamsChange(filmParams.copy(greenCurve = it)) },
+            onBlueCurveChange = { onParamsChange(filmParams.copy(blueCurve = it)) },
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 
@@ -241,46 +152,28 @@ fun HSLPanel(
         title = "HSL 调整",
         onDismiss = onDismiss
     ) {
-        // 启用/禁用 HSL 调整
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("启用 HSL 调整")
-            Switch(
-                checked = filmParams.enableHSL,
-                onCheckedChange = {
-                    onParamsChange(filmParams.copy(enableHSL = it))
-                }
-            )
-        }
-        
-        if (filmParams.enableHSL) {
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            HSLAdjuster(
-                hueShift = filmParams.hslHueShift,
-                saturation = filmParams.hslSaturation,
-                luminance = filmParams.hslLuminance,
-                onHueShiftChange = { index, value ->
-                    val newHueShift = filmParams.hslHueShift.copyOf()
-                    newHueShift[index] = value
-                    onParamsChange(filmParams.copy(hslHueShift = newHueShift))
-                },
-                onSaturationChange = { index, value ->
-                    val newSaturation = filmParams.hslSaturation.copyOf()
-                    newSaturation[index] = value
-                    onParamsChange(filmParams.copy(hslSaturation = newSaturation))
-                },
-                onLuminanceChange = { index, value ->
-                    val newLuminance = filmParams.hslLuminance.copyOf()
-                    newLuminance[index] = value
-                    onParamsChange(filmParams.copy(hslLuminance = newLuminance))
-                },
-                modifier = Modifier.padding(top = 8.dp)
-            )
-        }
+        // 默认开启，直接显示调整器
+        HSLAdjuster(
+            hueShift = filmParams.hslHueShift,
+            saturation = filmParams.hslSaturation,
+            luminance = filmParams.hslLuminance,
+            onHueShiftChange = { index, value ->
+                val newHueShift = filmParams.hslHueShift.copyOf()
+                newHueShift[index] = value
+                onParamsChange(filmParams.copy(hslHueShift = newHueShift))
+            },
+            onSaturationChange = { index, value ->
+                val newSaturation = filmParams.hslSaturation.copyOf()
+                newSaturation[index] = value
+                onParamsChange(filmParams.copy(hslSaturation = newSaturation))
+            },
+            onLuminanceChange = { index, value ->
+                val newLuminance = filmParams.hslLuminance.copyOf()
+                newLuminance[index] = value
+                onParamsChange(filmParams.copy(hslLuminance = newLuminance))
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        )
     }
 }
 

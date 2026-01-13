@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <android/log.h>
+#include <android/bitmap.h>
 #include "raw_processor.h"
 #include "film_engine.h"
 #include "image_converter.h"
@@ -297,6 +298,48 @@ Java_com_filmtracker_app_native_ImageConverterNative_nativeReleaseImage(
     LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
     if (image) {
         delete image;
+    }
+}
+
+/**
+ * 将 Android Bitmap 转换为线性域图像
+ */
+JNIEXPORT jlong JNICALL
+Java_com_filmtracker_app_native_ImageConverterNative_nativeBitmapToLinear(
+    JNIEnv *env, jobject thiz, jobject bitmap) {
+    
+    AndroidBitmapInfo info;
+    if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        LOGE("Failed to get bitmap info");
+        return 0;
+    }
+    
+    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
+        LOGE("Unsupported bitmap format");
+        return 0;
+    }
+    
+    void* pixels;
+    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
+        LOGE("Failed to lock bitmap pixels");
+        return 0;
+    }
+    
+    try {
+        LinearImage linear = ImageConverter::sRGBToLinear(
+            reinterpret_cast<const uint8_t*>(pixels),
+            info.width,
+            info.height
+        );
+        
+        AndroidBitmap_unlockPixels(env, bitmap);
+        
+        LinearImage* linearPtr = new LinearImage(std::move(linear));
+        return reinterpret_cast<jlong>(linearPtr);
+    } catch (...) {
+        AndroidBitmap_unlockPixels(env, bitmap);
+        LOGE("Failed to convert bitmap to linear");
+        return 0;
     }
 }
 

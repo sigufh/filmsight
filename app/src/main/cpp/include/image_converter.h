@@ -31,9 +31,21 @@ public:
      */
     static void applyToneMapping(LinearImage& image, float exposure);
     
+    /**
+     * 将 sRGB Bitmap 转换为线性域图像
+     * @param rgbaData RGBA 数据（8位）
+     * @param width 图像宽度
+     * @param height 图像高度
+     * @return 线性域图像
+     */
+    static LinearImage sRGBToLinear(const uint8_t* rgbaData, uint32_t width, uint32_t height);
+    
 private:
     // sRGB Gamma 函数
     static float sRGBGamma(float linear);
+    
+    // sRGB 到线性域的反 Gamma 函数
+    static float sRGBToLinear(float srgb);
 };
 
 } // namespace filmtracker

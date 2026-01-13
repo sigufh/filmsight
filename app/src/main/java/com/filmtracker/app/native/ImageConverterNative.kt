@@ -11,6 +11,7 @@ class ImageConverterNative {
     
     private external fun nativeGetImageSize(imagePtr: Long): IntArray?
     private external fun nativeLinearToSRGB(imagePtr: Long): ByteArray?
+    private external fun nativeBitmapToLinear(bitmap: Bitmap): Long
     private external fun nativeReleaseImage(imagePtr: Long)
     
     /**
@@ -36,6 +37,23 @@ class ImageConverterNative {
             bitmap
         } catch (e: Exception) {
             Log.e(TAG, "Error converting to bitmap", e)
+            null
+        }
+    }
+    
+    /**
+     * 将Bitmap转换为LinearImage（sRGB到线性域）
+     */
+    fun bitmapToLinear(bitmap: Bitmap): LinearImageNative? {
+        return try {
+            val imagePtr = nativeBitmapToLinear(bitmap)
+            if (imagePtr != 0L) {
+                LinearImageNative(imagePtr)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting bitmap to linear", e)
             null
         }
     }

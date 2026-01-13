@@ -62,4 +62,36 @@ void ImageConverter::applyToneMapping(LinearImage& image, float exposure) {
     }
 }
 
+/**
+ * sRGB 到线性域的反 Gamma 函数
+ */
+float ImageConverter::sRGBToLinear(float srgb) {
+    if (srgb <= 0.04045f) {
+        return srgb / 12.92f;
+    } else {
+        return std::pow((srgb + 0.055f) / 1.055f, 2.4f);
+    }
+}
+
+/**
+ * 将 sRGB Bitmap 转换为线性域图像
+ */
+LinearImage ImageConverter::sRGBToLinear(const uint8_t* rgbaData, uint32_t width, uint32_t height) {
+    LinearImage linear(width, height);
+    const uint32_t pixelCount = width * height;
+    
+    for (uint32_t i = 0; i < pixelCount; ++i) {
+        uint32_t idx = i * 4;
+        float r = rgbaData[idx + 0] / 255.0f;
+        float g = rgbaData[idx + 1] / 255.0f;
+        float b = rgbaData[idx + 2] / 255.0f;
+        
+        linear.r[i] = sRGBToLinear(r);
+        linear.g[i] = sRGBToLinear(g);
+        linear.b[i] = sRGBToLinear(b);
+    }
+    
+    return linear;
+}
+
 } // namespace filmtracker
