@@ -244,13 +244,15 @@ fun BottomModeSelector(
     onModeSelected: (EditMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    data class ModeItem(val mode: EditMode, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+    
     val modes = listOf(
-        EditMode.BASIC to "基础" to Icons.Default.Tune,
-        EditMode.CURVE to "曲线" to Icons.Default.ShowChart,
-        EditMode.HSL to "HSL" to Icons.Default.Palette,
-        EditMode.GRAIN to "颗粒" to Icons.Default.Texture,
-        EditMode.AI_TONE to "AI调色" to Icons.Default.AutoAwesome,
-        EditMode.AI_BEAUTY to "AI美颜" to Icons.Default.Face
+        ModeItem(EditMode.BASIC, "基础", Icons.Default.Tune),
+        ModeItem(EditMode.CURVE, "曲线", Icons.Default.ShowChart),
+        ModeItem(EditMode.HSL, "HSL", Icons.Default.Palette),
+        ModeItem(EditMode.GRAIN, "颗粒", Icons.Default.Texture),
+        ModeItem(EditMode.AI_TONE, "AI调色", Icons.Default.AutoAwesome),
+        ModeItem(EditMode.AI_BEAUTY, "AI美颜", Icons.Default.Face)
     )
     
     Surface(
@@ -266,20 +268,20 @@ fun BottomModeSelector(
                 .padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            modes.forEach { (mode, label, icon) ->
-                val isSelected = selectedMode == mode
+            modes.forEach { modeItem ->
+                val isSelected = selectedMode == modeItem.mode
                 
                 Column(
                     modifier = Modifier
                         .width(80.dp)
-                        .clickable { onModeSelected(mode) }
+                        .clickable { onModeSelected(modeItem.mode) }
                         .padding(12.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        icon,
-                        contentDescription = label,
+                        modeItem.icon,
+                        contentDescription = modeItem.label,
                         modifier = Modifier.size(32.dp),
                         tint = if (isSelected) 
                             MaterialTheme.colorScheme.primary 
@@ -288,7 +290,7 @@ fun BottomModeSelector(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        label,
+                        modeItem.label,
                         style = MaterialTheme.typography.labelSmall,
                         color = if (isSelected) 
                             MaterialTheme.colorScheme.primary 

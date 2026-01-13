@@ -25,19 +25,7 @@ import androidx.lifecycle.lifecycleScope
 
 class MainActivity : ComponentActivity() {
     
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            openImagePicker()
-        }
-    }
-    
-    private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        // 更新状态
-    }
+    // 这些 launcher 已移动到 onCreate 中，使用局部变量
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,10 +92,6 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    private fun openImagePicker() {
-        // 已移动到 setContent 中
-    }
-    
     private fun exportImage(imageUri: String?, params: FilmParams) {
         if (imageUri == null) {
             Toast.makeText(this, "请先选择图像", Toast.LENGTH_SHORT).show()
@@ -138,33 +122,4 @@ class MainActivity : ComponentActivity() {
         }
     }
     
-    private fun checkPermissionsAndOpenPicker() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
-        
-        when {
-            ContextCompat.checkSelfPermission(
-                this,
-                permission
-            ) == PackageManager.PERMISSION_GRANTED -> {
-                openImagePicker()
-            }
-            else -> {
-                requestPermissionLauncher.launch(permission)
-            }
-        }
-    }
-    
-    private fun openImagePicker() {
-        imagePickerLauncher.launch("image/*")
-    }
-    
-    private fun exportImage(params: FilmParams) {
-        // 实现导出逻辑
-        // 1. 调用 Native 层处理图像
-        // 2. 保存到相册或文件
-    }
 }

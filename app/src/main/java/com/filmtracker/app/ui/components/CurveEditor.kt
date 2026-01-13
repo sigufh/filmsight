@@ -59,8 +59,8 @@ fun CurveEditor(
                             },
                             onDrag = { change, _ ->
                                 selectedPointIndex?.let { index ->
-                                    val x = change.position.x.coerceIn(0f, size.width)
-                                    val y = change.position.y.coerceIn(0f, size.height)
+                                    val x = change.position.x.coerceIn(0f, size.width.toFloat())
+                                    val y = change.position.y.coerceIn(0f, size.height.toFloat())
                                     
                                     // 计算新的曲线值（Y 轴反转，因为屏幕坐标原点在左上角）
                                     val normalizedX = (x / size.width).coerceIn(0f, 1f)
@@ -258,6 +258,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(
 /**
  * RGB 曲线选择器
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CurveSelector(
     selectedCurve: CurveType,
