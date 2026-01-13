@@ -4,6 +4,7 @@
 #include "raw_types.h"
 #include <vector>
 #include <cstdint>
+#include <fstream>
 
 namespace filmtracker {
 
@@ -81,6 +82,11 @@ private:
                     uint32_t width,
                     uint32_t height,
                     uint32_t cfaPattern);
+    
+    /**
+     * 加载ARW文件（Sony ARW格式）
+     */
+    LinearImage loadArwFile(std::ifstream& file, RawMetadata& metadata);
 };
 
 } // namespace filmtracker

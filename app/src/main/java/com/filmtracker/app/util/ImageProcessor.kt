@@ -4,10 +4,13 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.OpenableColumns
 import com.filmtracker.app.data.FilmParams
 import com.filmtracker.app.native.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
 
 /**
@@ -33,18 +36,30 @@ class ImageProcessor(private val context: Context? = null) {
                 return@withContext null
             }
             
-            // 尝试作为RAW文件处理
-            try {
-                val linearImage = rawProcessor.loadRaw(imageUri)
-                if (linearImage != null) {
-                    return@withContext processLinearImage(linearImage, params)
+            val uri = Uri.parse(imageUri)
+            
+            // 检查文件扩展名，判断是否为RAW文件
+            val isRawFile = isRawFileFormat(uri)
+            
+            // 如果是RAW文件，尝试作为RAW处理
+            if (isRawFile) {
+                try {
+                    // 对于URI格式，需要先获取实际文件路径或复制到临时文件
+                    val filePath = getFilePathFromUri(context, uri)
+                    if (filePath != null) {
+                        android.util.Log.d("ImageProcessor", "Processing RAW file: $filePath")
+                        val linearImage = rawProcessor.loadRaw(filePath)
+                        if (linearImage != null) {
+                            return@withContext processLinearImage(linearImage, params)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ImageProcessor", "Failed to process RAW file", e)
+                    // 继续尝试作为普通图片处理
                 }
-            } catch (e: Exception) {
-                android.util.Log.d("ImageProcessor", "Not a RAW file, trying as regular image")
             }
             
-            // 如果不是RAW，尝试作为普通图片处理
-            val uri = Uri.parse(imageUri)
+            // 如果不是RAW或RAW处理失败，尝试作为普通图片处理
             val inputStream: InputStream? = try {
                 context.contentResolver.openInputStream(uri)
             } catch (e: Exception) {
@@ -184,5 +199,81 @@ class ImageProcessor(private val context: Context? = null) {
         )
         
         return nativeParams
+    }
+    
+    /**
+     * 检查是否为RAW文件格式
+     */
+    private fun isRawFileFormat(uri: Uri): Boolean {
+        val fileName = getFileName(uri)?.lowercase() ?: return false
+        val rawExtensions = listOf(
+            ".arw", ".cr2", ".cr3", ".nef", ".raf", ".orf", ".rw2", 
+            ".pef", ".srw", ".dng", ".raw", ".3fr", ".ari", ".bay",
+            ".cap", ".data", ".dcs", ".dcr", ".drf", ".eip", ".erf",
+            ".fff", ".iiq", ".k25", ".kdc", ".mdc", ".mef", ".mos",
+            ".mrw", ".nrw", ".obm", ".ptx", ".pxn", ".r3d", ".raf",
+            ".raw", ".rwl", ".rwz", ".sr2", ".srf", ".srw", ".tif",
+            ".x3f"
+        )
+        return rawExtensions.any { fileName.endsWith(it) }
+    }
+    
+    /**
+     * 从URI获取文件名
+     */
+    private fun getFileName(uri: Uri): String? {
+        var result: String? = null
+        if (uri.scheme == "content") {
+            context?.contentResolver?.query(uri, null, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (nameIndex != -1) {
+                        result = cursor.getString(nameIndex)
+                    }
+                }
+            }
+        }
+        if (result == null) {
+            result = uri.path?.let {
+                val cut = it.lastIndexOf('/')
+                if (cut != -1) {
+                    it.substring(cut + 1)
+                } else {
+                    it
+                }
+            }
+        }
+        return result
+    }
+    
+    /**
+     * 从URI获取文件路径（如果是file://）或复制到临时文件
+     */
+    private suspend fun getFilePathFromUri(context: Context, uri: Uri): String? = withContext(Dispatchers.IO) {
+        try {
+            // 如果是file:// URI，直接返回路径
+            if (uri.scheme == "file") {
+                return@withContext uri.path
+            }
+            
+            // 对于content:// URI，复制到临时文件
+            val fileName = getFileName(uri) ?: "temp_raw.raw"
+            val tempFile = File(context.cacheDir, fileName)
+            
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                FileOutputStream(tempFile).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            
+            if (tempFile.exists() && tempFile.length() > 0) {
+                return@withContext tempFile.absolutePath
+            }
+            
+            null
+        } catch (e: Exception) {
+            android.util.Log.e("ImageProcessor", "Failed to get file path from URI", e)
+            null
+        }
     }
 }

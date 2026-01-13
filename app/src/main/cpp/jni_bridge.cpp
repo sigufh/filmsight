@@ -39,7 +39,17 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRaw(
         return 0;
     }
     
+    if (filePath == nullptr) {
+        LOGE("File path is null");
+        return 0;
+    }
+    
     const char* path = env->GetStringUTFChars(filePath, nullptr);
+    if (path == nullptr) {
+        LOGE("Failed to get string chars");
+        return 0;
+    }
+    
     RawMetadata metadata;
     
     try {
@@ -49,9 +59,13 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRaw(
         // 将图像数据存储在堆上，返回指针
         LinearImage* imagePtr = new LinearImage(std::move(image));
         return reinterpret_cast<jlong>(imagePtr);
+    } catch (const std::exception& e) {
+        env->ReleaseStringUTFChars(filePath, path);
+        LOGE("Exception loading RAW: %s", e.what());
+        return 0;
     } catch (...) {
         env->ReleaseStringUTFChars(filePath, path);
-        LOGE("Failed to load RAW image");
+        LOGE("Unknown exception loading RAW");
         return 0;
     }
 }
