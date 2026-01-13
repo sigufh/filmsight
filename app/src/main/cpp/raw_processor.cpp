@@ -941,6 +941,10 @@ void RawProcessor::parseTiffIfd(std::ifstream& file,
             (entry[8] | (entry[9] << 8) | (entry[10] << 16) | (entry[11] << 24)) :
             ((entry[8] << 24) | (entry[9] << 16) | (entry[10] << 8) | entry[11]);
         
+        // 调试：打印所有标签ID
+        LOGI("parseTiffIfd: Main IFD Tag %u: type=%u, count=%u, offset=%u", 
+             tagId, dataType, count, valueOffset);
+        
         // 解析常见标签
         switch (tagId) {
             case 256:  // ImageWidth
@@ -1155,6 +1159,10 @@ bool RawProcessor::findArwRawDataLocation(std::ifstream& file,
         uint32_t valueOffset = isLittleEndian ?
             (entry[8] | (entry[9] << 8) | (entry[10] << 16) | (entry[11] << 24)) :
             ((entry[8] << 24) | (entry[9] << 16) | (entry[10] << 8) | entry[11]);
+        
+        // 调试：打印所有标签ID
+        LOGI("findArwRawDataLocation: Tag %u: type=%u, count=%u, offset=%u", 
+             tagId, dataType, count, valueOffset);
         
         if (tagId == 273) {  // StripOffsets
             stripOffsetsOffset = valueOffset;
