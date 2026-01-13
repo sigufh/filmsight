@@ -222,6 +222,7 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
          metadata.width, metadata.height, metadata.iso, metadata.exposureTime, 
          metadata.aperture, metadata.focalLength);
     LOGI("loadArwFile: Camera: %s", metadata.cameraModel);
+    LOGI("loadArwFile: About to search for RAW data, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
     
     // 设置CFA模式（ARW通常使用RGGB）
     metadata.cfaPattern[0] = 0;  // R
@@ -236,8 +237,12 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     uint32_t rawHeight = metadata.height;
     uint16_t rawBitsPerSample = metadata.bitsPerSample;
     
+    LOGI("loadArwFile: Attempting to find RAW data location, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
     bool foundRawData = findArwRawDataLocation(file, ifdOffset, isLittleEndian, fileSize,
                                               stripOffset, stripByteCount, rawWidth, rawHeight, rawBitsPerSample);
+    
+    LOGI("loadArwFile: findArwRawDataLocation returned %s, stripOffset=%u, stripByteCount=%u", 
+         foundRawData ? "true" : "false", stripOffset, stripByteCount);
     
     if (foundRawData && stripOffset > 0 && stripByteCount > 0) {
         LOGI("loadArwFile: Found RAW data at offset %u, size %u bytes", stripOffset, stripByteCount);
@@ -1024,18 +1029,32 @@ bool RawProcessor::findArwRawDataLocation(std::ifstream& file,
                                          uint32_t& width,
                                          uint32_t& height,
                                          uint16_t& bitsPerSample) {
+    LOGI("findArwRawDataLocation: Starting, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
+    
     if (ifdOffset == 0 || ifdOffset >= fileSize) {
+        LOGE("findArwRawDataLocation: Invalid IFD offset %u (fileSize=%zu)", ifdOffset, fileSize);
         return false;
     }
     
     file.seekg(ifdOffset, std::ios::beg);
+    if (file.fail()) {
+        LOGE("findArwRawDataLocation: Failed to seek to IFD offset %u", ifdOffset);
+        return false;
+    }
     
     // 读取IFD条目数量
     uint8_t entryCountBytes[2];
     file.read(reinterpret_cast<char*>(entryCountBytes), 2);
+    if (file.gcount() != 2) {
+        LOGE("findArwRawDataLocation: Failed to read IFD entry count");
+        return false;
+    }
+    
     uint16_t entryCount = isLittleEndian ?
         (entryCountBytes[0] | (entryCountBytes[1] << 8)) :
         ((entryCountBytes[0] << 8) | entryCountBytes[1]);
+    
+    LOGI("findArwRawDataLocation: IFD entry count = %u", entryCount);
     
     uint32_t stripOffsetsOffset = 0;
     uint32_t stripByteCountsOffset = 0;
@@ -1086,8 +1105,12 @@ bool RawProcessor::findArwRawDataLocation(std::ifstream& file,
         }
     }
     
+    LOGI("findArwRawDataLocation: After scanning IFD - stripOffsetsOffset=%u, stripByteCountsOffset=%u", 
+         stripOffsetsOffset, stripByteCountsOffset);
+    
     if (stripOffsetsOffset == 0 || stripByteCountsOffset == 0) {
-        LOGI("findArwRawDataLocation: Could not find StripOffsets or StripByteCounts");
+        LOGE("findArwRawDataLocation: Could not find StripOffsets (offset=%u) or StripByteCounts (offset=%u)", 
+             stripOffsetsOffset, stripByteCountsOffset);
         return false;
     }
     
