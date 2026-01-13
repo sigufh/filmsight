@@ -83,9 +83,19 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     // 简化实现：读取基本信息和占位数据
     // 实际应解析TIFF IFD结构
     
-    // 默认ARW参数
-    metadata.width = 6000;  // 典型ARW尺寸
-    metadata.height = 4000;
+    // 读取文件大小
+    file.seekg(0, std::ios::end);
+    size_t fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+    
+    // 限制图像尺寸，避免创建过大的图像导致内存问题
+    // 使用较小的尺寸作为预览
+    uint32_t maxWidth = 2000;
+    uint32_t maxHeight = 2000;
+    
+    // 默认ARW参数（使用较小的预览尺寸）
+    metadata.width = maxWidth;
+    metadata.height = maxHeight;
     metadata.iso = 400.0f;
     metadata.exposureTime = 1.0f / 125.0f;
     metadata.blackLevel = 512.0f;  // ARW典型黑电平
@@ -100,14 +110,10 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     // 创建线性图像
     LinearImage image(metadata.width, metadata.height);
     
-    // 读取文件大小，估算数据位置
-    file.seekg(0, std::ios::end);
-    size_t fileSize = file.tellg();
-    file.seekg(0, std::ios::beg);
-    
-    // 简化实现：填充占位数据
+    // 简化实现：填充占位数据（灰色）
     // 实际应从文件中读取Bayer数据并去马赛克
-    for (uint32_t i = 0; i < image.width * image.height; ++i) {
+    const uint32_t pixelCount = image.width * image.height;
+    for (uint32_t i = 0; i < pixelCount; ++i) {
         image.r[i] = 0.5f;
         image.g[i] = 0.5f;
         image.b[i] = 0.5f;

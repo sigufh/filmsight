@@ -39,6 +39,7 @@ import com.filmtracker.app.ai.BeautyAIAnalyzer
 import com.filmtracker.app.util.BeautyParamsConverter
 import com.filmtracker.app.util.ImageProcessor
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import android.graphics.Bitmap
 
@@ -87,14 +88,46 @@ fun ProcessingScreen(
         skipPartiallyExpanded = true
     )
     
-    // 当参数变化时，重新处理图像（实时预览）
-    LaunchedEffect(filmParams, imageUri) {
+    // 使用 remember 来存储处理任务，避免重复触发
+    var processingJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    
+    // 当 imageUri 变化时，立即处理
+    LaunchedEffect(imageUri) {
+        processingJob?.cancel()
         if (imageUri != null && !isProcessing) {
             isProcessing = true
-            coroutineScope.launch {
-                val result = imageProcessor.processImage(imageUri, filmParams)
-                processedBitmap = result
-                isProcessing = false
+            processingJob = coroutineScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                try {
+                    val result = imageProcessor.processImage(imageUri, filmParams)
+                    processedBitmap = result
+                } catch (e: Exception) {
+                    android.util.Log.e("ProcessingScreen", "Error processing image", e)
+                } finally {
+                    isProcessing = false
+                }
+            }
+        } else if (imageUri == null) {
+            processedBitmap = null
+        }
+    }
+    
+    // 参数变化时的防抖处理（延迟500ms）
+    LaunchedEffect(filmParams) {
+        processingJob?.cancel()
+        if (imageUri != null && !isProcessing && processedBitmap != null) {
+            delay(500) // 防抖延迟
+            if (imageUri != null && !isProcessing) {
+                isProcessing = true
+                processingJob = coroutineScope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                    try {
+                        val result = imageProcessor.processImage(imageUri, filmParams)
+                        processedBitmap = result
+                    } catch (e: Exception) {
+                        android.util.Log.e("ProcessingScreen", "Error processing image", e)
+                    } finally {
+                        isProcessing = false
+                    }
+                }
             }
         }
     }
