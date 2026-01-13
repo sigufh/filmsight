@@ -21,6 +21,10 @@ set(FILM_ENGINE_SOURCES
     hsl_adjust.cpp
 )
 
+set(IMAGE_CONVERTER_SOURCES
+    image_converter.cpp
+)
+
 set(JNI_SOURCES
     jni_bridge.cpp
 )
@@ -35,6 +39,7 @@ include_directories(
 add_library(filmtracker SHARED
     ${RAW_PROCESSOR_SOURCES}
     ${FILM_ENGINE_SOURCES}
+    ${IMAGE_CONVERTER_SOURCES}
     ${JNI_SOURCES}
 )
 
