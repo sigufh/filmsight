@@ -28,26 +28,63 @@ class ImageProcessor(private val context: Context? = null) {
         params: FilmParams
     ): Bitmap? = withContext(Dispatchers.Default) {
         try {
+            if (context == null) {
+                android.util.Log.e("ImageProcessor", "Context is null")
+                return@withContext null
+            }
+            
             // 尝试作为RAW文件处理
-            val linearImage = rawProcessor.loadRaw(imageUri)
-            if (linearImage != null) {
-                return@withContext processLinearImage(linearImage, params)
+            try {
+                val linearImage = rawProcessor.loadRaw(imageUri)
+                if (linearImage != null) {
+                    return@withContext processLinearImage(linearImage, params)
+                }
+            } catch (e: Exception) {
+                android.util.Log.d("ImageProcessor", "Not a RAW file, trying as regular image")
             }
             
             // 如果不是RAW，尝试作为普通图片处理
-            if (context != null) {
-                val uri = Uri.parse(imageUri)
-                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                val bitmap = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-                
-                if (bitmap != null) {
-                    return@withContext processBitmap(bitmap, params)
+            val uri = Uri.parse(imageUri)
+            val inputStream: InputStream? = try {
+                context.contentResolver.openInputStream(uri)
+            } catch (e: Exception) {
+                android.util.Log.e("ImageProcessor", "Failed to open input stream", e)
+                null
+            }
+            
+            if (inputStream == null) {
+                android.util.Log.e("ImageProcessor", "Input stream is null")
+                return@withContext null
+            }
+            
+            val bitmap = try {
+                BitmapFactory.decodeStream(inputStream)
+            } catch (e: Exception) {
+                android.util.Log.e("ImageProcessor", "Failed to decode bitmap", e)
+                null
+            } finally {
+                try {
+                    inputStream.close()
+                } catch (e: Exception) {
+                    android.util.Log.e("ImageProcessor", "Failed to close stream", e)
                 }
             }
             
-            null
+            if (bitmap == null) {
+                android.util.Log.e("ImageProcessor", "Decoded bitmap is null")
+                return@withContext null
+            }
+            
+            // 确保 Bitmap 格式正确
+            val rgbaBitmap = if (bitmap.config != Bitmap.Config.ARGB_8888) {
+                bitmap.copy(Bitmap.Config.ARGB_8888, false)
+            } else {
+                bitmap
+            }
+            
+            return@withContext processBitmap(rgbaBitmap, params)
         } catch (e: Exception) {
+            android.util.Log.e("ImageProcessor", "Error processing image", e)
             e.printStackTrace()
             null
         }

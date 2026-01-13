@@ -65,11 +65,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-        
-        // 首次打开时请求权限（延迟执行，避免在 setContent 中调用）
-        lifecycleScope.launch {
-            checkPermissionsAndOpenPicker(requestPermissionLauncher2, imagePickerLauncher2)
-        }
     }
     
     private fun checkPermissionsAndOpenPicker(

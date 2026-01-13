@@ -7,6 +7,7 @@
 #include "film_params.h"
 #include <string>
 #include <vector>
+#include <exception>
 
 #define LOG_TAG "FilmTracker"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -308,37 +309,84 @@ JNIEXPORT jlong JNICALL
 Java_com_filmtracker_app_native_ImageConverterNative_nativeBitmapToLinear(
     JNIEnv *env, jobject thiz, jobject bitmap) {
     
+    if (bitmap == nullptr) {
+        LOGE("Bitmap is null");
+        return 0;
+    }
+    
     AndroidBitmapInfo info;
-    if (AndroidBitmap_getInfo(env, bitmap, &info) != ANDROID_BITMAP_RESULT_SUCCESS) {
-        LOGE("Failed to get bitmap info");
+    int result = AndroidBitmap_getInfo(env, bitmap, &info);
+    if (result != ANDROID_BITMAP_RESULT_SUCCESS) {
+        LOGE("Failed to get bitmap info: %d", result);
         return 0;
     }
     
-    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888) {
-        LOGE("Unsupported bitmap format");
+    // 支持多种格式
+    if (info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 && 
+        info.format != ANDROID_BITMAP_FORMAT_RGB_565) {
+        LOGE("Unsupported bitmap format: %d", info.format);
         return 0;
     }
     
-    void* pixels;
-    if (AndroidBitmap_lockPixels(env, bitmap, &pixels) != ANDROID_BITMAP_RESULT_SUCCESS) {
-        LOGE("Failed to lock bitmap pixels");
+    void* pixels = nullptr;
+    result = AndroidBitmap_lockPixels(env, bitmap, &pixels);
+    if (result != ANDROID_BITMAP_RESULT_SUCCESS || pixels == nullptr) {
+        LOGE("Failed to lock bitmap pixels: %d", result);
         return 0;
     }
     
     try {
-        LinearImage linear = ImageConverter::sRGBToLinear(
-            reinterpret_cast<const uint8_t*>(pixels),
-            info.width,
-            info.height
-        );
+        const uint8_t* pixelData = reinterpret_cast<const uint8_t*>(pixels);
         
+        // 如果是 RGB_565，需要转换
+        if (info.format == ANDROID_BITMAP_FORMAT_RGB_565) {
+            // 创建临时 RGBA 缓冲区
+            uint32_t pixelCount = info.width * info.height;
+            std::vector<uint8_t> rgbaData(pixelCount * 4);
+            
+            const uint16_t* rgb565 = reinterpret_cast<const uint16_t*>(pixels);
+            for (uint32_t i = 0; i < pixelCount; ++i) {
+                uint16_t pixel = rgb565[i];
+                uint8_t r = ((pixel >> 11) & 0x1F) << 3;
+                uint8_t g = ((pixel >> 5) & 0x3F) << 2;
+                uint8_t b = (pixel & 0x1F) << 3;
+                
+                rgbaData[i * 4 + 0] = r;
+                rgbaData[i * 4 + 1] = g;
+                rgbaData[i * 4 + 2] = b;
+                rgbaData[i * 4 + 3] = 255;
+            }
+            
+            LinearImage linear = ImageConverter::sRGBToLinear(
+                rgbaData.data(),
+                info.width,
+                info.height
+            );
+            
+            AndroidBitmap_unlockPixels(env, bitmap);
+            
+            LinearImage* linearPtr = new LinearImage(std::move(linear));
+            return reinterpret_cast<jlong>(linearPtr);
+        } else {
+            // RGBA_8888 格式
+            LinearImage linear = ImageConverter::sRGBToLinear(
+                pixelData,
+                info.width,
+                info.height
+            );
+            
+            AndroidBitmap_unlockPixels(env, bitmap);
+            
+            LinearImage* linearPtr = new LinearImage(std::move(linear));
+            return reinterpret_cast<jlong>(linearPtr);
+        }
+    } catch (const std::exception& e) {
         AndroidBitmap_unlockPixels(env, bitmap);
-        
-        LinearImage* linearPtr = new LinearImage(std::move(linear));
-        return reinterpret_cast<jlong>(linearPtr);
+        LOGE("Exception in bitmap conversion: %s", e.what());
+        return 0;
     } catch (...) {
         AndroidBitmap_unlockPixels(env, bitmap);
-        LOGE("Failed to convert bitmap to linear");
+        LOGE("Unknown exception in bitmap conversion");
         return 0;
     }
 }
