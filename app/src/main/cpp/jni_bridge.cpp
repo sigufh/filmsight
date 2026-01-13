@@ -81,9 +81,10 @@ Java_com_filmtracker_app_native_FilmEngineNative_nativeInit(JNIEnv *env, jobject
 
 /**
  * 创建胶片参数对象
+ * 注意：对应 Kotlin 中 FilmParamsNative.Companion.nativeCreate()
  */
 JNIEXPORT jlong JNICALL
-Java_com_filmtracker_app_native_FilmParamsNative_nativeCreate(JNIEnv *env, jobject thiz) {
+Java_com_filmtracker_app_native_FilmParamsNative_00024Companion_nativeCreate(JNIEnv *env, jobject thiz) {
     FilmParams* params = new FilmParams();
     return reinterpret_cast<jlong>(params);
 }
