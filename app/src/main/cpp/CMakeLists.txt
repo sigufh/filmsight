@@ -8,28 +8,20 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math")
 # 集成 LibRaw 库（用于解析 RAW 文件）
 include(FetchContent)
 
+# 设置 LibRaw 构建选项（必须在 FetchContent_Declare 之前设置）
+set(LIBRAW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(LIBRAW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(LIBRAW_BUILD_DEMOSAIC_PACK_GPL2 OFF CACHE BOOL "" FORCE)
+set(LIBRAW_BUILD_DEMOSAIC_PACK_GPL3 OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(
     libraw
     GIT_REPOSITORY https://github.com/LibRaw/LibRaw.git
     GIT_TAG 0.21.1
 )
 
-# 设置 LibRaw 构建选项（在 FetchContent_Populate 之前设置）
-set(LIBRAW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-set(LIBRAW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(LIBRAW_BUILD_DEMOSAIC_PACK_GPL2 OFF CACHE BOOL "" FORCE)
-set(LIBRAW_BUILD_DEMOSAIC_PACK_GPL3 OFF CACHE BOOL "" FORCE)
-
-# 获取 LibRaw 源码
-FetchContent_GetProperties(libraw)
-if(NOT libraw_POPULATED)
-    FetchContent_Populate(libraw)
-    set(libraw_SOURCE_DIR ${libraw_SOURCE_DIR} CACHE PATH "" FORCE)
-    set(libraw_BINARY_DIR ${libraw_BINARY_DIR} CACHE PATH "" FORCE)
-endif()
-
-# 添加 LibRaw 子目录（这会执行 LibRaw 的 CMakeLists.txt）
-add_subdirectory(${libraw_SOURCE_DIR} ${libraw_BINARY_DIR})
+# 获取 LibRaw 源码并添加到构建
+FetchContent_MakeAvailable(libraw)
 
 # Source files
 set(RAW_PROCESSOR_SOURCES
@@ -61,6 +53,11 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+# 添加 LibRaw 包含目录（如果已获取）
+if(libraw_SOURCE_DIR)
+    include_directories(${libraw_SOURCE_DIR})
+endif()
+
 # Create shared library
 add_library(filmtracker SHARED
     ${RAW_PROCESSOR_SOURCES}
@@ -75,27 +72,44 @@ find_library(jnigraphics-lib jnigraphics)
 find_library(m-lib m)
 
 # 链接 LibRaw
-# LibRaw 通过 FetchContent_MakeAvailable 创建的目标名称通常是 "raw"
-# 但某些版本可能使用不同的名称，我们需要检查并链接正确的目标
+# LibRaw 通过 FetchContent_MakeAvailable 创建的目标
+# 检查常见的目标名称
+set(LIBRAW_TARGET_FOUND FALSE)
 if(TARGET raw)
     target_link_libraries(filmtracker raw)
-    target_include_directories(filmtracker PRIVATE ${libraw_SOURCE_DIR})
-    message(STATUS "LibRaw: Linking to target 'raw'")
+    set(LIBRAW_TARGET_FOUND TRUE)
+    message(STATUS "LibRaw: Successfully linked to target 'raw'")
 elseif(TARGET libraw)
     target_link_libraries(filmtracker libraw)
-    target_include_directories(filmtracker PRIVATE ${libraw_SOURCE_DIR})
-    message(STATUS "LibRaw: Linking to target 'libraw'")
+    set(LIBRAW_TARGET_FOUND TRUE)
+    message(STATUS "LibRaw: Successfully linked to target 'libraw'")
 elseif(TARGET LibRaw::raw)
     target_link_libraries(filmtracker LibRaw::raw)
-    message(STATUS "LibRaw: Linking to target 'LibRaw::raw'")
-else()
-    # 如果找不到目标，尝试手动添加包含目录和链接库
-    if(EXISTS ${libraw_SOURCE_DIR})
-        target_include_directories(filmtracker PRIVATE ${libraw_SOURCE_DIR})
-        message(STATUS "LibRaw: Added include directory ${libraw_SOURCE_DIR}")
-        message(WARNING "LibRaw target not found, but include directory added. You may need to manually link the library.")
+    set(LIBRAW_TARGET_FOUND TRUE)
+    message(STATUS "LibRaw: Successfully linked to target 'LibRaw::raw'")
+endif()
+
+if(NOT LIBRAW_TARGET_FOUND)
+    # 如果 LibRaw 的 CMake 不支持 Android，尝试手动编译
+    message(WARNING "LibRaw CMake target not found. Attempting manual compilation...")
+    
+    if(libraw_SOURCE_DIR AND EXISTS ${libraw_SOURCE_DIR}/libraw/libraw.h)
+        # 手动添加 LibRaw 源文件
+        file(GLOB LIBRAW_SOURCES 
+            "${libraw_SOURCE_DIR}/libraw/*.cpp"
+            "${libraw_SOURCE_DIR}/internal/*.cpp"
+        )
+        
+        # 创建 LibRaw 静态库
+        add_library(libraw_static STATIC ${LIBRAW_SOURCES})
+        target_include_directories(libraw_static PUBLIC ${libraw_SOURCE_DIR})
+        target_compile_definitions(libraw_static PRIVATE LIBRAW_NODLL)
+        
+        # 链接到主库
+        target_link_libraries(filmtracker libraw_static)
+        message(STATUS "LibRaw: Manually compiled and linked")
     else()
-        message(FATAL_ERROR "LibRaw not found. Please check the FetchContent configuration.")
+        message(FATAL_ERROR "LibRaw source not found. Please check FetchContent configuration.")
     endif()
 endif()
 
