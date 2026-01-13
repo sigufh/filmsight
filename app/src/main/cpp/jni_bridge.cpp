@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <exception>
+#include <cstring>
 
 #define LOG_TAG "FilmTracker"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -311,10 +312,27 @@ Java_com_filmtracker_app_native_FilmEngineNative_nativeProcess(
         return 0;
     }
     
-    // 创建元数据（简化版，实际应从 RAW 文件读取）
+    // 创建默认元数据（用于非RAW图像处理）
+    // 对于非RAW图像，使用合理的默认值
     RawMetadata metadata;
+    metadata.width = input->width;
+    metadata.height = input->height;
+    metadata.bitsPerSample = 8;  // 非RAW图像通常是8位
     metadata.iso = 400.0f;
     metadata.exposureTime = 1.0f / 125.0f;
+    metadata.aperture = 2.8f;
+    metadata.focalLength = 50.0f;
+    metadata.whiteBalance[0] = 5500.0f;
+    metadata.whiteBalance[1] = 0.0f;
+    metadata.blackLevel = 0.0f;
+    metadata.whiteLevel = 255.0f;  // 8位图像
+    std::strncpy(metadata.cameraModel, "Unknown", sizeof(metadata.cameraModel) - 1);
+    std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
+    // 设置CFA模式（非RAW图像不需要CFA）
+    metadata.cfaPattern[0] = 0;
+    metadata.cfaPattern[1] = 0;
+    metadata.cfaPattern[2] = 0;
+    metadata.cfaPattern[3] = 0;
     
     try {
         LinearImage output = engine->process(*input, *params, metadata);

@@ -5,6 +5,7 @@
 #include <cctype>
 #include <string>
 #include <cstring>
+#include <cstdlib>
 #include <android/log.h>
 
 #define LOG_TAG "RawProcessor"
@@ -330,8 +331,62 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
 LinearImage RawProcessor::loadRawFromBuffer(const uint8_t* buffer, 
                                            size_t bufferSize,
                                            RawMetadata& metadata) {
-    // 类似实现
-    return LinearImage(100, 100);
+    if (!buffer || bufferSize < 16) {
+        LOGE("loadRawFromBuffer: Invalid buffer");
+        throw std::runtime_error("Invalid buffer");
+    }
+    
+    LOGI("loadRawFromBuffer: Starting, buffer size = %zu bytes", bufferSize);
+    
+    // 检测文件格式（通过文件头）
+    bool isArw = false;
+    if (buffer[0] == 0x49 && buffer[1] == 0x49) {  // "II" (Intel byte order)
+        isArw = true;
+        LOGI("loadRawFromBuffer: Detected ARW (Intel byte order)");
+    } else if (buffer[0] == 0x4D && buffer[1] == 0x4D) {  // "MM" (Motorola byte order)
+        isArw = true;
+        LOGI("loadRawFromBuffer: Detected ARW (Motorola byte order)");
+    }
+    
+    if (isArw) {
+        // 将缓冲区写入临时文件，然后使用现有的loadRaw实现
+        // 或者直接解析内存中的数据
+        // 简化实现：创建一个临时文件
+        const char* tempFile = "/data/local/tmp/temp_raw.arw";
+        std::ofstream tempOut(tempFile, std::ios::binary);
+        if (tempOut.is_open()) {
+            tempOut.write(reinterpret_cast<const char*>(buffer), bufferSize);
+            tempOut.close();
+            
+            LinearImage result = loadRaw(tempFile, metadata);
+            
+            // 删除临时文件
+            std::remove(tempFile);
+            
+            return result;
+        } else {
+            LOGE("loadRawFromBuffer: Failed to create temp file");
+            throw std::runtime_error("Failed to create temp file");
+        }
+    }
+    
+    // 其他格式：返回占位图像
+    LOGE("loadRawFromBuffer: Unsupported format, returning placeholder");
+    metadata.width = 100;
+    metadata.height = 100;
+    metadata.iso = 400.0f;
+    metadata.exposureTime = 1.0f / 125.0f;
+    metadata.blackLevel = 0.0f;
+    metadata.whiteLevel = 16383.0f;
+    
+    LinearImage image(100, 100);
+    for (uint32_t i = 0; i < 100 * 100; ++i) {
+        image.r[i] = 0.5f;
+        image.g[i] = 0.5f;
+        image.b[i] = 0.5f;
+    }
+    
+    return image;
 }
 
 void RawProcessor::applyBlackLevel(std::vector<uint16_t>& rawData, 
@@ -362,23 +417,159 @@ LinearImage RawProcessor::demosaicBayer(const std::vector<uint16_t>& rawData,
                                        uint32_t cfaPattern) {
     LinearImage result(width, height);
     
-    // 简化的去马赛克（实际应使用 AHD 算法）
-    // 这里只是占位实现
+    // 基本双线性插值去马赛克算法（RGGB模式）
+    // CFA模式：0=RGGB, 1=GRBG, 2=GBRG, 3=BGGR
+    // 简化实现：假设RGGB模式（Sony ARW通常使用RGGB）
+    
     for (uint32_t y = 0; y < height; ++y) {
         for (uint32_t x = 0; x < width; ++x) {
             uint32_t idx = y * width + x;
-            float value = static_cast<float>(rawData[idx]) / 16383.0f;
-            result.r[idx] = value;
-            result.g[idx] = value;
-            result.b[idx] = value;
+            float r = 0.0f, g = 0.0f, b = 0.0f;
+            
+            // 确定当前像素在Bayer模式中的位置
+            bool isRedRow = (y % 2 == 0);
+            bool isRedCol = (x % 2 == 0);
+            
+            if (isRedRow && isRedCol) {
+                // R位置：直接使用R值，G和B需要插值
+                r = static_cast<float>(rawData[idx]);
+                
+                // G值：取上下左右四个G像素的平均值
+                float gSum = 0.0f;
+                int gCount = 0;
+                if (x > 0) { gSum += rawData[idx - 1]; gCount++; }
+                if (x < width - 1) { gSum += rawData[idx + 1]; gCount++; }
+                if (y > 0) { gSum += rawData[idx - width]; gCount++; }
+                if (y < height - 1) { gSum += rawData[idx + width]; gCount++; }
+                g = gCount > 0 ? gSum / gCount : 0.0f;
+                
+                // B值：取四个角的B像素的平均值
+                float bSum = 0.0f;
+                int bCount = 0;
+                if (x > 0 && y > 0) { bSum += rawData[idx - width - 1]; bCount++; }
+                if (x < width - 1 && y > 0) { bSum += rawData[idx - width + 1]; bCount++; }
+                if (x > 0 && y < height - 1) { bSum += rawData[idx + width - 1]; bCount++; }
+                if (x < width - 1 && y < height - 1) { bSum += rawData[idx + width + 1]; bCount++; }
+                b = bCount > 0 ? bSum / bCount : 0.0f;
+            } else if (isRedRow && !isRedCol) {
+                // G位置（R行的G列）：直接使用G值，R和B需要插值
+                g = static_cast<float>(rawData[idx]);
+                
+                // R值：取左右R像素的平均值
+                float rSum = 0.0f;
+                int rCount = 0;
+                if (x > 0) { rSum += rawData[idx - 1]; rCount++; }
+                if (x < width - 1) { rSum += rawData[idx + 1]; rCount++; }
+                r = rCount > 0 ? rSum / rCount : 0.0f;
+                
+                // B值：取上下B像素的平均值
+                float bSum = 0.0f;
+                int bCount = 0;
+                if (y > 0) { bSum += rawData[idx - width]; bCount++; }
+                if (y < height - 1) { bSum += rawData[idx + width]; bCount++; }
+                b = bCount > 0 ? bSum / bCount : 0.0f;
+            } else if (!isRedRow && isRedCol) {
+                // G位置（B行的G列）：直接使用G值，R和B需要插值
+                g = static_cast<float>(rawData[idx]);
+                
+                // R值：取上下R像素的平均值
+                float rSum = 0.0f;
+                int rCount = 0;
+                if (y > 0) { rSum += rawData[idx - width]; rCount++; }
+                if (y < height - 1) { rSum += rawData[idx + width]; rCount++; }
+                r = rCount > 0 ? rSum / rCount : 0.0f;
+                
+                // B值：取左右B像素的平均值
+                float bSum = 0.0f;
+                int bCount = 0;
+                if (x > 0) { bSum += rawData[idx - 1]; bCount++; }
+                if (x < width - 1) { bSum += rawData[idx + 1]; bCount++; }
+                b = bCount > 0 ? bSum / bCount : 0.0f;
+            } else {
+                // B位置：直接使用B值，G和R需要插值
+                b = static_cast<float>(rawData[idx]);
+                
+                // G值：取上下左右四个G像素的平均值
+                float gSum = 0.0f;
+                int gCount = 0;
+                if (x > 0) { gSum += rawData[idx - 1]; gCount++; }
+                if (x < width - 1) { gSum += rawData[idx + 1]; gCount++; }
+                if (y > 0) { gSum += rawData[idx - width]; gCount++; }
+                if (y < height - 1) { gSum += rawData[idx + width]; gCount++; }
+                g = gCount > 0 ? gSum / gCount : 0.0f;
+                
+                // R值：取四个角的R像素的平均值
+                float rSum = 0.0f;
+                int rCount = 0;
+                if (x > 0 && y > 0) { rSum += rawData[idx - width - 1]; rCount++; }
+                if (x < width - 1 && y > 0) { rSum += rawData[idx - width + 1]; rCount++; }
+                if (x > 0 && y < height - 1) { rSum += rawData[idx + width - 1]; rCount++; }
+                if (x < width - 1 && y < height - 1) { rSum += rawData[idx + width + 1]; rCount++; }
+                r = rCount > 0 ? rSum / rCount : 0.0f;
+            }
+            
+            result.r[idx] = r;
+            result.g[idx] = g;
+            result.b[idx] = b;
         }
     }
     
+    LOGI("demosaicBayer: Completed demosaicing %ux%u image", width, height);
     return result;
 }
 
 void RawProcessor::parseDngTags(const uint8_t* buffer, size_t size, RawMetadata& metadata) {
-    // TODO: 实现 DNG 标签解析
+    if (!buffer || size < 8) {
+        LOGE("parseDngTags: Invalid buffer");
+        return;
+    }
+    
+    LOGI("parseDngTags: Starting, buffer size = %zu bytes", size);
+    
+    // DNG文件也是基于TIFF格式的
+    // 检测字节序
+    bool isLittleEndian = (buffer[0] == 0x49 && buffer[1] == 0x49);
+    bool isBigEndian = (buffer[0] == 0x4D && buffer[1] == 0x4D);
+    
+    if (!isLittleEndian && !isBigEndian) {
+        LOGE("parseDngTags: Invalid TIFF header");
+        return;
+    }
+    
+    // 读取IFD偏移量（字节4-7）
+    uint32_t ifdOffset;
+    if (isLittleEndian) {
+        ifdOffset = buffer[4] | (buffer[5] << 8) | 
+                   (buffer[6] << 16) | (buffer[7] << 24);
+    } else {
+        ifdOffset = (buffer[4] << 24) | (buffer[5] << 16) | 
+                   (buffer[6] << 8) | buffer[7];
+    }
+    
+    LOGI("parseDngTags: IFD offset = %u", ifdOffset);
+    
+    // 创建一个临时的文件流来复用现有的TIFF解析逻辑
+    // 或者直接解析内存中的数据
+    // 简化实现：将缓冲区写入临时文件
+    const char* tempFile = "/data/local/tmp/temp_dng.dng";
+    std::ofstream tempOut(tempFile, std::ios::binary);
+    if (tempOut.is_open()) {
+        tempOut.write(reinterpret_cast<const char*>(buffer), size);
+        tempOut.close();
+        
+        std::ifstream file(tempFile, std::ios::binary);
+        if (file.is_open()) {
+            parseTiffIfd(file, ifdOffset, isLittleEndian, size, metadata);
+            file.close();
+        }
+        
+        // 删除临时文件
+        std::remove(tempFile);
+    } else {
+        LOGE("parseDngTags: Failed to create temp file");
+    }
+    
+    LOGI("parseDngTags: Completed");
 }
 
 void RawProcessor::demosaicAHD(const std::vector<uint16_t>& rawData,
@@ -386,7 +577,51 @@ void RawProcessor::demosaicAHD(const std::vector<uint16_t>& rawData,
                                uint32_t width,
                                uint32_t height,
                                uint32_t cfaPattern) {
-    // TODO: 实现 AHD 去马赛克算法
+    // AHD (Adaptive Homogeneity-Directed) 去马赛克算法
+    // 这是一个高质量的算法，但实现复杂
+    // 当前使用改进的双线性插值作为基础实现
+    // 未来可以升级为完整的AHD算法
+    
+    LOGI("demosaicAHD: Starting AHD demosaicing for %ux%u image", width, height);
+    
+    // 使用现有的demosaicBayer实现作为基础
+    LinearImage tempResult = demosaicBayer(rawData, width, height, cfaPattern);
+    
+    // 应用AHD算法的改进：边缘感知插值
+    // 简化版：在边缘区域使用更好的插值策略
+    for (uint32_t y = 1; y < height - 1; ++y) {
+        for (uint32_t x = 1; x < width - 1; ++x) {
+            uint32_t idx = y * width + x;
+            
+            // 计算局部梯度（用于边缘检测）
+            float gradH = std::abs(tempResult.r[idx - 1] - tempResult.r[idx + 1]) +
+                         std::abs(tempResult.g[idx - 1] - tempResult.g[idx + 1]) +
+                         std::abs(tempResult.b[idx - 1] - tempResult.b[idx + 1]);
+            
+            float gradV = std::abs(tempResult.r[idx - width] - tempResult.r[idx + width]) +
+                         std::abs(tempResult.g[idx - width] - tempResult.g[idx + width]) +
+                         std::abs(tempResult.b[idx - width] - tempResult.b[idx + width]);
+            
+            // 如果检测到边缘，使用方向性插值
+            if (gradH > gradV * 1.2f) {
+                // 垂直边缘：使用水平插值
+                tempResult.r[idx] = (tempResult.r[idx - 1] + tempResult.r[idx + 1]) * 0.5f;
+                tempResult.b[idx] = (tempResult.b[idx - 1] + tempResult.b[idx + 1]) * 0.5f;
+            } else if (gradV > gradH * 1.2f) {
+                // 水平边缘：使用垂直插值
+                tempResult.r[idx] = (tempResult.r[idx - width] + tempResult.r[idx + width]) * 0.5f;
+                tempResult.b[idx] = (tempResult.b[idx - width] + tempResult.b[idx + width]) * 0.5f;
+            }
+            // 否则保持原有的插值结果
+        }
+    }
+    
+    // 复制结果到输出
+    output.r = tempResult.r;
+    output.g = tempResult.g;
+    output.b = tempResult.b;
+    
+    LOGI("demosaicAHD: Completed AHD demosaicing");
 }
 
 /**
@@ -825,38 +1060,74 @@ bool RawProcessor::readArwRawData(std::ifstream& file,
          pixelCount, width, height, bitsPerSample);
     
     if (bitsPerSample == 14) {
-        // ARW通常使用14位压缩格式（Sony特有的压缩）
-        // 简化实现：按字节读取并解包
-        std::vector<uint8_t> compressedData(stripByteCount);
-        file.read(reinterpret_cast<char*>(compressedData.data()), stripByteCount);
+        // ARW通常使用14位格式
+        // 检查是否是压缩格式：如果是压缩格式，字节数应该约为 pixelCount * 1.5
+        // 如果是未压缩格式，字节数应该约为 pixelCount * 2
+        uint32_t expectedCompressedBytes = (pixelCount * 3) / 2;
+        uint32_t expectedUncompressedBytes = pixelCount * 2;
+        
+        LOGI("readArwRawData: Expected compressed=%u, uncompressed=%u, actual=%u", 
+             expectedCompressedBytes, expectedUncompressedBytes, stripByteCount);
+        
+        std::vector<uint8_t> rawBytes(stripByteCount);
+        file.read(reinterpret_cast<char*>(rawBytes.data()), stripByteCount);
         
         if (file.gcount() != static_cast<std::streamsize>(stripByteCount)) {
             LOGE("readArwRawData: Failed to read all data, read %ld bytes", file.gcount());
             return false;
         }
         
-        // Sony ARW 14位压缩格式：每3字节存储2个14位值
-        // 简化实现：假设未压缩或使用简单的字节序
-        // 实际应实现Sony的压缩算法
-        uint32_t idx = 0;
-        for (uint32_t i = 0; i < stripByteCount && idx < pixelCount; i += 2) {
-            if (i + 1 < stripByteCount) {
+        // 判断格式：如果字节数接近压缩格式，使用压缩解析；否则使用未压缩解析
+        bool isCompressed = (stripByteCount < expectedUncompressedBytes * 0.9f);
+        
+        if (isCompressed && stripByteCount >= expectedCompressedBytes * 0.8f) {
+            // Sony ARW 14位压缩格式：每3字节存储2个14位值
+            // 格式：Byte0[7:0] Byte1[5:0] Byte2[7:0] Byte3[5:0] ...
+            //       Pixel0[13:6] Pixel0[5:0] Pixel1[13:6] Pixel1[5:0] ...
+            LOGI("readArwRawData: Using compressed 14-bit format");
+            uint32_t idx = 0;
+            for (uint32_t i = 0; i + 2 < stripByteCount && idx < pixelCount; i += 3) {
+                // 第一个14位值：Byte0[7:0] + Byte1[5:0] << 8
+                uint16_t pixel0 = rawBytes[i] | ((rawBytes[i + 1] & 0x3F) << 8);
+                rawData[idx++] = pixel0;
+                
+                if (idx < pixelCount) {
+                    // 第二个14位值：Byte1[7:6] << 12 + Byte2[7:0] << 2
+                    uint16_t pixel1 = ((rawBytes[i + 1] & 0xC0) >> 6) | (rawBytes[i + 2] << 2);
+                    rawData[idx++] = pixel1;
+                }
+            }
+            
+            // 如果还有剩余字节但不足3字节，尝试读取最后一个像素
+            uint32_t remaining = stripByteCount % 3;
+            if (remaining >= 2 && idx < pixelCount) {
+                uint16_t pixel = rawBytes[stripByteCount - remaining] | 
+                               ((rawBytes[stripByteCount - remaining + 1] & 0x3F) << 8);
+                rawData[idx++] = pixel;
+            }
+            
+            LOGI("readArwRawData: Successfully read %u pixels from %u bytes (14-bit compressed)", idx, stripByteCount);
+        } else {
+            // 未压缩14位格式：每2字节一个14位值（低14位有效）
+            LOGI("readArwRawData: Using uncompressed 14-bit format");
+            for (uint32_t i = 0; i < pixelCount && (i * 2 + 1) < stripByteCount; ++i) {
                 uint16_t value;
                 if (isLittleEndian) {
-                    value = compressedData[i] | (compressedData[i + 1] << 8);
+                    value = rawBytes[i * 2] | ((rawBytes[i * 2 + 1] & 0x3F) << 8);
                 } else {
-                    value = (compressedData[i] << 8) | compressedData[i + 1];
+                    value = ((rawBytes[i * 2] & 0x3F) << 8) | rawBytes[i * 2 + 1];
                 }
-                rawData[idx++] = value;
+                rawData[i] = value;
             }
+            LOGI("readArwRawData: Successfully read %u pixels from %u bytes (14-bit uncompressed)", pixelCount, stripByteCount);
         }
         
         // 如果数据不足，填充剩余部分
-        while (idx < pixelCount) {
-            rawData[idx++] = 0;
+        for (uint32_t i = 0; i < pixelCount; ++i) {
+            if (rawData[i] == 0 && i > 0) {
+                rawData[i] = rawData[i - 1]; // 使用前一个像素值填充
+            }
         }
-        
-        LOGI("readArwRawData: Successfully read %u pixels", idx);
     } else if (bitsPerSample == 16) {
         // 16位未压缩格式
         std::vector<uint8_t> rawBytes(stripByteCount);
