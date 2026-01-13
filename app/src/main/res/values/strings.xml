@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FilmTracker</string>
+    <string name="select_raw">选择 RAW 图像</string>
+    <string name="processing">处理中…</string>
+    <string name="export">导出</string>
+    <string name="exposure">曝光</string>
+    <string name="white_balance">白平衡</string>
+    <string name="film_model">胶片模型</string>
+    <string name="grain">颗粒</string>
+    <string name="ai_suggest">AI 建议</string>
+</resources>
