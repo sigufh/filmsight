@@ -5,6 +5,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math")
 
+# 集成 LibRaw 库（用于解析 RAW 文件）
+include(FetchContent)
+
+FetchContent_Declare(
+    libraw
+    GIT_REPOSITORY https://github.com/LibRaw/LibRaw.git
+    GIT_TAG 0.21.1
+)
+
+FetchContent_MakeAvailable(libraw)
+
 # Source files
 set(RAW_PROCESSOR_SOURCES
     raw_processor.cpp
@@ -46,7 +57,11 @@ add_library(filmtracker SHARED
 # Link libraries
 find_library(log-lib log)
 find_library(jnigraphics-lib jnigraphics)
+find_library(m-lib m)
+
 target_link_libraries(filmtracker
     ${log-lib}
     ${jnigraphics-lib}
+    ${m-lib}  # 数学库（LibRaw 需要）
+    LibRaw::raw  # LibRaw 库
 )

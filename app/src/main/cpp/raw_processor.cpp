@@ -1,4 +1,5 @@
 #include "raw_processor.h"
+#include <libraw/libraw.h>
 #include <fstream>
 #include <cmath>
 #include <algorithm>
@@ -21,77 +22,168 @@ RawProcessor::~RawProcessor() {
 }
 
 /**
- * 从文件加载 RAW（支持ARW等格式）
- * 实际项目中应使用 libraw 或类似库
+ * 从文件加载 RAW（使用 LibRaw 库）
+ * 支持所有 LibRaw 支持的 RAW 格式（ARW, CR2, NEF, RAF, ORF, RW2 等）
  */
 LinearImage RawProcessor::loadRaw(const char* filePath, RawMetadata& metadata) {
-    LOGI("loadRaw: Starting, filePath=%s", filePath);
+    LOGI("loadRaw: Starting with LibRaw, filePath=%s", filePath);
     
     if (!filePath) {
         LOGE("loadRaw: File path is null");
         throw std::runtime_error("File path is null");
     }
     
-    std::ifstream file(filePath, std::ios::binary);
-    if (!file.is_open()) {
-        LOGE("loadRaw: Failed to open file: %s", filePath);
+    // 创建 LibRaw 处理器
+    LibRaw rawProcessor;
+    
+    // 打开 RAW 文件
+    int ret = rawProcessor.open_file(filePath);
+    if (ret != LIBRAW_SUCCESS) {
+        LOGE("loadRaw: Failed to open RAW file: %s, error: %s", 
+             filePath, libraw_strerror(ret));
         throw std::runtime_error("Failed to open RAW file");
     }
     
     LOGI("loadRaw: File opened successfully");
     
-    // 读取文件头，识别文件格式
-    uint8_t header[16];
-    file.read(reinterpret_cast<char*>(header), 16);
-    file.seekg(0, std::ios::beg);
-    
-    // 检测ARW文件（Sony ARW格式）
-    // ARW文件通常以 "II" 或 "MM" 开头（TIFF格式）
-    bool isArw = false;
-    if (header[0] == 0x49 && header[1] == 0x49) {  // "II" (Intel byte order)
-        isArw = true;
-        LOGI("loadRaw: Detected ARW (Intel byte order)");
-    } else if (header[0] == 0x4D && header[1] == 0x4D) {  // "MM" (Motorola byte order)
-        isArw = true;
-        LOGI("loadRaw: Detected ARW (Motorola byte order)");
+    // 解包 RAW 数据
+    ret = rawProcessor.unpack();
+    if (ret != LIBRAW_SUCCESS) {
+        LOGE("loadRaw: Failed to unpack RAW data: %s", libraw_strerror(ret));
+        rawProcessor.recycle();
+        throw std::runtime_error("Failed to unpack RAW data");
     }
     
-    // 检查文件扩展名
-    std::string pathStr(filePath);
-    std::string ext = pathStr.substr(pathStr.find_last_of(".") + 1);
-    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
-    if (ext == "arw" || ext == "srf" || ext == "sr2") {
-        isArw = true;
-        LOGI("loadRaw: Detected ARW by extension: %s", ext.c_str());
+    LOGI("loadRaw: RAW data unpacked successfully");
+    
+    // 获取图像数据
+    libraw_image_t* img = rawProcessor.imgdata;
+    
+    // 提取元数据
+    metadata.width = img->sizes.width;
+    metadata.height = img->sizes.height;
+    metadata.iso = img->other.iso_speed;
+    metadata.exposureTime = img->other.shutter;
+    metadata.aperture = img->other.aperture;
+    metadata.focalLength = img->other.focal_len;
+    
+    // 相机信息
+    std::strncpy(metadata.cameraModel, img->idata.make, sizeof(metadata.cameraModel) - 1);
+    std::strncat(metadata.cameraModel, " ", sizeof(metadata.cameraModel) - std::strlen(metadata.cameraModel) - 1);
+    std::strncat(metadata.cameraModel, img->idata.model, sizeof(metadata.cameraModel) - std::strlen(metadata.cameraModel) - 1);
+    
+    // 白平衡
+    metadata.whiteBalance[0] = img->other.wb_red;
+    metadata.whiteBalance[1] = img->other.wb_green;
+    metadata.whiteBalance[2] = img->other.wb_blue;
+    
+    // 黑电平和白电平
+    metadata.blackLevel = static_cast<float>(img->color.black);
+    metadata.whiteLevel = static_cast<float>(img->color.maximum);
+    
+    // Bits per sample
+    metadata.bitsPerSample = img->sizes.raw_bits;
+    
+    // 颜色空间
+    std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
+    
+    LOGI("loadRaw: Image dimensions: %dx%d, ISO=%.0f, Exposure=%.3fs, Aperture=f/%.1f, Focal=%.1fmm",
+         metadata.width, metadata.height, metadata.iso, metadata.exposureTime,
+         metadata.aperture, metadata.focalLength);
+    LOGI("loadRaw: Camera: %s", metadata.cameraModel);
+    LOGI("loadRaw: Black level=%.0f, White level=%.0f, Bits per sample=%d",
+         metadata.blackLevel, metadata.whiteLevel, metadata.bitsPerSample);
+    
+    // 获取 RAW Bayer 数据
+    uint16_t* rawData = img->rawdata.raw_image;
+    if (!rawData) {
+        LOGE("loadRaw: RAW image data is null");
+        rawProcessor.recycle();
+        throw std::runtime_error("RAW image data is null");
     }
     
-    if (isArw) {
-        LOGI("loadRaw: Processing as ARW file");
-        // ARW文件处理（简化实现）
-        // 实际应解析TIFF/ARW结构
-        LinearImage result = loadArwFile(file, metadata);
-        LOGI("loadRaw: ARW file processed successfully, size=%dx%d", metadata.width, metadata.height);
-        return result;
+    uint32_t rawWidth = img->sizes.raw_width;
+    uint32_t rawHeight = img->sizes.raw_height;
+    uint32_t rawPixels = rawWidth * rawHeight;
+    
+    LOGI("loadRaw: RAW dimensions: %dx%d (%u pixels)", rawWidth, rawHeight, rawPixels);
+    
+    // 获取 CFA 模式
+    uint32_t cfaPattern = 0;  // 默认 RGGB
+    if (img->sizes.filters > 0) {
+        // LibRaw 使用数字编码 CFA 模式
+        // 0x94949494 = RGGB, 0x49494949 = GRBG, 0x61616161 = GBRG, 0x16161616 = BGGR
+        uint32_t filter = img->sizes.filters;
+        if ((filter & 0x0000FF00) == 0x00009400) {
+            cfaPattern = 0;  // RGGB
+        } else if ((filter & 0x0000FF00) == 0x00004900) {
+            cfaPattern = 1;  // GRBG
+        } else if ((filter & 0x0000FF00) == 0x00006100) {
+            cfaPattern = 2;  // GBRG
+        } else if ((filter & 0x0000FF00) == 0x00001600) {
+            cfaPattern = 3;  // BGGR
+        }
+        LOGI("loadRaw: CFA pattern: %u (filter=0x%08x)", cfaPattern, filter);
     }
     
-    // 其他RAW格式的占位实现
-    metadata.width = 4000;
-    metadata.height = 3000;
-    metadata.iso = 400.0f;
-    metadata.exposureTime = 1.0f / 125.0f;
-    metadata.blackLevel = 0.0f;
-    metadata.whiteLevel = 16383.0f;
+    // 将 RAW 数据复制到 vector（用于黑电平校正）
+    std::vector<uint16_t> rawBayerData(rawPixels);
+    std::memcpy(rawBayerData.data(), rawData, rawPixels * sizeof(uint16_t));
     
-    LinearImage image(metadata.width, metadata.height);
+    // 应用黑电平校正
+    applyBlackLevel(rawBayerData, metadata.blackLevel, rawWidth, rawHeight);
     
-    // 填充示例数据
-    for (uint32_t i = 0; i < image.width * image.height; ++i) {
-        image.r[i] = 0.5f;
-        image.g[i] = 0.5f;
-        image.b[i] = 0.5f;
+    // 归一化到 0-1 范围
+    std::vector<float> normalizedRawData(rawPixels);
+    float whiteLevel = metadata.whiteLevel;
+    for (size_t i = 0; i < rawPixels; ++i) {
+        normalizedRawData[i] = std::max(0.0f, std::min(1.0f, 
+            static_cast<float>(rawBayerData[i]) / whiteLevel));
     }
     
-    return image;
+    LOGI("loadRaw: Applied black level correction and normalization");
+    
+    // 去马赛克（Bayer 转 RGB）
+    LinearImage demosaiced = demosaicBayerNormalized(normalizedRawData, rawWidth, rawHeight, cfaPattern);
+    
+    LOGI("loadRaw: Demosaicing completed, output size: %dx%d", demosaiced.width, demosaiced.height);
+    
+    // 如果 RAW 尺寸与输出尺寸不匹配，需要缩放
+    if (demosaiced.width != metadata.width || demosaiced.height != metadata.height) {
+        LOGI("loadRaw: Resizing from %dx%d to %dx%d", 
+             demosaiced.width, demosaiced.height, metadata.width, metadata.height);
+        
+        LinearImage resized(metadata.width, metadata.height);
+        
+        float scaleX = static_cast<float>(demosaiced.width) / static_cast<float>(metadata.width);
+        float scaleY = static_cast<float>(demosaiced.height) / static_cast<float>(metadata.height);
+        
+        for (uint32_t y = 0; y < metadata.height; ++y) {
+            for (uint32_t x = 0; x < metadata.width; ++x) {
+                uint32_t srcX = static_cast<uint32_t>(x * scaleX);
+                uint32_t srcY = static_cast<uint32_t>(y * scaleY);
+                srcX = std::min(srcX, demosaiced.width - 1);
+                srcY = std::min(srcY, demosaiced.height - 1);
+                
+                uint32_t dstIdx = y * metadata.width + x;
+                uint32_t srcIdx = srcY * demosaiced.width + srcX;
+                
+                resized.r[dstIdx] = demosaiced.r[srcIdx];
+                resized.g[dstIdx] = demosaiced.g[srcIdx];
+                resized.b[dstIdx] = demosaiced.b[srcIdx];
+            }
+        }
+        
+        rawProcessor.recycle();
+        LOGI("loadRaw: Completed successfully with LibRaw");
+        return resized;
+    }
+    
+    // 清理 LibRaw 资源
+    rawProcessor.recycle();
+    
+    LOGI("loadRaw: Completed successfully with LibRaw");
+    return demosaiced;
 }
 
 /**
@@ -174,15 +266,15 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
         LOGI("loadArwFile: IFD offset = %u (0x%08x)", ifdOffset, ifdOffset);
         
         // 初始化元数据默认值
-        metadata.iso = 400.0f;
-        metadata.exposureTime = 1.0f / 125.0f;
+    metadata.iso = 400.0f;
+    metadata.exposureTime = 1.0f / 125.0f;
         metadata.aperture = 2.8f;
         metadata.focalLength = 50.0f;
         metadata.whiteBalance[0] = 5500.0f;  // 色温
         metadata.whiteBalance[1] = 0.0f;     // 色调
         metadata.bitsPerSample = 14;
         metadata.blackLevel = 512.0f;
-        metadata.whiteLevel = 16383.0f;
+    metadata.whiteLevel = 16383.0f;
         std::memset(metadata.cameraModel, 0, sizeof(metadata.cameraModel));
         std::strncpy(metadata.cameraModel, "Unknown", sizeof(metadata.cameraModel) - 1);
         std::memset(metadata.colorSpace, 0, sizeof(metadata.colorSpace));
@@ -354,7 +446,7 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
         
         // 如果无法读取实际数据，生成测试图案作为后备
         LOGI("loadArwFile: Allocating LinearImage memory");
-        LinearImage image(metadata.width, metadata.height);
+    LinearImage image(metadata.width, metadata.height);
         LOGI("loadArwFile: LinearImage allocated successfully");
         
         const uint32_t pixelCount = image.width * image.height;
@@ -386,13 +478,13 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
         metadata.width = 1200;
         metadata.height = 1200;
         LinearImage image(metadata.width, metadata.height);
-        for (uint32_t i = 0; i < image.width * image.height; ++i) {
-            image.r[i] = 0.5f;
-            image.g[i] = 0.5f;
-            image.b[i] = 0.5f;
-        }
+    for (uint32_t i = 0; i < image.width * image.height; ++i) {
+        image.r[i] = 0.5f;
+        image.g[i] = 0.5f;
+        image.b[i] = 0.5f;
+    }
         LOGE("loadArwFile: Returning default image due to exception");
-        return image;
+    return image;
     } catch (...) {
         LOGE("loadArwFile: Unknown exception caught");
         // 如果发生未知异常，返回一个默认图像
@@ -412,53 +504,132 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
 LinearImage RawProcessor::loadRawFromBuffer(const uint8_t* buffer, 
                                            size_t bufferSize,
                                            RawMetadata& metadata) {
-    if (!buffer || bufferSize < 16) {
+    if (!buffer || bufferSize == 0) {
         LOGE("loadRawFromBuffer: Invalid buffer");
         throw std::runtime_error("Invalid buffer");
     }
     
-    LOGI("loadRawFromBuffer: Starting, buffer size = %zu bytes", bufferSize);
+    LOGI("loadRawFromBuffer: Starting with LibRaw, buffer size = %zu bytes", bufferSize);
     
-    // 检测文件格式（通过文件头）
-    bool isArw = false;
-    if (buffer[0] == 0x49 && buffer[1] == 0x49) {  // "II" (Intel byte order)
-        isArw = true;
-        LOGI("loadRawFromBuffer: Detected ARW (Intel byte order)");
-    } else if (buffer[0] == 0x4D && buffer[1] == 0x4D) {  // "MM" (Motorola byte order)
-        isArw = true;
-        LOGI("loadRawFromBuffer: Detected ARW (Motorola byte order)");
+    // 创建 LibRaw 处理器
+    LibRaw rawProcessor;
+    
+    // 从缓冲区打开 RAW 数据（LibRaw 支持从内存读取）
+    int ret = rawProcessor.open_buffer(const_cast<uint8_t*>(buffer), bufferSize);
+    if (ret != LIBRAW_SUCCESS) {
+        LOGE("loadRawFromBuffer: Failed to open RAW buffer, error: %s", libraw_strerror(ret));
+        throw std::runtime_error("Failed to open RAW buffer");
     }
     
-    if (isArw) {
-        // 将缓冲区写入临时文件，然后使用现有的loadRaw实现
-        // 或者直接解析内存中的数据
-        // 简化实现：创建一个临时文件
-        const char* tempFile = "/data/local/tmp/temp_raw.arw";
-        std::ofstream tempOut(tempFile, std::ios::binary);
-        if (tempOut.is_open()) {
-            tempOut.write(reinterpret_cast<const char*>(buffer), bufferSize);
-            tempOut.close();
-            
-            LinearImage result = loadRaw(tempFile, metadata);
-            
-            // 删除临时文件
-            std::remove(tempFile);
-            
-            return result;
-        } else {
-            LOGE("loadRawFromBuffer: Failed to create temp file");
-            throw std::runtime_error("Failed to create temp file");
+    LOGI("loadRawFromBuffer: Buffer opened successfully");
+    
+    // 解包 RAW 数据
+    ret = rawProcessor.unpack();
+    if (ret != LIBRAW_SUCCESS) {
+        LOGE("loadRawFromBuffer: Failed to unpack RAW data: %s", libraw_strerror(ret));
+        rawProcessor.recycle();
+        throw std::runtime_error("Failed to unpack RAW data");
+    }
+    
+    LOGI("loadRawFromBuffer: RAW data unpacked successfully");
+    
+    // 获取图像数据
+    libraw_image_t* img = rawProcessor.imgdata;
+    
+    // 提取元数据（与loadRaw相同的逻辑）
+    metadata.width = img->sizes.width;
+    metadata.height = img->sizes.height;
+    metadata.iso = img->other.iso_speed;
+    metadata.exposureTime = img->other.shutter;
+    metadata.aperture = img->other.aperture;
+    metadata.focalLength = img->other.focal_len;
+    
+    std::strncpy(metadata.cameraModel, img->idata.make, sizeof(metadata.cameraModel) - 1);
+    std::strncat(metadata.cameraModel, " ", sizeof(metadata.cameraModel) - std::strlen(metadata.cameraModel) - 1);
+    std::strncat(metadata.cameraModel, img->idata.model, sizeof(metadata.cameraModel) - std::strlen(metadata.cameraModel) - 1);
+    
+    metadata.whiteBalance[0] = img->other.wb_red;
+    metadata.whiteBalance[1] = img->other.wb_green;
+    metadata.whiteBalance[2] = img->other.wb_blue;
+    
+    metadata.blackLevel = static_cast<float>(img->color.black);
+    metadata.whiteLevel = static_cast<float>(img->color.maximum);
+    metadata.bitsPerSample = img->sizes.raw_bits;
+    std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
+    
+    // 获取 RAW Bayer 数据
+    uint16_t* rawData = img->rawdata.raw_image;
+    if (!rawData) {
+        LOGE("loadRawFromBuffer: RAW image data is null");
+        rawProcessor.recycle();
+        throw std::runtime_error("RAW image data is null");
+    }
+    
+    uint32_t rawWidth = img->sizes.raw_width;
+    uint32_t rawHeight = img->sizes.raw_height;
+    uint32_t rawPixels = rawWidth * rawHeight;
+    
+    // 获取 CFA 模式
+    uint32_t cfaPattern = 0;
+    if (img->sizes.filters > 0) {
+        uint32_t filter = img->sizes.filters;
+        if ((filter & 0x0000FF00) == 0x00009400) {
+            cfaPattern = 0;  // RGGB
+        } else if ((filter & 0x0000FF00) == 0x00004900) {
+            cfaPattern = 1;  // GRBG
+        } else if ((filter & 0x0000FF00) == 0x00006100) {
+            cfaPattern = 2;  // GBRG
+        } else if ((filter & 0x0000FF00) == 0x00001600) {
+            cfaPattern = 3;  // BGGR
         }
     }
     
-    // 其他格式：返回占位图像
-    LOGE("loadRawFromBuffer: Unsupported format, returning placeholder");
-    metadata.width = 100;
-    metadata.height = 100;
-    metadata.iso = 400.0f;
-    metadata.exposureTime = 1.0f / 125.0f;
-    metadata.blackLevel = 0.0f;
-    metadata.whiteLevel = 16383.0f;
+    // 复制 RAW 数据
+    std::vector<uint16_t> rawBayerData(rawPixels);
+    std::memcpy(rawBayerData.data(), rawData, rawPixels * sizeof(uint16_t));
+    
+    // 应用黑电平校正
+    applyBlackLevel(rawBayerData, metadata.blackLevel, rawWidth, rawHeight);
+    
+    // 归一化
+    std::vector<float> normalizedRawData(rawPixels);
+    float whiteLevel = metadata.whiteLevel;
+    for (size_t i = 0; i < rawPixels; ++i) {
+        normalizedRawData[i] = std::max(0.0f, std::min(1.0f, 
+            static_cast<float>(rawBayerData[i]) / whiteLevel));
+    }
+    
+    // 去马赛克
+    LinearImage demosaiced = demosaicBayerNormalized(normalizedRawData, rawWidth, rawHeight, cfaPattern);
+    
+    // 如果需要缩放
+    if (demosaiced.width != metadata.width || demosaiced.height != metadata.height) {
+        LinearImage resized(metadata.width, metadata.height);
+        float scaleX = static_cast<float>(demosaiced.width) / static_cast<float>(metadata.width);
+        float scaleY = static_cast<float>(demosaiced.height) / static_cast<float>(metadata.height);
+        
+        for (uint32_t y = 0; y < metadata.height; ++y) {
+            for (uint32_t x = 0; x < metadata.width; ++x) {
+                uint32_t srcX = static_cast<uint32_t>(x * scaleX);
+                uint32_t srcY = static_cast<uint32_t>(y * scaleY);
+                srcX = std::min(srcX, demosaiced.width - 1);
+                srcY = std::min(srcY, demosaiced.height - 1);
+                
+                uint32_t dstIdx = y * metadata.width + x;
+                uint32_t srcIdx = srcY * demosaiced.width + srcX;
+                
+                resized.r[dstIdx] = demosaiced.r[srcIdx];
+                resized.g[dstIdx] = demosaiced.g[srcIdx];
+                resized.b[dstIdx] = demosaiced.b[srcIdx];
+            }
+        }
+        
+        rawProcessor.recycle();
+        return resized;
+    }
+    
+    rawProcessor.recycle();
+    return demosaiced;
     
     LinearImage image(100, 100);
     for (uint32_t i = 0; i < 100 * 100; ++i) {
@@ -1187,6 +1358,131 @@ bool RawProcessor::findArwRawDataLocation(std::ifstream& file,
     
     LOGI("findArwRawDataLocation: After scanning IFD - stripOffsetsOffset=%u, stripByteCountsOffset=%u", 
          stripOffsetsOffset, stripByteCountsOffset);
+    
+    // 如果在主IFD中找不到StripOffsets，尝试查找子IFD (Tag 330)
+    uint32_t subIfdOffset = 0;
+    if (stripOffsetsOffset == 0 || stripByteCountsOffset == 0) {
+        LOGI("findArwRawDataLocation: StripOffsets not found in main IFD, searching for SubIFDs (Tag 330)");
+        file.seekg(ifdOffset + 2, std::ios::beg);  // 回到IFD开始位置（跳过entry count）
+        for (uint16_t i = 0; i < entryCount && i < 200; ++i) {
+            uint8_t entry[12];
+            file.read(reinterpret_cast<char*>(entry), 12);
+            
+            uint16_t tagId = isLittleEndian ?
+                (entry[0] | (entry[1] << 8)) :
+                ((entry[0] << 8) | entry[1]);
+            
+            uint16_t dataType = isLittleEndian ?
+                (entry[2] | (entry[3] << 8)) :
+                ((entry[2] << 8) | entry[3]);
+            
+            uint32_t count = isLittleEndian ?
+                (entry[4] | (entry[5] << 8) | (entry[6] << 16) | (entry[7] << 24)) :
+                ((entry[4] << 24) | (entry[5] << 16) | (entry[6] << 8) | entry[7]);
+            
+            uint32_t valueOffset = isLittleEndian ?
+                (entry[8] | (entry[9] << 8) | (entry[10] << 16) | (entry[11] << 24)) :
+                ((entry[8] << 24) | (entry[9] << 16) | (entry[10] << 8) | entry[11]);
+            
+            if (tagId == 330) {  // SubIFDs
+                // Tag 330的值可能直接是偏移量，或者指向一个包含偏移量的数组
+                // 如果count=1且type=LONG(4)，valueOffset可能直接是子IFD的位置
+                // 否则需要读取valueOffset指向的数据
+                if (dataType == 4 && count == 1) {  // LONG, count=1
+                    // valueOffset可能直接是子IFD的位置，或者需要读取
+                    // 先尝试直接使用valueOffset
+                    subIfdOffset = valueOffset;
+                    LOGI("findArwRawDataLocation: Found SubIFDs tag, direct offset=%u", subIfdOffset);
+                } else {
+                    // 需要读取valueOffset指向的数据
+                    size_t oldPos = file.tellg();
+                    file.seekg(valueOffset, std::ios::beg);
+                    if (dataType == 4) {  // LONG
+                        uint8_t bytes[4];
+                        file.read(reinterpret_cast<char*>(bytes), 4);
+                        if (file.gcount() == 4) {
+                            subIfdOffset = isLittleEndian ?
+                                (bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)) :
+                                ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]);
+                            LOGI("findArwRawDataLocation: Found SubIFDs tag, read offset=%u", subIfdOffset);
+                        }
+                    }
+                    file.seekg(oldPos, std::ios::beg);
+                }
+                break;
+            }
+        }
+    }
+    
+    // 如果找到子IFD，尝试在其中查找RAW数据
+    if (subIfdOffset > 0 && subIfdOffset < fileSize && (stripOffsetsOffset == 0 || stripByteCountsOffset == 0)) {
+        LOGI("findArwRawDataLocation: Searching SubIFD at offset %u", subIfdOffset);
+        size_t oldPos = file.tellg();
+        file.seekg(subIfdOffset, std::ios::beg);
+        
+        // 读取子IFD条目数量
+        uint8_t subEntryCountBytes[2];
+        file.read(reinterpret_cast<char*>(subEntryCountBytes), 2);
+        if (file.gcount() != 2) {
+            file.seekg(oldPos, std::ios::beg);
+        } else {
+            uint16_t subEntryCount = isLittleEndian ?
+                (subEntryCountBytes[0] | (subEntryCountBytes[1] << 8)) :
+                ((subEntryCountBytes[0] << 8) | subEntryCountBytes[1]);
+            
+            LOGI("findArwRawDataLocation: SubIFD entry count = %u", subEntryCount);
+            
+            // 读取子IFD条目
+            for (uint16_t i = 0; i < subEntryCount && i < 200; ++i) {
+                uint8_t entry[12];
+                file.read(reinterpret_cast<char*>(entry), 12);
+                
+                uint16_t tagId = isLittleEndian ?
+                    (entry[0] | (entry[1] << 8)) :
+                    ((entry[0] << 8) | entry[1]);
+                
+                uint16_t dataType = isLittleEndian ?
+                    (entry[2] | (entry[3] << 8)) :
+                    ((entry[2] << 8) | entry[3]);
+                
+                uint32_t count = isLittleEndian ?
+                    (entry[4] | (entry[5] << 8) | (entry[6] << 16) | (entry[7] << 24)) :
+                    ((entry[4] << 24) | (entry[5] << 16) | (entry[6] << 8) | entry[7]);
+                
+                uint32_t valueOffset = isLittleEndian ?
+                    (entry[8] | (entry[9] << 8) | (entry[10] << 16) | (entry[11] << 24)) :
+                    ((entry[8] << 24) | (entry[9] << 16) | (entry[10] << 8) | entry[11]);
+                
+                LOGI("findArwRawDataLocation: SubIFD Tag %u: type=%u, count=%u, offset=%u", 
+                     tagId, dataType, count, valueOffset);
+                
+                if (tagId == 273) {  // StripOffsets
+                    stripOffsetsOffset = valueOffset;
+                    stripOffsetsCount = count;
+                    stripOffsetsType = dataType;
+                    LOGI("findArwRawDataLocation: Found StripOffsets in SubIFD, count=%u, type=%u, offset=%u", 
+                         count, dataType, valueOffset);
+                } else if (tagId == 279) {  // StripByteCounts
+                    stripByteCountsOffset = valueOffset;
+                    stripByteCountsCount = count;
+                    stripByteCountsType = dataType;
+                    LOGI("findArwRawDataLocation: Found StripByteCounts in SubIFD, count=%u, type=%u, offset=%u", 
+                         count, dataType, valueOffset);
+                } else if (tagId == 256) {  // ImageWidth
+                    width = readTiffValue(file, dataType, count, valueOffset, isLittleEndian, fileSize);
+                    LOGI("findArwRawDataLocation: Found ImageWidth in SubIFD = %u", width);
+                } else if (tagId == 257) {  // ImageLength
+                    height = readTiffValue(file, dataType, count, valueOffset, isLittleEndian, fileSize);
+                    LOGI("findArwRawDataLocation: Found ImageLength in SubIFD = %u", height);
+                } else if (tagId == 258) {  // BitsPerSample
+                    bitsPerSample = static_cast<uint16_t>(readTiffValue(file, dataType, count, valueOffset, isLittleEndian, fileSize));
+                    LOGI("findArwRawDataLocation: Found BitsPerSample in SubIFD = %u", bitsPerSample);
+                }
+            }
+            
+            file.seekg(oldPos, std::ios::beg);
+        }
+    }
     
     if (stripOffsetsOffset == 0 || stripByteCountsOffset == 0) {
         LOGE("findArwRawDataLocation: Could not find StripOffsets (offset=%u) or StripByteCounts (offset=%u)", 
