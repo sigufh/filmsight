@@ -1,10 +1,4 @@
 #include "film_engine.h"
-#include "film_response_curve.cpp"
-#include "color_crosstalk.cpp"
-#include "grain_model.cpp"
-#include "tone_curve.cpp"
-#include "hsl_adjust.cpp"
-
 #include <algorithm>
 #include <cmath>
 
