@@ -179,12 +179,12 @@ LinearImage FilmEngine::process(const LinearImage& input,
             
             threads.emplace_back([&output, start, end, &params]() {
                 for (uint32_t i = start; i < end; ++i) {
-                    float luminance = 0.299f * output.r[i] + 
-                                     0.587f * output.g[i] + 
-                                     0.114f * output.b[i];
-                    output.r[i] = luminance + (output.r[i] - luminance) * params.saturation;
-                    output.g[i] = luminance + (output.g[i] - luminance) * params.saturation;
-                    output.b[i] = luminance + (output.b[i] - luminance) * params.saturation;
+            float luminance = 0.299f * output.r[i] + 
+                             0.587f * output.g[i] + 
+                             0.114f * output.b[i];
+            output.r[i] = luminance + (output.r[i] - luminance) * params.saturation;
+            output.g[i] = luminance + (output.g[i] - luminance) * params.saturation;
+            output.b[i] = luminance + (output.b[i] - luminance) * params.saturation;
                 }
             });
         }

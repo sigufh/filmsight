@@ -127,26 +127,26 @@ fun ProcessingScreen(
                         android.util.Log.e("ProcessingScreen", "Error processing image", e)
                     } finally {
                         isProcessing = false
-                    }
                 }
-            }
+                }
+        }
         }
     }
     
     // LR移动版风格：深色背景，底部工具栏
-    Box(
-        modifier = modifier
-            .fillMaxSize()
+        Box(
+            modifier = modifier
+                .fillMaxSize()
             .background(Color(0xFF1A1A1A)) // LR移动版深色背景
-    ) {
+        ) {
         // 图像预览区域（全屏，不包含padding）
-        ImagePreviewSection(
-            imageUri = imageUri,
-            processedBitmap = processedBitmap,
-            onSelectImage = onSelectImage,
-            modifier = Modifier.fillMaxSize()
-        )
-        
+            ImagePreviewSection(
+                imageUri = imageUri,
+                processedBitmap = processedBitmap,
+                onSelectImage = onSelectImage,
+                modifier = Modifier.fillMaxSize()
+            )
+            
         // 顶部栏（LR移动版风格：半透明，深色）
         Surface(
             modifier = Modifier
@@ -186,15 +186,15 @@ fun ProcessingScreen(
         }
         
         // 底部模式切换栏（LR移动版风格：半透明，深色）
-        BottomModeSelector(
-            selectedMode = selectedMode,
-            onModeSelected = { mode ->
-                selectedMode = if (selectedMode == mode) null else mode
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-        )
+            BottomModeSelector(
+                selectedMode = selectedMode,
+                onModeSelected = { mode ->
+                    selectedMode = if (selectedMode == mode) null else mode
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            )
         
         // 处理中指示器
         if (isProcessing) {

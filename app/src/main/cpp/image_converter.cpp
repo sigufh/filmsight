@@ -44,11 +44,11 @@ OutputImage ImageConverter::linearToSRGB(const LinearImage& linear) {
         
         threads.emplace_back([&linear, &output, start, end]() {
             for (uint32_t i = start; i < end; ++i) {
-                uint32_t idx = i * 4;
-                output.data[idx + 0] = static_cast<uint8_t>(linearToSRGB(linear.r[i]) * 255.0f);
-                output.data[idx + 1] = static_cast<uint8_t>(linearToSRGB(linear.g[i]) * 255.0f);
-                output.data[idx + 2] = static_cast<uint8_t>(linearToSRGB(linear.b[i]) * 255.0f);
-                output.data[idx + 3] = 255; // Alpha
+        uint32_t idx = i * 4;
+        output.data[idx + 0] = static_cast<uint8_t>(linearToSRGB(linear.r[i]) * 255.0f);
+        output.data[idx + 1] = static_cast<uint8_t>(linearToSRGB(linear.g[i]) * 255.0f);
+        output.data[idx + 2] = static_cast<uint8_t>(linearToSRGB(linear.b[i]) * 255.0f);
+        output.data[idx + 3] = 255; // Alpha
             }
         });
     }

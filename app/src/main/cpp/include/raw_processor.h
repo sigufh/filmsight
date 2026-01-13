@@ -55,9 +55,9 @@ public:
                             uint32_t pixelCount);
     
     /**
-     * Bayer 去马赛克（AHD 算法）
+     * Bayer 去马赛克（基本双线性插值）
      * 
-     * @param rawData 原始 Bayer 数据
+     * @param rawData 原始 Bayer 数据（uint16_t，未归一化）
      * @param width 图像宽度
      * @param height 图像高度
      * @param cfaPattern CFA 模式（0=RGGB, 1=GRBG, 2=GBRG, 3=BGGR）
@@ -67,6 +67,20 @@ public:
                              uint32_t width,
                              uint32_t height,
                              uint32_t cfaPattern);
+    
+    /**
+     * Bayer 去马赛克（使用归一化的float数据）
+     * 
+     * @param normalizedRawData 归一化的 Bayer 数据（float，0-1范围）
+     * @param width 图像宽度
+     * @param height 图像高度
+     * @param cfaPattern CFA 模式（0=RGGB, 1=GRBG, 2=GBRG, 3=BGGR）
+     * @return 线性 RGB 图像
+     */
+    LinearImage demosaicBayerNormalized(const std::vector<float>& normalizedRawData,
+                                       uint32_t width,
+                                       uint32_t height,
+                                       uint32_t cfaPattern);
     
 private:
     /**

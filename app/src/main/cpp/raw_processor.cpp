@@ -252,13 +252,17 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
             // 应用黑电平校正
             applyBlackLevel(rawBayerData, metadata.blackLevel, rawWidth, rawHeight);
             
-            // 应用去马赛克（Bayer转RGB）
-            LinearImage demosaiced = demosaicBayer(rawBayerData, rawWidth, rawHeight, 0); // 0 = RGGB
+            // 将RAW数据转换为归一化的float数组（0-1范围）
+            // 这样去马赛克算法可以使用归一化的值
+            std::vector<float> normalizedRawData(rawBayerData.size());
+            float whiteLevel = metadata.whiteLevel;
+            for (size_t i = 0; i < rawBayerData.size(); ++i) {
+                normalizedRawData[i] = std::max(0.0f, std::min(1.0f, 
+                    static_cast<float>(rawBayerData[i]) / whiteLevel));
+            }
             
-            // 应用白电平归一化
-            normalizeWhiteLevel(demosaiced.r, metadata.whiteLevel, rawWidth * rawHeight);
-            normalizeWhiteLevel(demosaiced.g, metadata.whiteLevel, rawWidth * rawHeight);
-            normalizeWhiteLevel(demosaiced.b, metadata.whiteLevel, rawWidth * rawHeight);
+            // 应用去马赛克（Bayer转RGB），使用归一化的数据
+            LinearImage demosaiced = demosaicBayerNormalized(normalizedRawData, rawWidth, rawHeight, 0); // 0 = RGGB
             
             // 如果尺寸不匹配，需要缩放
             if (demosaiced.width != metadata.width || demosaiced.height != metadata.height) {
@@ -515,6 +519,99 @@ LinearImage RawProcessor::demosaicBayer(const std::vector<uint16_t>& rawData,
     }
     
     LOGI("demosaicBayer: Completed demosaicing %ux%u image", width, height);
+    return result;
+}
+
+LinearImage RawProcessor::demosaicBayerNormalized(const std::vector<float>& normalizedRawData,
+                                                  uint32_t width,
+                                                  uint32_t height,
+                                                  uint32_t cfaPattern) {
+    LOGI("demosaicBayerNormalized: Starting demosaicing for %ux%u", width, height);
+    LinearImage result(width, height);
+    
+    // 基本双线性插值去马赛克算法（RGGB模式）
+    // 使用归一化的float数据（0-1范围）
+    
+    for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
+            uint32_t idx = y * width + x;
+            float r = 0.0f, g = 0.0f, b = 0.0f;
+            
+            // 确定当前像素在Bayer模式中的位置
+            bool isRedRow = (y % 2 == 0);
+            bool isRedCol = (x % 2 == 0);
+            
+            // 辅助函数：安全获取归一化的RAW值
+            auto getNormalizedValue = [&](int32_t px, int32_t py) -> float {
+                if (px < 0 || px >= static_cast<int32_t>(width) || 
+                    py < 0 || py >= static_cast<int32_t>(height)) {
+                    return 0.0f;
+                }
+                return normalizedRawData[py * width + px];
+            };
+            
+            if (isRedRow && isRedCol) {
+                // R位置：直接使用R值，G和B需要插值
+                r = normalizedRawData[idx];
+                
+                // G值：取上下左右四个G像素的平均值
+                g = (getNormalizedValue(x - 1, y) +
+                     getNormalizedValue(x + 1, y) +
+                     getNormalizedValue(x, y - 1) +
+                     getNormalizedValue(x, y + 1)) / 4.0f;
+                
+                // B值：取四个角的B像素的平均值
+                b = (getNormalizedValue(x - 1, y - 1) +
+                     getNormalizedValue(x + 1, y - 1) +
+                     getNormalizedValue(x - 1, y + 1) +
+                     getNormalizedValue(x + 1, y + 1)) / 4.0f;
+            } else if (isRedRow && !isRedCol) {
+                // G位置（R行的G列）：直接使用G值，R和B需要插值
+                g = normalizedRawData[idx];
+                
+                // R值：取左右R像素的平均值
+                r = (getNormalizedValue(x - 1, y) +
+                     getNormalizedValue(x + 1, y)) / 2.0f;
+                
+                // B值：取上下B像素的平均值
+                b = (getNormalizedValue(x, y - 1) +
+                     getNormalizedValue(x, y + 1)) / 2.0f;
+            } else if (!isRedRow && isRedCol) {
+                // G位置（B行的G列）：直接使用G值，R和B需要插值
+                g = normalizedRawData[idx];
+                
+                // R值：取上下R像素的平均值
+                r = (getNormalizedValue(x, y - 1) +
+                     getNormalizedValue(x, y + 1)) / 2.0f;
+                
+                // B值：取左右B像素的平均值
+                b = (getNormalizedValue(x - 1, y) +
+                     getNormalizedValue(x + 1, y)) / 2.0f;
+            } else {
+                // B位置：直接使用B值，G和R需要插值
+                b = normalizedRawData[idx];
+                
+                // G值：取上下左右四个G像素的平均值
+                g = (getNormalizedValue(x - 1, y) +
+                     getNormalizedValue(x + 1, y) +
+                     getNormalizedValue(x, y - 1) +
+                     getNormalizedValue(x, y + 1)) / 4.0f;
+                
+                // R值：取四个角的R像素的平均值
+                r = (getNormalizedValue(x - 1, y - 1) +
+                     getNormalizedValue(x + 1, y - 1) +
+                     getNormalizedValue(x - 1, y + 1) +
+                     getNormalizedValue(x + 1, y + 1)) / 4.0f;
+            }
+            
+            // 确保值在有效范围内
+            result.r[idx] = std::max(0.0f, std::min(1.0f, r));
+            result.g[idx] = std::max(0.0f, std::min(1.0f, g));
+            result.b[idx] = std::max(0.0f, std::min(1.0f, b));
+        }
+    }
+    
+    LOGI("demosaicBayerNormalized: Demosaicing completed");
     return result;
 }
 
