@@ -135,7 +135,8 @@ class ImageProcessor(private val context: Context? = null) {
         params: FilmParams
     ): Bitmap? = withContext(Dispatchers.Default) {
         try {
-            val linearImage = rawProcessor.loadRaw(filePath) ?: return@withContext null
+            val rawResult = rawProcessor.loadRaw(filePath) ?: return@withContext null
+            val (linearImage, metadata) = rawResult
             processLinearImage(linearImage, params)
         } catch (e: Exception) {
             e.printStackTrace()
