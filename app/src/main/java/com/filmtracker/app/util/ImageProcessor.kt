@@ -112,52 +112,6 @@ class ImageProcessor(private val context: Context? = null) {
     }
     
     /**
-     * 处理普通图像（JPEG/PNG等）
-     * 从URI加载，转换为LinearImage，然后处理
-     */
-    suspend fun processImage(
-        imageUri: String,
-        params: FilmParams
-    ): Bitmap? = withContext(Dispatchers.Default) {
-        try {
-            if (context == null) return@withContext null
-            
-            // 1. 从URI加载Bitmap
-            val uri = Uri.parse(imageUri)
-            val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-            val originalBitmap = BitmapFactory.decodeStream(inputStream)
-            inputStream?.close()
-            
-            if (originalBitmap == null) return@withContext null
-            
-            // 2. 转换为LinearImage（简化实现：直接使用原始图像）
-            // 注意：这里需要将sRGB转换为线性域，但为了简化，我们假设图像已经是线性域
-            // 实际应该使用imageConverter.bitmapToLinear，但当前可能未实现
-            val linearImage = imageConverter.bitmapToLinear(originalBitmap) 
-                ?: return@withContext null
-            
-            // 3. 转换参数
-            val nativeParams = convertToNativeParams(params)
-            
-            // 4. 应用胶片模拟
-            val processedImage = filmEngine.process(linearImage, nativeParams)
-                ?: return@withContext null
-            
-            // 5. 转换为Bitmap
-            val bitmap = imageConverter.linearToBitmap(processedImage)
-            
-            // 6. 清理资源
-            imageConverter.release(linearImage)
-            imageConverter.release(processedImage)
-            
-            bitmap
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
-    }
-    
-    /**
      * 转换参数到 Native 格式
      */
     private fun convertToNativeParams(params: FilmParams): FilmParamsNative {

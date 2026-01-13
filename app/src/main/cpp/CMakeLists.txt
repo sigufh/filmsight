@@ -45,6 +45,8 @@ add_library(filmtracker SHARED
 
 # Link libraries
 find_library(log-lib log)
+find_library(jnigraphics-lib jnigraphics)
 target_link_libraries(filmtracker
     ${log-lib}
+    ${jnigraphics-lib}
 )
