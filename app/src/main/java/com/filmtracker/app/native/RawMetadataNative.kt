@@ -5,33 +5,6 @@ package com.filmtracker.app.native
  */
 class RawMetadataNative(val nativePtr: Long) {
     
-    val width: Int
-        get() = getWidth()
-    val height: Int
-        get() = getHeight()
-    val bitsPerSample: Int
-        get() = getBitsPerSample()
-    val iso: Float
-        get() = getIso()
-    val exposureTime: Float
-        get() = getExposureTime()
-    val aperture: Float
-        get() = getAperture()
-    val focalLength: Float
-        get() = getFocalLength()
-    val whiteBalanceTemperature: Float
-        get() = getWhiteBalanceTemperature()
-    val whiteBalanceTint: Float
-        get() = getWhiteBalanceTint()
-    val cameraModel: String?
-        get() = getCameraModel()
-    val colorSpace: String?
-        get() = getColorSpace()
-    val blackLevel: Float
-        get() = getBlackLevel()
-    val whiteLevel: Float
-        get() = getWhiteLevel()
-    
     external fun getWidth(): Int
     external fun getHeight(): Int
     external fun getBitsPerSample(): Int
