@@ -84,7 +84,7 @@ fun ProcessingScreen(
                 title = { Text("FilmTracker") },
                 actions = {
                     IconButton(onClick = { onExport(filmParams) }) {
-                        Icon(Icons.Default.Download, "导出")
+                        Icon(Icons.Default.FileDownload, "导出")
                     }
                 }
             )
@@ -218,7 +218,7 @@ fun ImagePreviewSection(
                     verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
-                        Icons.Default.Image,
+                        Icons.Default.Photo,
                         contentDescription = null,
                         modifier = Modifier.size(64.dp),
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
@@ -247,11 +247,11 @@ fun BottomModeSelector(
     data class ModeItem(val mode: EditMode, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
     
     val modes = listOf(
-        ModeItem(EditMode.BASIC, "基础", Icons.Default.Tune),
-        ModeItem(EditMode.CURVE, "曲线", Icons.Default.ShowChart),
-        ModeItem(EditMode.HSL, "HSL", Icons.Default.Palette),
-        ModeItem(EditMode.GRAIN, "颗粒", Icons.Default.Texture),
-        ModeItem(EditMode.AI_TONE, "AI调色", Icons.Default.AutoAwesome),
+        ModeItem(EditMode.BASIC, "基础", Icons.Default.Settings),
+        ModeItem(EditMode.CURVE, "曲线", Icons.Default.TrendingUp),
+        ModeItem(EditMode.HSL, "HSL", Icons.Default.ColorLens),
+        ModeItem(EditMode.GRAIN, "颗粒", Icons.Default.Grain),
+        ModeItem(EditMode.AI_TONE, "AI调色", Icons.Default.AutoFixHigh),
         ModeItem(EditMode.AI_BEAUTY, "AI美颜", Icons.Default.Face)
     )
     
