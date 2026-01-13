@@ -144,242 +144,242 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
             LOGE("loadArwFile: File read error (not EOF)");
             throw std::runtime_error("File read error");
         }
-    
-    LOGI("loadArwFile: TIFF header bytes: %02x %02x %02x %02x %02x %02x %02x %02x",
-         tiffHeader[0], tiffHeader[1], tiffHeader[2], tiffHeader[3],
-         tiffHeader[4], tiffHeader[5], tiffHeader[6], tiffHeader[7]);
-    
-    // 检测字节序
-    bool isLittleEndian = (tiffHeader[0] == 0x49 && tiffHeader[1] == 0x49);
-    bool isBigEndian = (tiffHeader[0] == 0x4D && tiffHeader[1] == 0x4D);
-    
-    LOGI("loadArwFile: Byte order - isLittleEndian=%s, isBigEndian=%s", 
-         isLittleEndian ? "true" : "false", isBigEndian ? "true" : "false");
-    
-    if (!isLittleEndian && !isBigEndian) {
-        LOGE("loadArwFile: Invalid TIFF header");
-        throw std::runtime_error("Invalid ARW file format");
-    }
-    
-    // 读取IFD偏移量（字节4-7）
-    uint32_t ifdOffset;
-    if (isLittleEndian) {
-        ifdOffset = tiffHeader[4] | (tiffHeader[5] << 8) | 
-                   (tiffHeader[6] << 16) | (tiffHeader[7] << 24);
-    } else {
-        ifdOffset = (tiffHeader[4] << 24) | (tiffHeader[5] << 16) | 
-                   (tiffHeader[6] << 8) | tiffHeader[7];
-    }
-    
-    LOGI("loadArwFile: IFD offset = %u (0x%08x)", ifdOffset, ifdOffset);
-    
-    // 初始化元数据默认值
-    metadata.iso = 400.0f;
-    metadata.exposureTime = 1.0f / 125.0f;
-    metadata.aperture = 2.8f;
-    metadata.focalLength = 50.0f;
-    metadata.whiteBalance[0] = 5500.0f;  // 色温
-    metadata.whiteBalance[1] = 0.0f;     // 色调
-    metadata.bitsPerSample = 14;
-    metadata.blackLevel = 512.0f;
-    metadata.whiteLevel = 16383.0f;
-    std::memset(metadata.cameraModel, 0, sizeof(metadata.cameraModel));
-    std::strncpy(metadata.cameraModel, "Unknown", sizeof(metadata.cameraModel) - 1);
-    std::memset(metadata.colorSpace, 0, sizeof(metadata.colorSpace));
-    std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
-    
-    // 解析TIFF IFD以获取完整的EXIF信息
-    LOGI("loadArwFile: About to parse TIFF IFD, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
-    if (ifdOffset > 0 && ifdOffset < fileSize) {
-        LOGI("loadArwFile: Calling parseTiffIfd");
-        parseTiffIfd(file, ifdOffset, isLittleEndian, fileSize, metadata);
-        LOGI("loadArwFile: parseTiffIfd completed, metadata.width=%u, metadata.height=%u", 
-             metadata.width, metadata.height);
-    } else {
-        LOGE("loadArwFile: Invalid IFD offset, skipping parseTiffIfd");
-    }
-    
-    // 如果无法读取实际尺寸，使用默认值（保持宽高比）
-    uint32_t actualWidth = metadata.width;
-    uint32_t actualHeight = metadata.height;
-    if (actualWidth == 0 || actualHeight == 0) {
-        LOGI("loadArwFile: Could not read dimensions from TIFF, using defaults");
-        // 使用常见的ARW尺寸比例（3:2）
-        actualWidth = 6000;
-        actualHeight = 4000;
-    }
-    
-    LOGI("loadArwFile: Actual image dimensions = %ux%u", actualWidth, actualHeight);
-    
-    // 计算预览尺寸，保持宽高比
-    uint32_t maxPreviewSize = 1200;
-    uint32_t previewWidth = actualWidth;
-    uint32_t previewHeight = actualHeight;
-    
-    if (actualWidth > maxPreviewSize || actualHeight > maxPreviewSize) {
-        float scale = std::min(
-            static_cast<float>(maxPreviewSize) / static_cast<float>(actualWidth),
-            static_cast<float>(maxPreviewSize) / static_cast<float>(actualHeight)
-        );
-        previewWidth = static_cast<uint32_t>(actualWidth * scale);
-        previewHeight = static_cast<uint32_t>(actualHeight * scale);
-        LOGI("loadArwFile: Scaled to preview size %ux%u (scale=%.2f)", 
-             previewWidth, previewHeight, scale);
-    }
-    
-    // 更新尺寸（如果已从EXIF读取，使用实际尺寸；否则使用预览尺寸）
-    if (metadata.width == 0 || metadata.height == 0) {
-        metadata.width = previewWidth;
-        metadata.height = previewHeight;
-    } else {
-        // 如果已读取实际尺寸，按比例缩放
-        if (metadata.width > maxPreviewSize || metadata.height > maxPreviewSize) {
-            float scale = std::min(
-                static_cast<float>(maxPreviewSize) / static_cast<float>(metadata.width),
-                static_cast<float>(maxPreviewSize) / static_cast<float>(metadata.height)
-            );
-            metadata.width = static_cast<uint32_t>(metadata.width * scale);
-            metadata.height = static_cast<uint32_t>(metadata.height * scale);
-        }
-    }
-    
-    // 如果某些值仍为默认值，设置合理的默认值
-    if (metadata.iso == 0.0f) {
-        metadata.iso = 400.0f;
-    }
-    if (metadata.exposureTime == 0.0f) {
-        metadata.exposureTime = 1.0f / 125.0f;
-    }
-    if (metadata.aperture == 0.0f) {
-        metadata.aperture = 2.8f;
-    }
-    if (metadata.focalLength == 0.0f) {
-        metadata.focalLength = 50.0f;
-    }
-    if (metadata.blackLevel == 0.0f) {
-        metadata.blackLevel = 512.0f;  // ARW典型黑电平
-    }
-    if (metadata.whiteLevel == 0.0f) {
-        metadata.whiteLevel = 16383.0f;  // 14位RAW
-    }
-    
-    LOGI("loadArwFile: Final metadata - %dx%d, ISO=%.0f, Exposure=%.3fs, Aperture=f/%.1f, Focal=%.1fmm",
-         metadata.width, metadata.height, metadata.iso, metadata.exposureTime, 
-         metadata.aperture, metadata.focalLength);
-    LOGI("loadArwFile: Camera: %s", metadata.cameraModel);
-    LOGI("loadArwFile: About to search for RAW data, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
-    
-    // 设置CFA模式（ARW通常使用RGGB）
-    metadata.cfaPattern[0] = 0;  // R
-    metadata.cfaPattern[1] = 1;  // G
-    metadata.cfaPattern[2] = 1;  // G
-    metadata.cfaPattern[3] = 2;  // B
-    
-    // 尝试找到并读取实际的RAW数据
-    uint32_t stripOffset = 0;
-    uint32_t stripByteCount = 0;
-    uint32_t rawWidth = metadata.width;
-    uint32_t rawHeight = metadata.height;
-    uint16_t rawBitsPerSample = metadata.bitsPerSample;
-    
-    LOGI("loadArwFile: Attempting to find RAW data location, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
-    bool foundRawData = findArwRawDataLocation(file, ifdOffset, isLittleEndian, fileSize,
-                                              stripOffset, stripByteCount, rawWidth, rawHeight, rawBitsPerSample);
-    
-    LOGI("loadArwFile: findArwRawDataLocation returned %s, stripOffset=%u, stripByteCount=%u", 
-         foundRawData ? "true" : "false", stripOffset, stripByteCount);
-    
-    if (foundRawData && stripOffset > 0 && stripByteCount > 0) {
-        LOGI("loadArwFile: Found RAW data at offset %u, size %u bytes", stripOffset, stripByteCount);
-        LOGI("loadArwFile: RAW dimensions: %ux%u, bits per sample: %u", rawWidth, rawHeight, rawBitsPerSample);
         
-        // 读取RAW Bayer数据
-        std::vector<uint16_t> rawBayerData;
-        if (readArwRawData(file, stripOffset, stripByteCount, rawWidth, rawHeight, 
-                          rawBitsPerSample, isLittleEndian, rawBayerData)) {
-            LOGI("loadArwFile: Successfully read %zu RAW pixels", rawBayerData.size());
-            
-            // 应用黑电平校正
-            applyBlackLevel(rawBayerData, metadata.blackLevel, rawWidth, rawHeight);
-            
-            // 将RAW数据转换为归一化的float数组（0-1范围）
-            // 这样去马赛克算法可以使用归一化的值
-            std::vector<float> normalizedRawData(rawBayerData.size());
-            float whiteLevel = metadata.whiteLevel;
-            for (size_t i = 0; i < rawBayerData.size(); ++i) {
-                normalizedRawData[i] = std::max(0.0f, std::min(1.0f, 
-                    static_cast<float>(rawBayerData[i]) / whiteLevel));
+        LOGI("loadArwFile: TIFF header bytes: %02x %02x %02x %02x %02x %02x %02x %02x",
+             tiffHeader[0], tiffHeader[1], tiffHeader[2], tiffHeader[3],
+             tiffHeader[4], tiffHeader[5], tiffHeader[6], tiffHeader[7]);
+        
+        // 检测字节序
+        bool isLittleEndian = (tiffHeader[0] == 0x49 && tiffHeader[1] == 0x49);
+        bool isBigEndian = (tiffHeader[0] == 0x4D && tiffHeader[1] == 0x4D);
+        
+        LOGI("loadArwFile: Byte order - isLittleEndian=%s, isBigEndian=%s", 
+             isLittleEndian ? "true" : "false", isBigEndian ? "true" : "false");
+        
+        if (!isLittleEndian && !isBigEndian) {
+            LOGE("loadArwFile: Invalid TIFF header");
+            throw std::runtime_error("Invalid ARW file format");
+        }
+        
+        // 读取IFD偏移量（字节4-7）
+        uint32_t ifdOffset;
+        if (isLittleEndian) {
+            ifdOffset = tiffHeader[4] | (tiffHeader[5] << 8) | 
+                       (tiffHeader[6] << 16) | (tiffHeader[7] << 24);
+        } else {
+            ifdOffset = (tiffHeader[4] << 24) | (tiffHeader[5] << 16) | 
+                       (tiffHeader[6] << 8) | tiffHeader[7];
+        }
+        
+        LOGI("loadArwFile: IFD offset = %u (0x%08x)", ifdOffset, ifdOffset);
+        
+        // 初始化元数据默认值
+        metadata.iso = 400.0f;
+        metadata.exposureTime = 1.0f / 125.0f;
+        metadata.aperture = 2.8f;
+        metadata.focalLength = 50.0f;
+        metadata.whiteBalance[0] = 5500.0f;  // 色温
+        metadata.whiteBalance[1] = 0.0f;     // 色调
+        metadata.bitsPerSample = 14;
+        metadata.blackLevel = 512.0f;
+        metadata.whiteLevel = 16383.0f;
+        std::memset(metadata.cameraModel, 0, sizeof(metadata.cameraModel));
+        std::strncpy(metadata.cameraModel, "Unknown", sizeof(metadata.cameraModel) - 1);
+        std::memset(metadata.colorSpace, 0, sizeof(metadata.colorSpace));
+        std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
+        
+        // 解析TIFF IFD以获取完整的EXIF信息
+        LOGI("loadArwFile: About to parse TIFF IFD, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
+        if (ifdOffset > 0 && ifdOffset < fileSize) {
+            LOGI("loadArwFile: Calling parseTiffIfd");
+            parseTiffIfd(file, ifdOffset, isLittleEndian, fileSize, metadata);
+            LOGI("loadArwFile: parseTiffIfd completed, metadata.width=%u, metadata.height=%u", 
+                 metadata.width, metadata.height);
+        } else {
+            LOGE("loadArwFile: Invalid IFD offset, skipping parseTiffIfd");
+        }
+        
+        // 如果无法读取实际尺寸，使用默认值（保持宽高比）
+        uint32_t actualWidth = metadata.width;
+        uint32_t actualHeight = metadata.height;
+        if (actualWidth == 0 || actualHeight == 0) {
+            LOGI("loadArwFile: Could not read dimensions from TIFF, using defaults");
+            // 使用常见的ARW尺寸比例（3:2）
+            actualWidth = 6000;
+            actualHeight = 4000;
+        }
+        
+        LOGI("loadArwFile: Actual image dimensions = %ux%u", actualWidth, actualHeight);
+        
+        // 计算预览尺寸，保持宽高比
+        uint32_t maxPreviewSize = 1200;
+        uint32_t previewWidth = actualWidth;
+        uint32_t previewHeight = actualHeight;
+        
+        if (actualWidth > maxPreviewSize || actualHeight > maxPreviewSize) {
+            float scale = std::min(
+                static_cast<float>(maxPreviewSize) / static_cast<float>(actualWidth),
+                static_cast<float>(maxPreviewSize) / static_cast<float>(actualHeight)
+            );
+            previewWidth = static_cast<uint32_t>(actualWidth * scale);
+            previewHeight = static_cast<uint32_t>(actualHeight * scale);
+            LOGI("loadArwFile: Scaled to preview size %ux%u (scale=%.2f)", 
+                 previewWidth, previewHeight, scale);
+        }
+        
+        // 更新尺寸（如果已从EXIF读取，使用实际尺寸；否则使用预览尺寸）
+        if (metadata.width == 0 || metadata.height == 0) {
+            metadata.width = previewWidth;
+            metadata.height = previewHeight;
+        } else {
+            // 如果已读取实际尺寸，按比例缩放
+            if (metadata.width > maxPreviewSize || metadata.height > maxPreviewSize) {
+                float scale = std::min(
+                    static_cast<float>(maxPreviewSize) / static_cast<float>(metadata.width),
+                    static_cast<float>(maxPreviewSize) / static_cast<float>(metadata.height)
+                );
+                metadata.width = static_cast<uint32_t>(metadata.width * scale);
+                metadata.height = static_cast<uint32_t>(metadata.height * scale);
             }
+        }
+        
+        // 如果某些值仍为默认值，设置合理的默认值
+        if (metadata.iso == 0.0f) {
+            metadata.iso = 400.0f;
+        }
+        if (metadata.exposureTime == 0.0f) {
+            metadata.exposureTime = 1.0f / 125.0f;
+        }
+        if (metadata.aperture == 0.0f) {
+            metadata.aperture = 2.8f;
+        }
+        if (metadata.focalLength == 0.0f) {
+            metadata.focalLength = 50.0f;
+        }
+        if (metadata.blackLevel == 0.0f) {
+            metadata.blackLevel = 512.0f;  // ARW典型黑电平
+        }
+        if (metadata.whiteLevel == 0.0f) {
+            metadata.whiteLevel = 16383.0f;  // 14位RAW
+        }
+        
+        LOGI("loadArwFile: Final metadata - %dx%d, ISO=%.0f, Exposure=%.3fs, Aperture=f/%.1f, Focal=%.1fmm",
+             metadata.width, metadata.height, metadata.iso, metadata.exposureTime, 
+             metadata.aperture, metadata.focalLength);
+        LOGI("loadArwFile: Camera: %s", metadata.cameraModel);
+        LOGI("loadArwFile: About to search for RAW data, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
+        
+        // 设置CFA模式（ARW通常使用RGGB）
+        metadata.cfaPattern[0] = 0;  // R
+        metadata.cfaPattern[1] = 1;  // G
+        metadata.cfaPattern[2] = 1;  // G
+        metadata.cfaPattern[3] = 2;  // B
+        
+        // 尝试找到并读取实际的RAW数据
+        uint32_t stripOffset = 0;
+        uint32_t stripByteCount = 0;
+        uint32_t rawWidth = metadata.width;
+        uint32_t rawHeight = metadata.height;
+        uint16_t rawBitsPerSample = metadata.bitsPerSample;
+        
+        LOGI("loadArwFile: Attempting to find RAW data location, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
+        bool foundRawData = findArwRawDataLocation(file, ifdOffset, isLittleEndian, fileSize,
+                                                  stripOffset, stripByteCount, rawWidth, rawHeight, rawBitsPerSample);
+        
+        LOGI("loadArwFile: findArwRawDataLocation returned %s, stripOffset=%u, stripByteCount=%u", 
+             foundRawData ? "true" : "false", stripOffset, stripByteCount);
+        
+        if (foundRawData && stripOffset > 0 && stripByteCount > 0) {
+            LOGI("loadArwFile: Found RAW data at offset %u, size %u bytes", stripOffset, stripByteCount);
+            LOGI("loadArwFile: RAW dimensions: %ux%u, bits per sample: %u", rawWidth, rawHeight, rawBitsPerSample);
             
-            // 应用去马赛克（Bayer转RGB），使用归一化的数据
-            LinearImage demosaiced = demosaicBayerNormalized(normalizedRawData, rawWidth, rawHeight, 0); // 0 = RGGB
-            
-            // 如果尺寸不匹配，需要缩放
-            if (demosaiced.width != metadata.width || demosaiced.height != metadata.height) {
-                LOGI("loadArwFile: Resizing from %ux%u to %ux%u", 
-                     demosaiced.width, demosaiced.height, metadata.width, metadata.height);
-                LinearImage resized(metadata.width, metadata.height);
+            // 读取RAW Bayer数据
+            std::vector<uint16_t> rawBayerData;
+            if (readArwRawData(file, stripOffset, stripByteCount, rawWidth, rawHeight, 
+                              rawBitsPerSample, isLittleEndian, rawBayerData)) {
+                LOGI("loadArwFile: Successfully read %zu RAW pixels", rawBayerData.size());
                 
-                float scaleX = static_cast<float>(demosaiced.width) / static_cast<float>(metadata.width);
-                float scaleY = static_cast<float>(demosaiced.height) / static_cast<float>(metadata.height);
+                // 应用黑电平校正
+                applyBlackLevel(rawBayerData, metadata.blackLevel, rawWidth, rawHeight);
                 
-                for (uint32_t y = 0; y < metadata.height; ++y) {
-                    for (uint32_t x = 0; x < metadata.width; ++x) {
-                        uint32_t srcX = static_cast<uint32_t>(x * scaleX);
-                        uint32_t srcY = static_cast<uint32_t>(y * scaleY);
-                        srcX = std::min(srcX, demosaiced.width - 1);
-                        srcY = std::min(srcY, demosaiced.height - 1);
-                        
-                        uint32_t dstIdx = y * metadata.width + x;
-                        uint32_t srcIdx = srcY * demosaiced.width + srcX;
-                        
-                        resized.r[dstIdx] = demosaiced.r[srcIdx];
-                        resized.g[dstIdx] = demosaiced.g[srcIdx];
-                        resized.b[dstIdx] = demosaiced.b[srcIdx];
+                // 将RAW数据转换为归一化的float数组（0-1范围）
+                // 这样去马赛克算法可以使用归一化的值
+                std::vector<float> normalizedRawData(rawBayerData.size());
+                float whiteLevel = metadata.whiteLevel;
+                for (size_t i = 0; i < rawBayerData.size(); ++i) {
+                    normalizedRawData[i] = std::max(0.0f, std::min(1.0f, 
+                        static_cast<float>(rawBayerData[i]) / whiteLevel));
+                }
+                
+                // 应用去马赛克（Bayer转RGB），使用归一化的数据
+                LinearImage demosaiced = demosaicBayerNormalized(normalizedRawData, rawWidth, rawHeight, 0); // 0 = RGGB
+                
+                // 如果尺寸不匹配，需要缩放
+                if (demosaiced.width != metadata.width || demosaiced.height != metadata.height) {
+                    LOGI("loadArwFile: Resizing from %ux%u to %ux%u", 
+                         demosaiced.width, demosaiced.height, metadata.width, metadata.height);
+                    LinearImage resized(metadata.width, metadata.height);
+                    
+                    float scaleX = static_cast<float>(demosaiced.width) / static_cast<float>(metadata.width);
+                    float scaleY = static_cast<float>(demosaiced.height) / static_cast<float>(metadata.height);
+                    
+                    for (uint32_t y = 0; y < metadata.height; ++y) {
+                        for (uint32_t x = 0; x < metadata.width; ++x) {
+                            uint32_t srcX = static_cast<uint32_t>(x * scaleX);
+                            uint32_t srcY = static_cast<uint32_t>(y * scaleY);
+                            srcX = std::min(srcX, demosaiced.width - 1);
+                            srcY = std::min(srcY, demosaiced.height - 1);
+                            
+                            uint32_t dstIdx = y * metadata.width + x;
+                            uint32_t srcIdx = srcY * demosaiced.width + srcX;
+                            
+                            resized.r[dstIdx] = demosaiced.r[srcIdx];
+                            resized.g[dstIdx] = demosaiced.g[srcIdx];
+                            resized.b[dstIdx] = demosaiced.b[srcIdx];
+                        }
                     }
+                    
+                    LOGI("loadArwFile: Completed successfully with real RAW data");
+                    return resized;
                 }
                 
                 LOGI("loadArwFile: Completed successfully with real RAW data");
-                return resized;
+                return demosaiced;
+            } else {
+                LOGI("loadArwFile: Failed to read RAW data, falling back to test pattern");
             }
-            
-            LOGI("loadArwFile: Completed successfully with real RAW data");
-            return demosaiced;
         } else {
-            LOGI("loadArwFile: Failed to read RAW data, falling back to test pattern");
+            LOGI("loadArwFile: Could not find RAW data location, falling back to test pattern");
         }
-    } else {
-        LOGI("loadArwFile: Could not find RAW data location, falling back to test pattern");
-    }
-    
-    // 如果无法读取实际数据，生成测试图案作为后备
-    LOGI("loadArwFile: Allocating LinearImage memory");
-    LinearImage image(metadata.width, metadata.height);
-    LOGI("loadArwFile: LinearImage allocated successfully");
-    
-    const uint32_t pixelCount = image.width * image.height;
-    LOGI("loadArwFile: Filling %u pixels with test pattern", pixelCount);
-    
-    // 创建渐变测试图案
-    for (uint32_t y = 0; y < image.height; ++y) {
-        for (uint32_t x = 0; x < image.width; ++x) {
-            uint32_t idx = y * image.width + x;
-            
-            float fx = static_cast<float>(x) / static_cast<float>(image.width);
-            float fy = static_cast<float>(y) / static_cast<float>(image.height);
-            
-            image.r[idx] = fx * 0.8f + 0.2f;
-            image.g[idx] = (1.0f - fx) * 0.6f + fy * 0.4f + 0.2f;
-            image.b[idx] = fy * 0.8f + 0.2f;
-            
-            image.r[idx] *= 0.5f;
-            image.g[idx] *= 0.5f;
-            image.b[idx] *= 0.5f;
+        
+        // 如果无法读取实际数据，生成测试图案作为后备
+        LOGI("loadArwFile: Allocating LinearImage memory");
+        LinearImage image(metadata.width, metadata.height);
+        LOGI("loadArwFile: LinearImage allocated successfully");
+        
+        const uint32_t pixelCount = image.width * image.height;
+        LOGI("loadArwFile: Filling %u pixels with test pattern", pixelCount);
+        
+        // 创建渐变测试图案
+        for (uint32_t y = 0; y < image.height; ++y) {
+            for (uint32_t x = 0; x < image.width; ++x) {
+                uint32_t idx = y * image.width + x;
+                
+                float fx = static_cast<float>(x) / static_cast<float>(image.width);
+                float fy = static_cast<float>(y) / static_cast<float>(image.height);
+                
+                image.r[idx] = fx * 0.8f + 0.2f;
+                image.g[idx] = (1.0f - fx) * 0.6f + fy * 0.4f + 0.2f;
+                image.b[idx] = fy * 0.8f + 0.2f;
+                
+                image.r[idx] *= 0.5f;
+                image.g[idx] *= 0.5f;
+                image.b[idx] *= 0.5f;
+            }
         }
-    }
-    
-    LOGI("loadArwFile: Completed with test pattern");
-    return image;
+        
+        LOGI("loadArwFile: Completed with test pattern");
+        return image;
     } catch (const std::exception& e) {
         LOGE("loadArwFile: Exception caught: %s", e.what());
         // 如果发生异常，返回一个默认图像
