@@ -78,6 +78,65 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRaw(
 }
 
 /**
+ * 加载 RAW 图像并返回元数据
+ */
+JNIEXPORT jlongArray JNICALL
+Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRawWithMetadata(
+    JNIEnv *env, jobject thiz, jlong nativePtr, jstring filePath) {
+    
+    RawProcessor* processor = reinterpret_cast<RawProcessor*>(nativePtr);
+    if (!processor) {
+        LOGE("RawProcessor is null");
+        return nullptr;
+    }
+    
+    if (filePath == nullptr) {
+        LOGE("File path is null");
+        return nullptr;
+    }
+    
+    const char* path = env->GetStringUTFChars(filePath, nullptr);
+    if (path == nullptr) {
+        LOGE("Failed to get string chars");
+        return nullptr;
+    }
+    
+    LOGI("nativeLoadRawWithMetadata: Starting, path=%s", path);
+    
+    RawMetadata* metadata = new RawMetadata();
+    
+    try {
+        LOGI("nativeLoadRawWithMetadata: Calling processor->loadRaw");
+        LinearImage image = processor->loadRaw(path, *metadata);
+        LOGI("nativeLoadRawWithMetadata: loadRaw completed, image size=%dx%d", image.width, image.height);
+        
+        env->ReleaseStringUTFChars(filePath, path);
+        
+        // 创建图像和元数据指针
+        LinearImage* imagePtr = new LinearImage(std::move(image));
+        RawMetadata* metadataPtr = metadata;
+        
+        // 返回两个指针的数组 [imagePtr, metadataPtr]
+        jlongArray result = env->NewLongArray(2);
+        jlong ptrs[2] = {reinterpret_cast<jlong>(imagePtr), reinterpret_cast<jlong>(metadataPtr)};
+        env->SetLongArrayRegion(result, 0, 2, ptrs);
+        
+        LOGI("nativeLoadRawWithMetadata: Successfully created pointers");
+        return result;
+    } catch (const std::exception& e) {
+        env->ReleaseStringUTFChars(filePath, path);
+        delete metadata;
+        LOGE("Exception loading RAW: %s", e.what());
+        return nullptr;
+    } catch (...) {
+        env->ReleaseStringUTFChars(filePath, path);
+        delete metadata;
+        LOGE("Unknown exception loading RAW");
+        return nullptr;
+    }
+}
+
+/**
  * 初始化胶片引擎
  */
 JNIEXPORT jlong JNICALL
@@ -411,6 +470,93 @@ Java_com_filmtracker_app_native_ImageConverterNative_nativeBitmapToLinear(
         LOGE("Unknown exception in bitmap conversion");
         return 0;
     }
+}
+
+/**
+ * RawMetadataNative getter 函数
+ */
+JNIEXPORT jint JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getWidth(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? static_cast<jint>(metadata->width) : 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getHeight(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? static_cast<jint>(metadata->height) : 0;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getBitsPerSample(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? static_cast<jint>(metadata->bitsPerSample) : 0;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getIso(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->iso : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getExposureTime(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->exposureTime : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getAperture(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->aperture : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getFocalLength(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->focalLength : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getWhiteBalanceTemperature(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->whiteBalance[0] : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getWhiteBalanceTint(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->whiteBalance[1] : 0.0f;
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getCameraModel(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    if (!metadata) {
+        return nullptr;
+    }
+    return env->NewStringUTF(metadata->cameraModel);
+}
+
+JNIEXPORT jstring JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getColorSpace(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    if (!metadata) {
+        return nullptr;
+    }
+    return env->NewStringUTF(metadata->colorSpace);
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getBlackLevel(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->blackLevel : 0.0f;
+}
+
+JNIEXPORT jfloat JNICALL
+Java_com_filmtracker_app_native_RawMetadataNative_getWhiteLevel(JNIEnv *env, jobject thiz, jlong nativePtr) {
+    RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
+    return metadata ? metadata->whiteLevel : 0.0f;
 }
 
 } // extern "C"

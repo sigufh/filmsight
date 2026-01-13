@@ -51,14 +51,16 @@ class ImageProcessor(private val context: Context? = null) {
                     val filePath = getFilePathFromUri(context, uri)
                     if (filePath != null) {
                         android.util.Log.d("ImageProcessor", "Processing RAW file: $filePath")
-                        val linearImage = rawProcessor.loadRaw(filePath)
+                        val rawResult = rawProcessor.loadRaw(filePath)
                         android.util.Log.d("ImageProcessor", "RAW file loaded, processing linear image...")
-                        if (linearImage != null) {
+                        if (rawResult != null) {
+                            val (linearImage, metadata) = rawResult
+                            
                             val result = processLinearImage(linearImage, params, previewMode)
                             android.util.Log.d("ImageProcessor", "RAW processing completed")
                             return@withContext result
                         } else {
-                            android.util.Log.e("ImageProcessor", "Failed to load RAW file, linearImage is null")
+                            android.util.Log.e("ImageProcessor", "Failed to load RAW file, result is null")
                         }
                     } else {
                         android.util.Log.e("ImageProcessor", "Failed to get file path from URI")

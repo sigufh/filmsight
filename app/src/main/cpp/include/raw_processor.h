@@ -87,6 +87,60 @@ private:
      * 加载ARW文件（Sony ARW格式）
      */
     LinearImage loadArwFile(std::ifstream& file, RawMetadata& metadata);
+    
+    /**
+     * 解析TIFF IFD并提取EXIF信息
+     */
+    void parseTiffIfd(std::ifstream& file, 
+                      uint32_t ifdOffset, 
+                      bool isLittleEndian,
+                      size_t fileSize,
+                      RawMetadata& metadata);
+    
+    /**
+     * 读取TIFF标签值（支持不同数据类型）
+     */
+    uint32_t readTiffValue(std::ifstream& file,
+                          uint16_t dataType,
+                          uint32_t count,
+                          uint32_t valueOffset,
+                          bool isLittleEndian,
+                          size_t fileSize);
+    
+    /**
+     * 读取TIFF字符串值
+     */
+    void readTiffString(std::ifstream& file,
+                       uint32_t valueOffset,
+                       uint32_t count,
+                       bool isLittleEndian,
+                       char* buffer,
+                       size_t bufferSize);
+    
+    /**
+     * 读取ARW文件的RAW数据条带
+     */
+    bool readArwRawData(std::ifstream& file,
+                       uint32_t stripOffset,
+                       uint32_t stripByteCount,
+                       uint32_t width,
+                       uint32_t height,
+                       uint16_t bitsPerSample,
+                       bool isLittleEndian,
+                       std::vector<uint16_t>& rawData);
+    
+    /**
+     * 解析ARW文件的RAW数据位置（StripOffsets和StripByteCounts）
+     */
+    bool findArwRawDataLocation(std::ifstream& file,
+                               uint32_t ifdOffset,
+                               bool isLittleEndian,
+                               size_t fileSize,
+                               uint32_t& stripOffset,
+                               uint32_t& stripByteCount,
+                               uint32_t& width,
+                               uint32_t& height,
+                               uint16_t& bitsPerSample);
 };
 
 } // namespace filmtracker
