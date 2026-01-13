@@ -113,9 +113,21 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     uint8_t tiffHeader[8];
     file.read(reinterpret_cast<char*>(tiffHeader), 8);
     
+    if (file.gcount() != 8) {
+        LOGE("loadArwFile: Failed to read TIFF header, only read %ld bytes", file.gcount());
+        throw std::runtime_error("Failed to read TIFF header");
+    }
+    
+    LOGI("loadArwFile: TIFF header bytes: %02x %02x %02x %02x %02x %02x %02x %02x",
+         tiffHeader[0], tiffHeader[1], tiffHeader[2], tiffHeader[3],
+         tiffHeader[4], tiffHeader[5], tiffHeader[6], tiffHeader[7]);
+    
     // 检测字节序
     bool isLittleEndian = (tiffHeader[0] == 0x49 && tiffHeader[1] == 0x49);
     bool isBigEndian = (tiffHeader[0] == 0x4D && tiffHeader[1] == 0x4D);
+    
+    LOGI("loadArwFile: Byte order - isLittleEndian=%s, isBigEndian=%s", 
+         isLittleEndian ? "true" : "false", isBigEndian ? "true" : "false");
     
     if (!isLittleEndian && !isBigEndian) {
         LOGE("loadArwFile: Invalid TIFF header");
@@ -132,7 +144,7 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
                    (tiffHeader[6] << 8) | tiffHeader[7];
     }
     
-    LOGI("loadArwFile: IFD offset = %u", ifdOffset);
+    LOGI("loadArwFile: IFD offset = %u (0x%08x)", ifdOffset, ifdOffset);
     
     // 初始化元数据默认值
     metadata.iso = 400.0f;
@@ -150,8 +162,14 @@ LinearImage RawProcessor::loadArwFile(std::ifstream& file, RawMetadata& metadata
     std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
     
     // 解析TIFF IFD以获取完整的EXIF信息
+    LOGI("loadArwFile: About to parse TIFF IFD, ifdOffset=%u, fileSize=%zu", ifdOffset, fileSize);
     if (ifdOffset > 0 && ifdOffset < fileSize) {
+        LOGI("loadArwFile: Calling parseTiffIfd");
         parseTiffIfd(file, ifdOffset, isLittleEndian, fileSize, metadata);
+        LOGI("loadArwFile: parseTiffIfd completed, metadata.width=%u, metadata.height=%u", 
+             metadata.width, metadata.height);
+    } else {
+        LOGE("loadArwFile: Invalid IFD offset, skipping parseTiffIfd");
     }
     
     // 如果无法读取实际尺寸，使用默认值（保持宽高比）
