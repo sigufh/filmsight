@@ -3,6 +3,11 @@
 #include <algorithm>
 #include <thread>
 #include <vector>
+#include <android/log.h>
+
+#define LOG_TAG "ImageConverter"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 namespace filmtracker {
 
@@ -31,18 +36,24 @@ float ImageConverter::linearToSRGB(float linear) {
  * 使用多线程优化大图像转换
  */
 OutputImage ImageConverter::linearToSRGB(const LinearImage& linear) {
+    LOGI("linearToSRGB: Starting, image size=%dx%d", linear.width, linear.height);
+    
     OutputImage output(linear.width, linear.height);
+    LOGI("linearToSRGB: Output image created, data size=%zu bytes", output.data.size());
     
     const uint32_t pixelCount = linear.width * linear.height;
     const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
     const uint32_t pixelsPerThread = pixelCount / numThreads;
+    
+    LOGI("linearToSRGB: Using %u threads, %u pixels per thread", numThreads, pixelsPerThread);
     
     std::vector<std::thread> threads;
     for (uint32_t t = 0; t < numThreads; ++t) {
         uint32_t start = t * pixelsPerThread;
         uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
         
-        threads.emplace_back([&linear, &output, start, end]() {
+        threads.emplace_back([&linear, &output, start, end, t]() {
+            LOGI("linearToSRGB: Thread %u processing pixels %u to %u", t, start, end);
             for (uint32_t i = start; i < end; ++i) {
         uint32_t idx = i * 4;
         output.data[idx + 0] = static_cast<uint8_t>(linearToSRGB(linear.r[i]) * 255.0f);
@@ -50,13 +61,16 @@ OutputImage ImageConverter::linearToSRGB(const LinearImage& linear) {
         output.data[idx + 2] = static_cast<uint8_t>(linearToSRGB(linear.b[i]) * 255.0f);
         output.data[idx + 3] = 255; // Alpha
             }
+            LOGI("linearToSRGB: Thread %u completed", t);
         });
     }
     
+    LOGI("linearToSRGB: Waiting for threads to complete");
     for (auto& thread : threads) {
         thread.join();
     }
     
+    LOGI("linearToSRGB: All threads completed successfully");
     return output;
 }
 

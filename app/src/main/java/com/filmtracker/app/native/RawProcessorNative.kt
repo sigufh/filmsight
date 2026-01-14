@@ -1,5 +1,7 @@
 package com.filmtracker.app.native
 
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.util.Log
 
 /**
@@ -10,12 +12,32 @@ class RawProcessorNative {
     
     private external fun nativeInit(): Long
     private external fun nativeLoadRaw(nativePtr: Long, filePath: String): Long
+    private external fun nativeExtractPreview(nativePtr: Long, filePath: String): ByteArray?
     
     private var nativePtr: Long = 0
     
     init {
         System.loadLibrary("filmtracker")
         nativePtr = nativeInit()
+    }
+    
+    /**
+     * 提取 RAW 文件的嵌入式 JPEG 预览图
+     * 这比完整解码快得多，适合用于快速预览
+     */
+    fun extractPreview(filePath: String): Bitmap? {
+        return try {
+            val jpegData = nativeExtractPreview(nativePtr, filePath)
+            if (jpegData != null && jpegData.isNotEmpty()) {
+                BitmapFactory.decodeByteArray(jpegData, 0, jpegData.size)
+            } else {
+                Log.w(TAG, "No preview data extracted")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error extracting preview", e)
+            null
+        }
     }
     
     /**

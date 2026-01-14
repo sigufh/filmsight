@@ -2,9 +2,10 @@
 #include <android/log.h>
 #include <android/bitmap.h>
 #include "raw_processor.h"
-#include "film_engine.h"
 #include "image_converter.h"
-#include "film_params.h"
+#include "raw_decoder.h"
+#include "image_processor_engine.h"
+#include "basic_adjustment_params.h"
 #include <string>
 #include <vector>
 #include <exception>
@@ -137,212 +138,108 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeLoadRawWithMetadata(
     }
 }
 
+// 胶片引擎已移除
+
 /**
- * 初始化胶片引擎
+ * 初始化图像处理引擎（模块化）
  */
 JNIEXPORT jlong JNICALL
-Java_com_filmtracker_app_native_FilmEngineNative_nativeInit(JNIEnv *env, jobject thiz) {
-    FilmEngine* engine = new FilmEngine();
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeInit(JNIEnv *env, jobject thiz) {
+    ImageProcessorEngine* engine = new ImageProcessorEngine();
     return reinterpret_cast<jlong>(engine);
 }
 
 /**
- * 创建胶片参数对象
- * 注意：对应 Kotlin 中 FilmParamsNative.Companion.nativeCreate()
+ * 应用基础调整（曝光、对比度、饱和度）
  */
-JNIEXPORT jlong JNICALL
-Java_com_filmtracker_app_native_FilmParamsNative_00024Companion_nativeCreate(JNIEnv *env, jobject thiz) {
-    FilmParams* params = new FilmParams();
-    return reinterpret_cast<jlong>(params);
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyBasicAdjustments(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr,
+    jfloat exposure, jfloat contrast, jfloat saturation) {
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    
+    if (!engine || !image) {
+        LOGE("Invalid pointers in nativeApplyBasicAdjustments");
+        return;
+    }
+    
+    engine->applyBasicAdjustments(*image, exposure, contrast, saturation);
 }
 
 /**
- * 设置基础参数值
+ * 应用色调调整（高光、阴影、白场、黑场）
  */
 JNIEXPORT void JNICALL
-Java_com_filmtracker_app_native_FilmParamsNative_nativeSetParams(
-    JNIEnv *env, jobject thiz, jlong paramsPtr,
-    jfloat globalExposure, jfloat contrast, jfloat saturation,
-    jfloat highlights, jfloat shadows, jfloat whites, jfloat blacks,
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyToneAdjustments(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr,
+    jfloat highlights, jfloat shadows, jfloat whites, jfloat blacks) {
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    
+    if (!engine || !image) {
+        LOGE("Invalid pointers in nativeApplyToneAdjustments");
+        return;
+    }
+    
+    engine->applyToneAdjustments(*image, highlights, shadows, whites, blacks);
+}
+
+/**
+ * 应用清晰度和自然饱和度
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyPresence(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr,
     jfloat clarity, jfloat vibrance) {
     
-    FilmParams* params = reinterpret_cast<FilmParams*>(paramsPtr);
-    if (params) {
-        params->globalExposure = globalExposure;
-        params->contrast = contrast;
-        params->saturation = saturation;
-
-        // 基础色调
-        params->basicTone.highlights = highlights;
-        params->basicTone.shadows    = shadows;
-        params->basicTone.whites     = whites;
-        params->basicTone.blacks     = blacks;
-        params->basicTone.clarity    = clarity;
-        params->basicTone.vibrance   = vibrance;
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    
+    if (!engine || !image) {
+        LOGE("Invalid pointers in nativeApplyPresence");
+        return;
     }
+    
+    engine->applyPresence(*image, clarity, vibrance);
 }
 
 /**
- * 设置色调曲线参数
+ * 应用色调曲线（已移除，保留空实现以兼容）
  */
 JNIEXPORT void JNICALL
-Java_com_filmtracker_app_native_FilmParamsNative_nativeSetToneCurves(
-    JNIEnv *env, jobject thiz, jlong paramsPtr,
-    jboolean enableRgb, jfloatArray rgbCurve,
-    jboolean enableRed, jfloatArray redCurve,
-    jboolean enableGreen, jfloatArray greenCurve,
-    jboolean enableBlue, jfloatArray blueCurve) {
-    
-    FilmParams* params = reinterpret_cast<FilmParams*>(paramsPtr);
-    if (!params) return;
-    
-    params->toneCurve.enableRgbCurve = enableRgb;
-    params->toneCurve.enableRedCurve = enableRed;
-    params->toneCurve.enableGreenCurve = enableGreen;
-    params->toneCurve.enableBlueCurve = enableBlue;
-    
-    jfloat* rgbData = nullptr;
-    jfloat* redData = nullptr;
-    jfloat* greenData = nullptr;
-    jfloat* blueData = nullptr;
-    
-    if (rgbCurve) {
-        rgbData = env->GetFloatArrayElements(rgbCurve, nullptr);
-        if (rgbData) {
-            for (int i = 0; i < 16; ++i) {
-                params->toneCurve.rgbCurve[i] = rgbData[i];
-            }
-            env->ReleaseFloatArrayElements(rgbCurve, rgbData, JNI_ABORT);
-        }
-    }
-    
-    if (redCurve) {
-        redData = env->GetFloatArrayElements(redCurve, nullptr);
-        if (redData) {
-            for (int i = 0; i < 16; ++i) {
-                params->toneCurve.redCurve[i] = redData[i];
-            }
-            env->ReleaseFloatArrayElements(redCurve, redData, JNI_ABORT);
-        }
-    }
-    
-    if (greenCurve) {
-        greenData = env->GetFloatArrayElements(greenCurve, nullptr);
-        if (greenData) {
-            for (int i = 0; i < 16; ++i) {
-                params->toneCurve.greenCurve[i] = greenData[i];
-            }
-            env->ReleaseFloatArrayElements(greenCurve, greenData, JNI_ABORT);
-        }
-    }
-    
-    if (blueCurve) {
-        blueData = env->GetFloatArrayElements(blueCurve, nullptr);
-        if (blueData) {
-            for (int i = 0; i < 16; ++i) {
-                params->toneCurve.blueCurve[i] = blueData[i];
-            }
-            env->ReleaseFloatArrayElements(blueCurve, blueData, JNI_ABORT);
-        }
-    }
-}
-
-/**
- * 设置 HSL 参数
- */
-JNIEXPORT void JNICALL
-Java_com_filmtracker_app_native_FilmParamsNative_nativeSetHSL(
-    JNIEnv *env, jobject thiz, jlong paramsPtr,
-    jboolean enableHSL,
-    jfloatArray hueShift, jfloatArray saturation, jfloatArray luminance) {
-    
-    FilmParams* params = reinterpret_cast<FilmParams*>(paramsPtr);
-    if (!params) return;
-    
-    params->hsl.enableHSL = enableHSL;
-    
-    jfloat* hueData = nullptr;
-    jfloat* satData = nullptr;
-    jfloat* lumData = nullptr;
-    
-    if (hueShift) {
-        hueData = env->GetFloatArrayElements(hueShift, nullptr);
-        if (hueData) {
-            for (int i = 0; i < 8; ++i) {
-                params->hsl.hueShift[i] = hueData[i];
-            }
-            env->ReleaseFloatArrayElements(hueShift, hueData, JNI_ABORT);
-        }
-    }
-    
-    if (saturation) {
-        satData = env->GetFloatArrayElements(saturation, nullptr);
-        if (satData) {
-            for (int i = 0; i < 8; ++i) {
-                params->hsl.saturation[i] = satData[i];
-            }
-            env->ReleaseFloatArrayElements(saturation, satData, JNI_ABORT);
-        }
-    }
-    
-    if (luminance) {
-        lumData = env->GetFloatArrayElements(luminance, nullptr);
-        if (lumData) {
-            for (int i = 0; i < 8; ++i) {
-                params->hsl.luminance[i] = lumData[i];
-            }
-            env->ReleaseFloatArrayElements(luminance, lumData, JNI_ABORT);
-        }
-    }
-}
-
-/**
- * 处理图像（应用胶片模拟）
- */
-JNIEXPORT jlong JNICALL
-Java_com_filmtracker_app_native_FilmEngineNative_nativeProcess(
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyToneCurves(
     JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
+    // 空实现，不做任何事
+}
+
+/**
+ * 应用 HSL 调整（已移除，保留空实现以兼容）
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyHSL(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
+    // 空实现，不做任何事
+}
+
+// FilmParamsNative 相关方法已移除 - 使用 BasicAdjustmentParamsNative 替代
+
+/**
+ * 释放图像处理引擎
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeRelease(
+    JNIEnv *env, jobject thiz, jlong enginePtr) {
     
-    FilmEngine* engine = reinterpret_cast<FilmEngine*>(enginePtr);
-    LinearImage* input = reinterpret_cast<LinearImage*>(imagePtr);
-    FilmParams* params = reinterpret_cast<FilmParams*>(paramsPtr);
-    
-    if (!engine || !input || !params) {
-        LOGE("Invalid pointers");
-        return 0;
-    }
-    
-    // 创建默认元数据（用于非RAW图像处理）
-    // 对于非RAW图像，使用合理的默认值
-    RawMetadata metadata;
-    metadata.width = input->width;
-    metadata.height = input->height;
-    metadata.bitsPerSample = 8;  // 非RAW图像通常是8位
-    metadata.iso = 400.0f;
-    metadata.exposureTime = 1.0f / 125.0f;
-    metadata.aperture = 2.8f;
-    metadata.focalLength = 50.0f;
-    metadata.whiteBalance[0] = 5500.0f;
-    metadata.whiteBalance[1] = 0.0f;
-    metadata.blackLevel = 0.0f;
-    metadata.whiteLevel = 255.0f;  // 8位图像
-    std::strncpy(metadata.cameraModel, "Unknown", sizeof(metadata.cameraModel) - 1);
-    std::strncpy(metadata.colorSpace, "sRGB", sizeof(metadata.colorSpace) - 1);
-    // 设置CFA模式（非RAW图像不需要CFA）
-    metadata.cfaPattern[0] = 0;
-    metadata.cfaPattern[1] = 0;
-    metadata.cfaPattern[2] = 0;
-    metadata.cfaPattern[3] = 0;
-    
-    try {
-        LinearImage output = engine->process(*input, *params, metadata);
-        LinearImage* outputPtr = new LinearImage(std::move(output));
-        return reinterpret_cast<jlong>(outputPtr);
-    } catch (...) {
-        LOGE("Failed to process image");
-        return 0;
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    if (engine) {
+        delete engine;
     }
 }
+
+// FilmParamsNative 和 FilmEngineNative 相关方法已移除 - 使用 BasicAdjustmentParamsNative 替代
 
 /**
  * 获取图像尺寸
@@ -369,21 +266,39 @@ JNIEXPORT jbyteArray JNICALL
 Java_com_filmtracker_app_native_ImageConverterNative_nativeLinearToSRGB(
     JNIEnv *env, jobject thiz, jlong imagePtr) {
     
+    LOGI("nativeLinearToSRGB: Starting");
+    
     LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
     if (!image) {
+        LOGE("nativeLinearToSRGB: Image pointer is null");
         return nullptr;
     }
     
+    LOGI("nativeLinearToSRGB: Image size=%dx%d", image->width, image->height);
+    
     try {
+        LOGI("nativeLinearToSRGB: Calling ImageConverter::linearToSRGB");
         OutputImage output = ImageConverter::linearToSRGB(*image);
+        LOGI("nativeLinearToSRGB: Conversion completed, data size=%zu bytes", output.data.size());
         
+        LOGI("nativeLinearToSRGB: Creating byte array");
         jbyteArray result = env->NewByteArray(output.data.size());
+        if (result == nullptr) {
+            LOGE("nativeLinearToSRGB: Failed to create byte array");
+            return nullptr;
+        }
+        
+        LOGI("nativeLinearToSRGB: Copying data to byte array");
         env->SetByteArrayRegion(result, 0, output.data.size(), 
                                reinterpret_cast<const jbyte*>(output.data.data()));
         
+        LOGI("nativeLinearToSRGB: Completed successfully");
         return result;
+    } catch (const std::exception& e) {
+        LOGE("Exception in nativeLinearToSRGB: %s", e.what());
+        return nullptr;
     } catch (...) {
-        LOGE("Failed to convert image");
+        LOGE("Unknown exception in nativeLinearToSRGB");
         return nullptr;
     }
 }
@@ -488,6 +403,45 @@ Java_com_filmtracker_app_native_ImageConverterNative_nativeBitmapToLinear(
         LOGE("Unknown exception in bitmap conversion");
         return 0;
     }
+}
+
+/**
+ * 提取 RAW 文件的嵌入式 JPEG 预览
+ */
+JNIEXPORT jbyteArray JNICALL
+Java_com_filmtracker_app_native_RawProcessorNative_nativeExtractPreview(
+    JNIEnv *env, jobject thiz, jlong nativePtr, jstring filePath) {
+    
+    if (filePath == nullptr) {
+        LOGE("File path is null");
+        return nullptr;
+    }
+    
+    const char* path = env->GetStringUTFChars(filePath, nullptr);
+    if (path == nullptr) {
+        LOGE("Failed to get string chars");
+        return nullptr;
+    }
+    
+    LOGI("nativeExtractPreview: Extracting preview from %s", path);
+    
+    std::vector<uint8_t> jpegData;
+    bool success = extractRawPreview(path, jpegData);
+    
+    env->ReleaseStringUTFChars(filePath, path);
+    
+    if (!success || jpegData.empty()) {
+        LOGE("nativeExtractPreview: Failed to extract preview");
+        return nullptr;
+    }
+    
+    LOGI("nativeExtractPreview: Successfully extracted %zu bytes", jpegData.size());
+    
+    jbyteArray result = env->NewByteArray(jpegData.size());
+    env->SetByteArrayRegion(result, 0, jpegData.size(), 
+                           reinterpret_cast<const jbyte*>(jpegData.data()));
+    
+    return result;
 }
 
 /**

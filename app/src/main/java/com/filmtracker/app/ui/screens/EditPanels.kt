@@ -13,7 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
-import com.filmtracker.app.data.FilmParams
+import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.ui.components.*
 import com.filmtracker.app.ui.components.SuggestionItem
 import com.filmtracker.app.ui.components.CurveEditor
@@ -27,8 +27,8 @@ import com.filmtracker.app.ui.components.HSLHueSegment
  */
 @Composable
 fun BasicTonePanel(
-    filmParams: FilmParams,
-    onParamsChange: (FilmParams) -> Unit,
+    filmParams: BasicAdjustmentParams,
+    onParamsChange: (BasicAdjustmentParams) -> Unit,
     onDismiss: () -> Unit
 ) {
     EditPanelContent(
@@ -106,8 +106,8 @@ fun BasicTonePanel(
  */
 @Composable
 fun CurvePanel(
-    filmParams: FilmParams,
-    onParamsChange: (FilmParams) -> Unit,
+    filmParams: BasicAdjustmentParams,
+    onParamsChange: (BasicAdjustmentParams) -> Unit,
     onDismiss: () -> Unit
 ) {
     var selectedCurveType by remember { mutableStateOf(CurveType.RGB) }
@@ -144,8 +144,8 @@ fun CurvePanel(
  */
 @Composable
 fun HSLPanel(
-    filmParams: FilmParams,
-    onParamsChange: (FilmParams) -> Unit,
+    filmParams: BasicAdjustmentParams,
+    onParamsChange: (BasicAdjustmentParams) -> Unit,
     onDismiss: () -> Unit
 ) {
     EditPanelContent(
@@ -178,194 +178,65 @@ fun HSLPanel(
 }
 
 /**
- * 颗粒面板
+ * 颗粒面板（已移除，保留空实现以兼容）
  */
 @Composable
 fun GrainPanel(
-    filmParams: FilmParams,
-    onParamsChange: (FilmParams) -> Unit,
+    filmParams: BasicAdjustmentParams,
+    onParamsChange: (BasicAdjustmentParams) -> Unit,
     onDismiss: () -> Unit
 ) {
     EditPanelContent(
         title = "颗粒",
         onDismiss = onDismiss
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("启用颗粒")
-            Switch(
-                checked = filmParams.grainEnabled,
-                onCheckedChange = { 
-                    onParamsChange(filmParams.copy(grainEnabled = it)) 
-                }
-            )
-        }
-        
-        if (filmParams.grainEnabled) {
-            ParameterSlider(
-                label = "颗粒密度",
-                value = filmParams.grainBaseDensity,
-                onValueChange = { 
-                    onParamsChange(filmParams.copy(grainBaseDensity = it)) 
-                },
-                valueRange = 0.0f..0.1f
-            )
-        }
+        Text(
+            "颗粒功能已移除",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
 
 /**
- * AI 调色面板
+ * AI 调色面板（已移除，保留空实现以兼容）
  */
 @Composable
 fun AITonePanel(
     imageUri: String?,
-    onApplySuggestion: (FilmParams) -> Unit,
+    onApplySuggestion: (BasicAdjustmentParams) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var isAnalyzing by remember { mutableStateOf(false) }
-    var suggestion by remember { mutableStateOf<FilmParams?>(null) }
-    
     EditPanelContent(
         title = "AI 调色",
         onDismiss = onDismiss
     ) {
-        if (imageUri == null) {
-            Text(
-                "请先选择图像",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(16.dp)
-            )
-        } else if (isAnalyzing) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("分析中...")
-            }
-        } else if (suggestion != null) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "AI 建议参数：",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "曝光: ${suggestion!!.globalExposure}\n" +
-                    "对比度: ${suggestion!!.contrast}\n" +
-                    "饱和度: ${suggestion!!.saturation}",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Button(
-                    onClick = { 
-                        onApplySuggestion(suggestion!!)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("应用建议")
-                }
-            }
-        } else {
-            Button(
-                onClick = {
-                    isAnalyzing = true
-                    // TODO: 调用 AI 分析
-                    suggestion = FilmParams.portra400()
-                    isAnalyzing = false
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("分析图像并生成调色建议")
-            }
-        }
+        Text(
+            "AI 调色功能已移除",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
 
 /**
- * AI 美颜面板
+ * AI 美颜面板（已移除，保留空实现以兼容）
  */
 @Composable
 fun AIBeautyPanel(
     imageUri: String?,
-    currentParams: FilmParams,
-    beautyAnalyzer: com.filmtracker.app.ai.BeautyAIAnalyzer,
-    onApplyBeauty: (com.filmtracker.app.ai.BeautySuggestion) -> Unit,
+    currentParams: BasicAdjustmentParams,
     onDismiss: () -> Unit
 ) {
-    var isAnalyzing by remember { mutableStateOf(false) }
-    var beautySuggestion by remember { mutableStateOf<com.filmtracker.app.ai.BeautySuggestion?>(null) }
-    val coroutineScope = rememberCoroutineScope()
-    
     EditPanelContent(
         title = "AI 美颜",
         onDismiss = onDismiss
     ) {
-        if (imageUri == null) {
-            Text(
-                "请先选择图像",
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(16.dp)
-            )
-        } else if (isAnalyzing) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                CircularProgressIndicator()
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("分析中...")
-            }
-        } else if (beautySuggestion != null) {
-            val suggestion = beautySuggestion!!
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    "检测到 ${suggestion.faceRegions.size} 张人脸",
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                SuggestionItem("皮肤平滑", "${(suggestion.params.skinSmoothing * 100).toInt()}%")
-                SuggestionItem("肤色修正", if (suggestion.params.skinToneWarmth > 0) "暖色" else "冷色")
-                SuggestionItem("眼部增强", "亮度 +${(suggestion.params.eyeBrightness * 100).toInt()}%")
-                SuggestionItem("嘴唇增强", "饱和度 +${(suggestion.params.lipSaturation * 100).toInt()}%")
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Button(
-                    onClick = { 
-                        onApplyBeauty(suggestion)
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("一键应用")
-                }
-            }
-        } else {
-            Button(
-                onClick = {
-                    isAnalyzing = true
-                    coroutineScope.launch {
-                        // TODO: 加载实际图像并分析
-                        val bitmap = android.graphics.Bitmap.createBitmap(100, 100, android.graphics.Bitmap.Config.ARGB_8888)
-                        beautySuggestion = beautyAnalyzer.analyzeBeauty(bitmap, 400.0f)
-                        isAnalyzing = false
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("分析照片")
-            }
-        }
+        Text(
+            "AI 美颜功能已移除",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(16.dp)
+        )
     }
 }
 

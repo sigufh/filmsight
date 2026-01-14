@@ -20,8 +20,12 @@ FetchContent_Declare(
     GIT_TAG 0.21.1
 )
 
-# 获取 LibRaw 源码并添加到构建
-FetchContent_MakeAvailable(libraw)
+# 获取 LibRaw 源码（但不自动添加到构建）
+FetchContent_GetProperties(libraw)
+if(NOT libraw_POPULATED)
+    FetchContent_Populate(libraw)
+    message(STATUS "LibRaw source directory: ${libraw_SOURCE_DIR}")
+endif()
 
 # Source files
 set(RAW_PROCESSOR_SOURCES
@@ -30,13 +34,8 @@ set(RAW_PROCESSOR_SOURCES
     bayer_demosaic.cpp
 )
 
-set(FILM_ENGINE_SOURCES
-    film_engine.cpp
-    film_response_curve.cpp
-    color_crosstalk.cpp
-    grain_model.cpp
-    tone_curve.cpp
-    hsl_adjust.cpp
+set(IMAGE_PROCESSOR_SOURCES
+    image_processor_engine.cpp
 )
 
 set(IMAGE_CONVERTER_SOURCES
@@ -51,17 +50,48 @@ set(JNI_SOURCES
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${libraw_SOURCE_DIR}
 )
 
-# 添加 LibRaw 包含目录（如果已获取）
-if(libraw_SOURCE_DIR)
-    include_directories(${libraw_SOURCE_DIR})
+# 手动编译 LibRaw（因为其 CMake 配置可能不支持 Android）
+# 收集 LibRaw 源文件
+file(GLOB LIBRAW_SOURCES 
+    "${libraw_SOURCE_DIR}/src/*.cpp"
+    "${libraw_SOURCE_DIR}/src/decoders/*.cpp"
+    "${libraw_SOURCE_DIR}/src/demosaic/*.cpp"
+    "${libraw_SOURCE_DIR}/src/integration/*.cpp"
+    "${libraw_SOURCE_DIR}/src/metadata/*.cpp"
+    "${libraw_SOURCE_DIR}/src/postprocessing/*.cpp"
+    "${libraw_SOURCE_DIR}/src/preprocessing/*.cpp"
+    "${libraw_SOURCE_DIR}/src/tables/*.cpp"
+    "${libraw_SOURCE_DIR}/src/utils/*.cpp"
+    "${libraw_SOURCE_DIR}/src/write/*.cpp"
+    "${libraw_SOURCE_DIR}/src/x3f/*.cpp"
+)
+
+# 排除 postprocessing_ph.cpp，因为它包含了其他文件的内联实现
+list(FILTER LIBRAW_SOURCES EXCLUDE REGEX ".*postprocessing_ph\\.cpp$")
+
+# 创建 LibRaw 静态库
+if(LIBRAW_SOURCES)
+    add_library(libraw_static STATIC ${LIBRAW_SOURCES})
+    target_include_directories(libraw_static PUBLIC 
+        ${libraw_SOURCE_DIR}
+        ${libraw_SOURCE_DIR}/libraw
+    )
+    target_compile_definitions(libraw_static PRIVATE 
+        LIBRAW_NODLL
+        LIBRAW_NOTHREADS  # 禁用多线程以简化 Android 构建
+    )
+    message(STATUS "LibRaw: Found ${CMAKE_MATCH_COUNT} source files, building static library")
+else()
+    message(FATAL_ERROR "LibRaw: No source files found in ${libraw_SOURCE_DIR}/src")
 endif()
 
 # Create shared library
 add_library(filmtracker SHARED
     ${RAW_PROCESSOR_SOURCES}
-    ${FILM_ENGINE_SOURCES}
+    ${IMAGE_PROCESSOR_SOURCES}
     ${IMAGE_CONVERTER_SOURCES}
     ${JNI_SOURCES}
 )
@@ -71,49 +101,9 @@ find_library(log-lib log)
 find_library(jnigraphics-lib jnigraphics)
 find_library(m-lib m)
 
-# 链接 LibRaw
-# LibRaw 通过 FetchContent_MakeAvailable 创建的目标
-# 检查常见的目标名称
-set(LIBRAW_TARGET_FOUND FALSE)
-if(TARGET raw)
-    target_link_libraries(filmtracker raw)
-    set(LIBRAW_TARGET_FOUND TRUE)
-    message(STATUS "LibRaw: Successfully linked to target 'raw'")
-elseif(TARGET libraw)
-    target_link_libraries(filmtracker libraw)
-    set(LIBRAW_TARGET_FOUND TRUE)
-    message(STATUS "LibRaw: Successfully linked to target 'libraw'")
-elseif(TARGET LibRaw::raw)
-    target_link_libraries(filmtracker LibRaw::raw)
-    set(LIBRAW_TARGET_FOUND TRUE)
-    message(STATUS "LibRaw: Successfully linked to target 'LibRaw::raw'")
-endif()
-
-if(NOT LIBRAW_TARGET_FOUND)
-    # 如果 LibRaw 的 CMake 不支持 Android，尝试手动编译
-    message(WARNING "LibRaw CMake target not found. Attempting manual compilation...")
-    
-    if(libraw_SOURCE_DIR AND EXISTS ${libraw_SOURCE_DIR}/libraw/libraw.h)
-        # 手动添加 LibRaw 源文件
-        file(GLOB LIBRAW_SOURCES 
-            "${libraw_SOURCE_DIR}/libraw/*.cpp"
-            "${libraw_SOURCE_DIR}/internal/*.cpp"
-        )
-        
-        # 创建 LibRaw 静态库
-        add_library(libraw_static STATIC ${LIBRAW_SOURCES})
-        target_include_directories(libraw_static PUBLIC ${libraw_SOURCE_DIR})
-        target_compile_definitions(libraw_static PRIVATE LIBRAW_NODLL)
-        
-        # 链接到主库
-        target_link_libraries(filmtracker libraw_static)
-        message(STATUS "LibRaw: Manually compiled and linked")
-    else()
-        message(FATAL_ERROR "LibRaw source not found. Please check FetchContent configuration.")
-    endif()
-endif()
-
+# 链接 LibRaw 静态库
 target_link_libraries(filmtracker
+    libraw_static
     ${log-lib}
     ${jnigraphics-lib}
     ${m-lib}  # 数学库（LibRaw 需要）
