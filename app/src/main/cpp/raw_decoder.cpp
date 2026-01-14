@@ -130,8 +130,15 @@ bool getRawFileInfo(const char* filePath, uint32_t& width, uint32_t& height) {
         return false;
     }
     
-    width = rawProcessor.imgdata.sizes.width;
-    height = rawProcessor.imgdata.sizes.height;
+    // 使用原始图像尺寸（未裁剪的完整传感器数据）
+    width = rawProcessor.imgdata.sizes.raw_width;
+    height = rawProcessor.imgdata.sizes.raw_height;
+    
+    // 如果 raw_width/raw_height 为 0，使用 iwidth/iheight（解码后的图像尺寸）
+    if (width == 0 || height == 0) {
+        width = rawProcessor.imgdata.sizes.iwidth;
+        height = rawProcessor.imgdata.sizes.iheight;
+    }
     
     rawProcessor.recycle();
     

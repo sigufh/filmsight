@@ -13,6 +13,7 @@ class RawProcessorNative {
     private external fun nativeInit(): Long
     private external fun nativeLoadRaw(nativePtr: Long, filePath: String): Long
     private external fun nativeExtractPreview(nativePtr: Long, filePath: String): ByteArray?
+    private external fun nativeGetRawImageSize(nativePtr: Long, filePath: String): IntArray?
     
     private var nativePtr: Long = 0
     
@@ -36,6 +37,27 @@ class RawProcessorNative {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error extracting preview", e)
+            null
+        }
+    }
+    
+    /**
+     * 获取 RAW 文件的原图尺寸（不解码完整图像）
+     * 这是一个快速操作，只读取文件元数据
+     * 
+     * @return Pair<width, height> 或 null
+     */
+    fun getRawImageSize(filePath: String): Pair<Int, Int>? {
+        return try {
+            val size = nativeGetRawImageSize(nativePtr, filePath)
+            if (size != null && size.size >= 2 && size[0] > 0 && size[1] > 0) {
+                Pair(size[0], size[1])
+            } else {
+                Log.w(TAG, "Failed to get RAW image size")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting RAW image size", e)
             null
         }
     }

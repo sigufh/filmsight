@@ -30,23 +30,24 @@ fun CurveEditor(
     var selectedPointIndex by remember { mutableStateOf<Int?>(null) }
     val pointCount = curve.size
     
+    // 透明背景的 Card
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color.Black.copy(alpha = 0.3f)  // 半透明黑色背景
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
-            // 曲线画布
+            // 曲线画布 - 增大尺寸
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(400.dp)  // 从 300dp 增加到 400dp
                     .pointerInput(Unit) {
                         detectDragGestures(
                             onDragStart = { offset ->
@@ -54,10 +55,12 @@ fun CurveEditor(
                                     offset,
                                     size.width.toFloat(),
                                     size.height.toFloat(),
-                                    curve
+                                    curve,
+                                    touchRadius = 60f  // 增大触摸半径
                                 )
                             },
                             onDrag = { change, _ ->
+                                change.consume()  // 消费事件，防止滚动冲突
                                 selectedPointIndex?.let { index ->
                                     val x = change.position.x.coerceIn(0f, size.width.toFloat())
                                     val y = change.position.y.coerceIn(0f, size.height.toFloat())
@@ -68,7 +71,7 @@ fun CurveEditor(
                                     
                                     // 更新对应控制点的 Y 值
                                     val pointX = index / (pointCount - 1f)
-                                    if (kotlin.math.abs(normalizedX - pointX) < 0.1f) {
+                                    if (kotlin.math.abs(normalizedX - pointX) < 0.15f) {  // 放宽约束
                                         val newCurve = curve.copyOf()
                                         newCurve[index] = normalizedY.coerceIn(0f, 1f)
                                         
@@ -110,7 +113,7 @@ fun CurveEditor(
                         onCurveChange(linearCurve)
                     }
                 ) {
-                    Text("重置")
+                    Text("重置", color = Color.White)
                 }
             }
         }
@@ -124,13 +127,17 @@ private fun findNearestPoint(
     offset: Offset,
     width: Float,
     height: Float,
-    curve: FloatArray
+    curve: FloatArray,
+    touchRadius: Float = 60f  // 增大触摸半径（像素）
 ): Int? {
     val normalizedX = (offset.x / width).coerceIn(0f, 1f)
     val normalizedY = 1f - (offset.y / height).coerceIn(0f, 1f)
     
     var minDistance = Float.MAX_VALUE
     var nearestIndex: Int? = null
+    
+    // 将触摸半径转换为归一化坐标
+    val normalizedTouchRadius = touchRadius / kotlin.math.min(width, height)
     
     curve.forEachIndexed { index, _ ->
         val pointX = index / (curve.size - 1f)
@@ -141,7 +148,7 @@ private fun findNearestPoint(
             (normalizedY - pointY) * (normalizedY - pointY)
         )
         
-        if (distance < minDistance && distance < 0.1f) {
+        if (distance < minDistance && distance < normalizedTouchRadius) {
             minDistance = distance
             nearestIndex = index
         }
@@ -209,7 +216,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(
 ) {
     val pointCount = curve.size
     
-                    // 绘制曲线路径（使用 Catmull-Rom 插值）
+    // 绘制曲线路径（使用 Catmull-Rom 插值）
     val path = Path()
     for (i in 0 until pointCount) {
         val x = width * i / (pointCount - 1f)
@@ -227,7 +234,7 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(
     drawPath(
         path = path,
         color = curveColor,
-        style = Stroke(width = 3f)
+        style = Stroke(width = 4f)  // 加粗曲线
     )
     
     // 绘制控制点
@@ -238,19 +245,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCurve(
         
         val isSelected = selectedIndex == i
         val pointColor = if (isSelected) selectedColor else curveColor
-        val pointSize = if (isSelected) 12f else 8f
+        val pointSize = if (isSelected) 16f else 12f  // 增大控制点尺寸
         
+        // 绘制白色边框（更粗）
+        drawCircle(
+            color = Color.White,
+            radius = pointSize + 3f,
+            center = Offset(x, y),
+            style = Stroke(width = 3f)
+        )
+        
+        // 绘制控制点
         drawCircle(
             color = pointColor,
             radius = pointSize,
             center = Offset(x, y)
-        )
-        
-        // 绘制白色边框
-        drawCircle(
-            color = Color.White,
-            radius = pointSize + 2f,
-            style = Stroke(width = 2f)
         )
     }
 }
@@ -321,23 +330,24 @@ fun MultiCurveEditor(
         CurveType.BLUE -> onBlueCurveChange
     }
     
+    // 透明背景的 Card
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
+            containerColor = Color.Black.copy(alpha = 0.3f)  // 半透明黑色背景
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(12.dp)
         ) {
-            // 曲线画布（显示所有曲线）
+            // 曲线画布（显示所有曲线）- 增大尺寸
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(300.dp)
+                    .height(400.dp)  // 从 300dp 增加到 400dp
                     .pointerInput(selectedCurve) {
                         detectDragGestures(
                             onDragStart = { offset ->
@@ -345,10 +355,12 @@ fun MultiCurveEditor(
                                     offset,
                                     size.width.toFloat(),
                                     size.height.toFloat(),
-                                    currentCurve
+                                    currentCurve,
+                                    touchRadius = 60f  // 增大触摸半径
                                 )
                             },
                             onDrag = { change, _ ->
+                                change.consume()  // 消费事件，防止滚动冲突
                                 selectedPointIndex?.let { index ->
                                     val x = change.position.x.coerceIn(0f, size.width.toFloat())
                                     val y = change.position.y.coerceIn(0f, size.height.toFloat())
@@ -357,7 +369,7 @@ fun MultiCurveEditor(
                                     val normalizedY = 1f - (y / size.height).coerceIn(0f, 1f)
                                     
                                     val pointX = index / (pointCount - 1f)
-                                    if (kotlin.math.abs(normalizedX - pointX) < 0.1f) {
+                                    if (kotlin.math.abs(normalizedX - pointX) < 0.15f) {  // 放宽约束
                                         val newCurve = currentCurve.copyOf()
                                         newCurve[index] = normalizedY.coerceIn(0f, 1f)
                                         ensureMonotonic(newCurve, index)
@@ -408,7 +420,7 @@ fun MultiCurveEditor(
                     }
                 }
             ) {
-                Text("重置当前曲线")
+                Text("重置当前曲线", color = Color.White)
             }
         }
     }
@@ -442,8 +454,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMultiCurve(
     // 绘制曲线（选中的加粗）
     drawPath(
         path = path,
-        color = curveColor,
-        style = Stroke(width = if (isSelected) 4f else 2f)
+        color = curveColor.copy(alpha = if (isSelected) 1f else 0.5f),  // 未选中的曲线半透明
+        style = Stroke(width = if (isSelected) 5f else 3f)  // 加粗曲线
     )
     
     // 只绘制当前选中曲线的控制点
@@ -455,18 +467,21 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawMultiCurve(
             
             val isPointSelected = selectedIndex == i
             val pointColor = if (isPointSelected) selectedColor else curveColor
-            val pointSize = if (isPointSelected) 12f else 8f
+            val pointSize = if (isPointSelected) 16f else 12f  // 增大控制点尺寸
             
+            // 绘制白色边框（更粗）
+            drawCircle(
+                color = Color.White,
+                radius = pointSize + 3f,
+                center = Offset(x, y),
+                style = Stroke(width = 3f)
+            )
+            
+            // 绘制控制点
             drawCircle(
                 color = pointColor,
                 radius = pointSize,
                 center = Offset(x, y)
-            )
-            
-            drawCircle(
-                color = Color.White,
-                radius = pointSize + 2f,
-                style = Stroke(width = 2f)
             )
         }
     }

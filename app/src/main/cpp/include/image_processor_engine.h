@@ -84,9 +84,43 @@ public:
      */
     void applyHSL(LinearImage& image, const HSLParams& hslParams);
     
+    // ========== 颜色调整模块 ==========
+    
+    /**
+     * 应用颜色调整（色温、色调、分级）
+     * 
+     * @param image 输入/输出图像
+     * @param params 调整参数
+     */
+    void applyColorAdjustments(LinearImage& image, const BasicAdjustmentParams& params);
+    
+    // ========== 效果模块 ==========
+    
+    /**
+     * 应用效果（纹理、去雾、晕影、颗粒）
+     * 
+     * @param image 输入/输出图像
+     * @param params 调整参数
+     */
+    void applyEffects(LinearImage& image, const BasicAdjustmentParams& params);
+    
+    // ========== 细节模块 ==========
+    
+    /**
+     * 应用细节（锐化、降噪）
+     * 
+     * @param image 输入/输出图像
+     * @param params 调整参数
+     */
+    void applyDetails(LinearImage& image, const BasicAdjustmentParams& params);
+    
 private:
-    // 辅助函数
-    float interpolateCurve(const float* curve, int numPoints, float x) const;
+    // 曲线相关辅助函数
+    void buildLUTFromControlPoints(const ToneCurveParams::CurveData& curveData, float* lut, int lutSize) const;
+    float interpolateHermiteSpline(const float* xCoords, const float* yCoords, int pointCount, float x) const;
+    float applyLUT(const float* lut, int lutSize, float x) const;
+    
+    // HSL 相关辅助函数
     void rgbToHSL(float r, float g, float b, float& h, float& s, float& l) const;
     void hslToRGB(float h, float s, float l, float& r, float& g, float& b) const;
     int getHueSegment(float hue) const;

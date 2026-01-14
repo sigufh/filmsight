@@ -139,15 +139,20 @@ class MainActivity : ComponentActivity() {
             var previewBitmap: Bitmap? = null
             
             if (isRaw && filePath != null) {
-                // RAW 文件：提取预览图
+                // RAW 文件：获取原图尺寸和提取内嵌预览图
                 val rawProcessor = RawProcessorNative()
-                previewBitmap = rawProcessor.extractPreview(filePath)
-                if (previewBitmap != null) {
-                    width = previewBitmap.width
-                    height = previewBitmap.height
+                
+                // 获取真实的原图尺寸（从 RAW 文件元数据）
+                val rawSize = rawProcessor.getRawImageSize(filePath)
+                if (rawSize != null) {
+                    width = rawSize.first
+                    height = rawSize.second
                 }
+                
+                // 直接使用 RAW 内嵌的预览图，不做额外处理
+                previewBitmap = rawProcessor.extractPreview(filePath)
             } else {
-                // 普通图片：解码获取尺寸
+                // 普通图片：解码获取真实尺寸
                 val options = BitmapFactory.Options().apply {
                     inJustDecodeBounds = true
                 }
@@ -157,9 +162,9 @@ class MainActivity : ComponentActivity() {
                     height = options.outHeight
                 }
                 
-                // 生成缩略图
+                // 生成更高质量的缩略图（400x400）
                 val thumbOptions = BitmapFactory.Options().apply {
-                    inSampleSize = calculateInSampleSize(width, height, 200, 200)
+                    inSampleSize = calculateInSampleSize(width, height, 400, 400)
                 }
                 contentResolver.openInputStream(uri)?.use { stream ->
                     previewBitmap = BitmapFactory.decodeStream(stream, null, thumbOptions)

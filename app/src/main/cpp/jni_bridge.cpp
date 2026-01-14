@@ -207,21 +207,121 @@ Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyPresence(
 }
 
 /**
- * 应用色调曲线（已移除，保留空实现以兼容）
+ * 应用色调曲线
  */
 JNIEXPORT void JNICALL
 Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyToneCurves(
     JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
-    // 空实现，不做任何事
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(paramsPtr);
+    
+    if (!engine || !image) {
+        LOGE("Invalid pointers in nativeApplyToneCurves: engine=%p, image=%p", engine, image);
+        return;
+    }
+    
+    if (!params) {
+        LOGE("nativeApplyToneCurves: params is null");
+        return;
+    }
+    
+    if (!params->curveParams) {
+        LOGI("nativeApplyToneCurves: No curve params set, skipping");
+        return;
+    }
+    
+    LOGI("nativeApplyToneCurves: Applying curves");
+    engine->applyToneCurves(*image, *params->curveParams);
 }
 
 /**
- * 应用 HSL 调整（已移除，保留空实现以兼容）
+ * 应用 HSL 调整
  */
 JNIEXPORT void JNICALL
 Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyHSL(
     JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
-    // 空实现，不做任何事
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(paramsPtr);
+    
+    if (!engine || !image || !params) {
+        LOGE("Invalid pointers in nativeApplyHSL");
+        return;
+    }
+    
+    // 检查是否有 HSL 参数
+    if (!params->hslParams) {
+        LOGI("nativeApplyHSL: No HSL params set, skipping");
+        return;
+    }
+    
+    if (!params->hslParams->enableHSL) {
+        LOGI("nativeApplyHSL: HSL disabled, skipping");
+        return;
+    }
+    
+    LOGI("nativeApplyHSL: Applying HSL adjustments");
+    engine->applyHSL(*image, *params->hslParams);
+}
+
+/**
+ * 应用颜色调整
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyColorAdjustments(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(paramsPtr);
+    
+    if (!engine || !image || !params) {
+        LOGE("Invalid pointers in nativeApplyColorAdjustments");
+        return;
+    }
+    
+    engine->applyColorAdjustments(*image, *params);
+}
+
+/**
+ * 应用效果
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyEffects(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(paramsPtr);
+    
+    if (!engine || !image || !params) {
+        LOGE("Invalid pointers in nativeApplyEffects");
+        return;
+    }
+    
+    engine->applyEffects(*image, *params);
+}
+
+/**
+ * 应用细节
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_ImageProcessorEngineNative_nativeApplyDetails(
+    JNIEnv *env, jobject thiz, jlong enginePtr, jlong imagePtr, jlong paramsPtr) {
+    
+    ImageProcessorEngine* engine = reinterpret_cast<ImageProcessorEngine*>(enginePtr);
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(paramsPtr);
+    
+    if (!engine || !image || !params) {
+        LOGE("Invalid pointers in nativeApplyDetails");
+        return;
+    }
+    
+    engine->applyDetails(*image, *params);
 }
 
 // FilmParamsNative 相关方法已移除 - 使用 BasicAdjustmentParamsNative 替代
@@ -445,6 +545,46 @@ Java_com_filmtracker_app_native_RawProcessorNative_nativeExtractPreview(
 }
 
 /**
+ * 获取 RAW 文件的原图尺寸（不解码完整图像）
+ */
+JNIEXPORT jintArray JNICALL
+Java_com_filmtracker_app_native_RawProcessorNative_nativeGetRawImageSize(
+    JNIEnv *env, jobject thiz, jlong nativePtr, jstring filePath) {
+    
+    if (filePath == nullptr) {
+        LOGE("File path is null");
+        return nullptr;
+    }
+    
+    const char* path = env->GetStringUTFChars(filePath, nullptr);
+    if (path == nullptr) {
+        LOGE("Failed to get string chars");
+        return nullptr;
+    }
+    
+    LOGI("nativeGetRawImageSize: Getting size from %s", path);
+    
+    uint32_t width = 0;
+    uint32_t height = 0;
+    bool success = getRawFileInfo(path, width, height);
+    
+    env->ReleaseStringUTFChars(filePath, path);
+    
+    if (!success || width == 0 || height == 0) {
+        LOGE("nativeGetRawImageSize: Failed to get image size");
+        return nullptr;
+    }
+    
+    LOGI("nativeGetRawImageSize: Image size = %ux%u", width, height);
+    
+    jintArray result = env->NewIntArray(2);
+    jint size[2] = {static_cast<jint>(width), static_cast<jint>(height)};
+    env->SetIntArrayRegion(result, 0, 2, size);
+    
+    return result;
+}
+
+/**
  * RawMetadataNative getter 函数
  */
 JNIEXPORT jint JNICALL
@@ -529,6 +669,416 @@ JNIEXPORT jfloat JNICALL
 Java_com_filmtracker_app_native_RawMetadataNative_getWhiteLevel(JNIEnv *env, jobject thiz, jlong nativePtr) {
     RawMetadata* metadata = reinterpret_cast<RawMetadata*>(nativePtr);
     return metadata ? metadata->whiteLevel : 0.0f;
+}
+
+/**
+ * BasicAdjustmentParamsNative 方法
+ */
+
+/**
+ * 创建 BasicAdjustmentParams 对象
+ */
+JNIEXPORT jlong JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeCreate(JNIEnv *env, jclass clazz) {
+    BasicAdjustmentParams* params = new BasicAdjustmentParams();
+    jlong handle = reinterpret_cast<jlong>(params);
+    LOGI("nativeCreate: Created BasicAdjustmentParams at %p, handle=%lld", params, handle);
+    return handle;
+}
+
+/**
+ * 设置基础参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetBasicParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat exposure, jfloat contrast, jfloat saturation) {
+    
+    LOGI("nativeSetBasicParams: nativeHandle=%ld, exposure=%.2f, contrast=%.2f, saturation=%.2f", 
+         nativeHandle, exposure, contrast, saturation);
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetBasicParams: params is NULL!");
+        return;
+    }
+    
+    LOGI("nativeSetBasicParams: params pointer=%p", params);
+    params->globalExposure = exposure;
+    params->contrast = contrast;
+    params->saturation = saturation;
+    LOGI("nativeSetBasicParams: completed");
+}
+
+/**
+ * 设置色调参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetToneParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat highlights, jfloat shadows, jfloat whites, jfloat blacks) {
+    
+    LOGI("nativeSetToneParams: nativeHandle=%ld", nativeHandle);
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetToneParams: params is NULL!");
+        return;
+    }
+    
+    params->highlights = highlights;
+    params->shadows = shadows;
+    params->whites = whites;
+    params->blacks = blacks;
+    LOGI("nativeSetToneParams: completed");
+}
+
+/**
+ * 设置存在感参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetPresenceParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat clarity, jfloat vibrance) {
+    
+    LOGI("nativeSetPresenceParams: nativeHandle=%ld", nativeHandle);
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetPresenceParams: params is NULL!");
+        return;
+    }
+    
+    params->clarity = clarity;
+    params->vibrance = vibrance;
+    LOGI("nativeSetPresenceParams: completed");
+}
+
+/**
+ * 设置颜色参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetColorParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat temperature, jfloat tint) {
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetColorParams: params is NULL!");
+        return;
+    }
+    
+    params->temperature = temperature;
+    params->tint = tint;
+}
+
+/**
+ * 设置效果参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetEffectsParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat texture, jfloat dehaze, jfloat vignette, jfloat grain) {
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetEffectsParams: params is NULL!");
+        return;
+    }
+    
+    params->texture = texture;
+    params->dehaze = dehaze;
+    params->vignette = vignette;
+    params->grain = grain;
+}
+
+/**
+ * 设置细节参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetDetailParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat sharpening, jfloat noiseReduction) {
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetDetailParams: params is NULL!");
+        return;
+    }
+    
+    params->sharpening = sharpening;
+    params->noiseReduction = noiseReduction;
+}
+
+/**
+ * 设置色调曲线（动态控制点）
+ * @param channel 通道：0=RGB, 1=Red, 2=Green, 3=Blue
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetToneCurve(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jint channel, jboolean enable, jfloatArray xCoords, jfloatArray yCoords) {
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetToneCurve: params is null, nativeHandle=%ld", nativeHandle);
+        return;
+    }
+    
+    LOGI("nativeSetToneCurve: nativeHandle=%ld, channel=%d, enable=%d", nativeHandle, channel, enable);
+    
+    // 延迟初始化 curveParams
+    if (!params->curveParams) {
+        params->curveParams = new ToneCurveParams();
+        LOGI("nativeSetToneCurve: Created new ToneCurveParams");
+    }
+    
+    if (!enable || xCoords == nullptr || yCoords == nullptr) {
+        // 禁用该通道
+        switch (channel) {
+            case 0: 
+                params->curveParams->rgbCurve.enabled = false; 
+                LOGI("nativeSetToneCurve: RGB curve disabled");
+                break;
+            case 1: 
+                params->curveParams->redCurve.enabled = false; 
+                LOGI("nativeSetToneCurve: Red curve disabled");
+                break;
+            case 2: 
+                params->curveParams->greenCurve.enabled = false; 
+                LOGI("nativeSetToneCurve: Green curve disabled");
+                break;
+            case 3: 
+                params->curveParams->blueCurve.enabled = false; 
+                LOGI("nativeSetToneCurve: Blue curve disabled");
+                break;
+        }
+        return;
+    }
+    
+    jsize xLen = env->GetArrayLength(xCoords);
+    jsize yLen = env->GetArrayLength(yCoords);
+    
+    if (xLen != yLen || xLen == 0) {
+        LOGE("nativeSetToneCurve: Invalid array lengths, xLen=%d, yLen=%d", xLen, yLen);
+        return;
+    }
+    
+    LOGI("nativeSetToneCurve: Processing %d control points", xLen);
+    
+    jfloat* xData = env->GetFloatArrayElements(xCoords, nullptr);
+    jfloat* yData = env->GetFloatArrayElements(yCoords, nullptr);
+    
+    if (!xData || !yData) {
+        LOGE("nativeSetToneCurve: Failed to get array elements");
+        if (xData) env->ReleaseFloatArrayElements(xCoords, xData, JNI_ABORT);
+        if (yData) env->ReleaseFloatArrayElements(yCoords, yData, JNI_ABORT);
+        return;
+    }
+    
+    try {
+        ToneCurveParams::CurveData* targetCurve = nullptr;
+        
+        switch (channel) {
+            case 0: targetCurve = &params->curveParams->rgbCurve; break;
+            case 1: targetCurve = &params->curveParams->redCurve; break;
+            case 2: targetCurve = &params->curveParams->greenCurve; break;
+            case 3: targetCurve = &params->curveParams->blueCurve; break;
+        }
+        
+        if (targetCurve) {
+            targetCurve->setPoints(xLen, xData, yData);
+            targetCurve->enabled = true;
+            
+            LOGI("nativeSetToneCurve: Successfully set channel=%d, points=%d, enabled=true", channel, xLen);
+            
+            // 打印前几个控制点用于调试
+            for (int i = 0; i < std::min(3, (int)xLen); ++i) {
+                LOGI("  Point[%d]: (%.3f, %.3f)", i, xData[i], yData[i]);
+            }
+        } else {
+            LOGE("nativeSetToneCurve: Invalid channel=%d", channel);
+        }
+    } catch (const std::exception& e) {
+        LOGE("nativeSetToneCurve: Exception: %s", e.what());
+    } catch (...) {
+        LOGE("nativeSetToneCurve: Unknown exception");
+    }
+    
+    env->ReleaseFloatArrayElements(xCoords, xData, JNI_ABORT);
+    env->ReleaseFloatArrayElements(yCoords, yData, JNI_ABORT);
+}
+
+/**
+ * 设置分级参数
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeSetGradingParams(
+    JNIEnv *env, jobject thiz, jlong nativeHandle,
+    jfloat highlightsTemp, jfloat highlightsTint,
+    jfloat midtonesTemp, jfloat midtonesTint,
+    jfloat shadowsTemp, jfloat shadowsTint,
+    jfloat blending, jfloat balance) {
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("nativeSetGradingParams: params is NULL!");
+        return;
+    }
+    
+    params->gradingHighlightsTemp = highlightsTemp;
+    params->gradingHighlightsTint = highlightsTint;
+    params->gradingMidtonesTemp = midtonesTemp;
+    params->gradingMidtonesTint = midtonesTint;
+    params->gradingShadowsTemp = shadowsTemp;
+    params->gradingShadowsTint = shadowsTint;
+    params->gradingBlending = blending;
+    params->gradingBalance = balance;
+    
+    LOGI("nativeSetGradingParams: highlights=(%.2f,%.2f), midtones=(%.2f,%.2f), shadows=(%.2f,%.2f), blending=%.2f, balance=%.2f",
+         highlightsTemp, highlightsTint, midtonesTemp, midtonesTint, shadowsTemp, shadowsTint, blending, balance);
+}
+
+/**
+ * 设置 HSL 调整
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_setHSL(
+    JNIEnv *env, jobject thiz,
+    jboolean enableHSL, jfloatArray hueShift, jfloatArray saturation, jfloatArray luminance) {
+    
+    // 从 jobject 中获取 nativeHandle 字段
+    jclass clazz = env->GetObjectClass(thiz);
+    jfieldID fieldID = env->GetFieldID(clazz, "nativeHandle", "J");
+    jlong nativeHandle = env->GetLongField(thiz, fieldID);
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (!params) {
+        LOGE("setHSL: params is NULL!");
+        return;
+    }
+    
+    LOGI("setHSL: nativeHandle=%ld, enableHSL=%d, hueShift=%p, saturation=%p, luminance=%p", 
+         nativeHandle, enableHSL, hueShift, saturation, luminance);
+    
+    // 延迟初始化 hslParams
+    if (!params->hslParams) {
+        params->hslParams = new HSLParams();
+        LOGI("setHSL: Created new HSLParams");
+    }
+    
+    // 如果禁用或任何数组为空，禁用 HSL
+    if (!enableHSL) {
+        params->hslParams->enableHSL = false;
+        LOGI("setHSL: HSL disabled by flag");
+        return;
+    }
+    
+    // 检查数组是否为 null（必须在调用 GetArrayLength 之前）
+    if (hueShift == nullptr || saturation == nullptr || luminance == nullptr) {
+        params->hslParams->enableHSL = false;
+        LOGE("setHSL: One or more arrays are null");
+        return;
+    }
+    
+    // 现在可以安全地检查数组长度
+    jsize hueLen = 0;
+    jsize satLen = 0;
+    jsize lumLen = 0;
+    
+    try {
+        hueLen = env->GetArrayLength(hueShift);
+        satLen = env->GetArrayLength(saturation);
+        lumLen = env->GetArrayLength(luminance);
+    } catch (...) {
+        LOGE("setHSL: Exception getting array lengths");
+        params->hslParams->enableHSL = false;
+        return;
+    }
+    
+    LOGI("setHSL: Array lengths: hue=%d, sat=%d, lum=%d", hueLen, satLen, lumLen);
+    
+    if (hueLen != 8 || satLen != 8 || lumLen != 8) {
+        LOGE("setHSL: Invalid array lengths, hue=%d, sat=%d, lum=%d (expected 8)", hueLen, satLen, lumLen);
+        params->hslParams->enableHSL = false;
+        return;
+    }
+    
+    // 获取数组数据
+    jfloat* hueData = nullptr;
+    jfloat* satData = nullptr;
+    jfloat* lumData = nullptr;
+    
+    try {
+        hueData = env->GetFloatArrayElements(hueShift, nullptr);
+        satData = env->GetFloatArrayElements(saturation, nullptr);
+        lumData = env->GetFloatArrayElements(luminance, nullptr);
+    } catch (...) {
+        LOGE("setHSL: Exception getting array elements");
+        if (hueData) env->ReleaseFloatArrayElements(hueShift, hueData, JNI_ABORT);
+        if (satData) env->ReleaseFloatArrayElements(saturation, satData, JNI_ABORT);
+        if (lumData) env->ReleaseFloatArrayElements(luminance, lumData, JNI_ABORT);
+        params->hslParams->enableHSL = false;
+        return;
+    }
+    
+    if (!hueData || !satData || !lumData) {
+        LOGE("setHSL: Failed to get array elements (hue=%p, sat=%p, lum=%p)", hueData, satData, lumData);
+        if (hueData) env->ReleaseFloatArrayElements(hueShift, hueData, JNI_ABORT);
+        if (satData) env->ReleaseFloatArrayElements(saturation, satData, JNI_ABORT);
+        if (lumData) env->ReleaseFloatArrayElements(luminance, lumData, JNI_ABORT);
+        params->hslParams->enableHSL = false;
+        return;
+    }
+    
+    // 复制数据到 HSLParams
+    try {
+        for (int i = 0; i < 8; ++i) {
+            params->hslParams->hueShift[i] = hueData[i];
+            params->hslParams->saturation[i] = satData[i];
+            params->hslParams->luminance[i] = lumData[i];
+        }
+        
+        params->hslParams->enableHSL = true;
+        
+        LOGI("setHSL: Successfully set HSL parameters");
+        
+        // 打印前几个值用于调试
+        LOGI("  Hue shifts: [%.1f, %.1f, %.1f, ...]", 
+             params->hslParams->hueShift[0], 
+             params->hslParams->hueShift[1], 
+             params->hslParams->hueShift[2]);
+    } catch (const std::exception& e) {
+        LOGE("setHSL: Exception during copy: %s", e.what());
+        params->hslParams->enableHSL = false;
+    } catch (...) {
+        LOGE("setHSL: Unknown exception during copy");
+        params->hslParams->enableHSL = false;
+    }
+    
+    // 释放数组
+    env->ReleaseFloatArrayElements(hueShift, hueData, JNI_ABORT);
+    env->ReleaseFloatArrayElements(saturation, satData, JNI_ABORT);
+    env->ReleaseFloatArrayElements(luminance, lumData, JNI_ABORT);
+}
+
+/**
+ * 释放 BasicAdjustmentParams 对象
+ */
+JNIEXPORT void JNICALL
+Java_com_filmtracker_app_native_BasicAdjustmentParamsNative_nativeRelease(
+    JNIEnv *env, jobject thiz, jlong nativeHandle) {
+    
+    LOGI("nativeRelease: nativeHandle=%ld", nativeHandle);
+    
+    BasicAdjustmentParams* params = reinterpret_cast<BasicAdjustmentParams*>(nativeHandle);
+    if (params) {
+        LOGI("nativeRelease: Deleting params at %p", params);
+        delete params;
+        LOGI("nativeRelease: Completed");
+    } else {
+        LOGE("nativeRelease: params is NULL!");
+    }
 }
 
 } // extern "C"

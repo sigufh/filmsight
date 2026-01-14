@@ -31,28 +31,59 @@ class ImageProcessor(private val context: Context? = null) {
         originalBitmap: Bitmap,
         params: BasicAdjustmentParams
     ): Bitmap? = withContext(Dispatchers.Default) {
+        var nativeParams: BasicAdjustmentParamsNative? = null
         try {
             val linearImage = imageConverter.bitmapToLinear(originalBitmap) ?: return@withContext null
             
+            // 基础调整
             processorEngine.applyBasicAdjustments(linearImage, params.globalExposure, params.contrast, params.saturation)
             processorEngine.applyToneAdjustments(linearImage, params.highlights, params.shadows, params.whites, params.blacks)
             processorEngine.applyPresence(linearImage, params.clarity, params.vibrance)
             
-            if (params.enableRgbCurve || params.enableRedCurve || params.enableGreenCurve || params.enableBlueCurve) {
-                val nativeParams = convertToNativeParams(params)
-                processorEngine.applyToneCurves(linearImage, nativeParams)
-            }
+            // 需要 nativeParams 的调整
+            val needsNativeParams = params.enableRgbCurve || params.enableRedCurve || 
+                                   params.enableGreenCurve || params.enableBlueCurve ||
+                                   params.enableHSL ||
+                                   params.temperature != 0f || params.tint != 0f ||
+                                   params.gradingHighlightsTemp != 0f || params.gradingHighlightsTint != 0f ||
+                                   params.gradingMidtonesTemp != 0f || params.gradingMidtonesTint != 0f ||
+                                   params.gradingShadowsTemp != 0f || params.gradingShadowsTint != 0f ||
+                                   params.texture != 0f || params.dehaze != 0f || 
+                                   params.vignette != 0f || params.grain != 0f ||
+                                   params.sharpening != 0f || params.noiseReduction != 0f
             
-            if (params.enableHSL) {
-                val nativeParams = convertToNativeParams(params)
-                processorEngine.applyHSL(linearImage, nativeParams)
+            if (needsNativeParams) {
+                nativeParams = convertToNativeParams(params)
+                
+                // 应用曲线
+                if (params.enableRgbCurve || params.enableRedCurve || params.enableGreenCurve || params.enableBlueCurve) {
+                    processorEngine.applyToneCurves(linearImage, nativeParams)
+                }
+                
+                // 应用 HSL
+                if (params.enableHSL) {
+                    processorEngine.applyHSL(linearImage, nativeParams)
+                }
+                
+                // 应用颜色调整
+                processorEngine.applyColorAdjustments(linearImage, nativeParams)
+                
+                // 应用效果
+                processorEngine.applyEffects(linearImage, nativeParams)
+                
+                // 应用细节
+                processorEngine.applyDetails(linearImage, nativeParams)
             }
             
             val result = imageConverter.linearToBitmap(linearImage)
             imageConverter.release(linearImage)
             result
         } catch (e: Exception) {
+            android.util.Log.e("ImageProcessor", "Error applying adjustments", e)
             null
+        } finally {
+            // 确保释放 native 资源
+            nativeParams?.release()
         }
     }
     
@@ -69,8 +100,10 @@ class ImageProcessor(private val context: Context? = null) {
                     val previewBitmap = rawProcessor.extractPreview(filePath)
                     if (previewBitmap != null) {
                         var scaledPreview = previewBitmap
-                        if (previewMode && (previewBitmap.width > 1200 || previewBitmap.height > 1200)) {
-                            val scale = minOf(1200f / previewBitmap.width, 1200f / previewBitmap.height)
+                        // 预览模式：限制到 1920px，保持较高质量
+                        // 非预览模式：使用原图全分辨率
+                        if (previewMode && (previewBitmap.width > 1920 || previewBitmap.height > 1920)) {
+                            val scale = minOf(1920f / previewBitmap.width, 1920f / previewBitmap.height)
                             val scaledWidth = (previewBitmap.width * scale).toInt()
                             val scaledHeight = (previewBitmap.height * scale).toInt()
                             scaledPreview = Bitmap.createScaledBitmap(previewBitmap, scaledWidth, scaledHeight, true)
@@ -92,8 +125,10 @@ class ImageProcessor(private val context: Context? = null) {
                 bitmap
             }
             
-            if (previewMode && (rgbaBitmap.width > 1200 || rgbaBitmap.height > 1200)) {
-                val scale = minOf(1200f / rgbaBitmap.width, 1200f / rgbaBitmap.height)
+            // 预览模式：限制到 1920px
+            // 非预览模式：使用原图全分辨率
+            if (previewMode && (rgbaBitmap.width > 1920 || rgbaBitmap.height > 1920)) {
+                val scale = minOf(1920f / rgbaBitmap.width, 1920f / rgbaBitmap.height)
                 val scaledWidth = (rgbaBitmap.width * scale).toInt()
                 val scaledHeight = (rgbaBitmap.height * scale).toInt()
                 rgbaBitmap = Bitmap.createScaledBitmap(rgbaBitmap, scaledWidth, scaledHeight, true)
@@ -110,15 +145,36 @@ class ImageProcessor(private val context: Context? = null) {
         nativeParams.setParams(
             params.globalExposure, params.contrast, params.saturation,
             params.highlights, params.shadows, params.whites, params.blacks,
-            params.clarity, params.vibrance
+            params.clarity, params.vibrance,
+            params.temperature, params.tint,
+            params.gradingHighlightsTemp, params.gradingHighlightsTint,
+            params.gradingMidtonesTemp, params.gradingMidtonesTint,
+            params.gradingShadowsTemp, params.gradingShadowsTint,
+            params.gradingBlending, params.gradingBalance,
+            params.texture, params.dehaze, params.vignette, params.grain,
+            params.sharpening, params.noiseReduction
         )
-        nativeParams.setToneCurves(
-            params.enableRgbCurve, params.rgbCurve,
-            params.enableRedCurve, params.redCurve,
-            params.enableGreenCurve, params.greenCurve,
-            params.enableBlueCurve, params.blueCurve
+        nativeParams.setAllToneCurves(
+            params.enableRgbCurve, params.rgbCurvePoints,
+            params.enableRedCurve, params.redCurvePoints,
+            params.enableGreenCurve, params.greenCurvePoints,
+            params.enableBlueCurve, params.blueCurvePoints
         )
-        nativeParams.setHSL(params.enableHSL, params.hslHueShift, params.hslSaturation, params.hslLuminance)
+        
+        // 安全地设置 HSL 参数
+        try {
+            // 确保数组不为空且长度正确
+            val hueShift = if (params.hslHueShift.size == 8) params.hslHueShift else FloatArray(8) { 0.0f }
+            val saturation = if (params.hslSaturation.size == 8) params.hslSaturation else FloatArray(8) { 0.0f }
+            val luminance = if (params.hslLuminance.size == 8) params.hslLuminance else FloatArray(8) { 0.0f }
+            
+            nativeParams.setHSL(params.enableHSL, hueShift, saturation, luminance)
+        } catch (e: Exception) {
+            android.util.Log.e("ImageProcessor", "Error setting HSL parameters", e)
+            // 如果出错，禁用 HSL
+            nativeParams.setHSL(false, FloatArray(8) { 0.0f }, FloatArray(8) { 0.0f }, FloatArray(8) { 0.0f })
+        }
+        
         return nativeParams
     }
     

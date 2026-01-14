@@ -74,6 +74,36 @@ class ImageProcessorEngineNative {
     }
     
     /**
+     * 应用颜色调整（色温、色调、分级）
+     */
+    fun applyColorAdjustments(
+        image: LinearImageNative,
+        params: BasicAdjustmentParamsNative
+    ) {
+        nativeApplyColorAdjustments(nativePtr, image.nativePtr, params.nativePtr)
+    }
+    
+    /**
+     * 应用效果（纹理、去雾、晕影、颗粒）
+     */
+    fun applyEffects(
+        image: LinearImageNative,
+        params: BasicAdjustmentParamsNative
+    ) {
+        nativeApplyEffects(nativePtr, image.nativePtr, params.nativePtr)
+    }
+    
+    /**
+     * 应用细节（锐化、降噪）
+     */
+    fun applyDetails(
+        image: LinearImageNative,
+        params: BasicAdjustmentParamsNative
+    ) {
+        nativeApplyDetails(nativePtr, image.nativePtr, params.nativePtr)
+    }
+    
+    /**
      * 应用胶片模拟（已移除，保留空实现以兼容）
      */
     @Deprecated("Film simulation has been removed")
@@ -133,6 +163,24 @@ class ImageProcessorEngineNative {
     )
     
     private external fun nativeApplyHSL(
+        enginePtr: Long,
+        imagePtr: Long,
+        paramsPtr: Long
+    )
+    
+    private external fun nativeApplyColorAdjustments(
+        enginePtr: Long,
+        imagePtr: Long,
+        paramsPtr: Long
+    )
+    
+    private external fun nativeApplyEffects(
+        enginePtr: Long,
+        imagePtr: Long,
+        paramsPtr: Long
+    )
+    
+    private external fun nativeApplyDetails(
         enginePtr: Long,
         imagePtr: Long,
         paramsPtr: Long

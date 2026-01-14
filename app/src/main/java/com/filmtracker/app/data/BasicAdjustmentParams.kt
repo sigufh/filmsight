@@ -20,15 +20,39 @@ data class BasicAdjustmentParams(
     var clarity: Float = 0.0f,          // 清晰度（-100 到 +100）
     var vibrance: Float = 0.0f,         // 自然饱和度（-100 到 +100）
     
-    // 色调曲线（16个控制点，0.0-1.0）
+    // 颜色调整
+    var temperature: Float = 0.0f,      // 色温（-100 到 +100）
+    var tint: Float = 0.0f,             // 色调（-100 到 +100）
+    
+    // 分级调整（Color Grading）
+    var gradingHighlightsTemp: Float = 0.0f,    // 高光色温（-100 到 +100）
+    var gradingHighlightsTint: Float = 0.0f,    // 高光色调（-100 到 +100）
+    var gradingMidtonesTemp: Float = 0.0f,      // 中间调色温（-100 到 +100）
+    var gradingMidtonesTint: Float = 0.0f,      // 中间调色调（-100 到 +100）
+    var gradingShadowsTemp: Float = 0.0f,       // 阴影色温（-100 到 +100）
+    var gradingShadowsTint: Float = 0.0f,       // 阴影色调（-100 到 +100）
+    var gradingBlending: Float = 50.0f,         // 混合（0 到 100）
+    var gradingBalance: Float = 0.0f,           // 平衡（-100 到 +100）
+    
+    // 效果调整
+    var texture: Float = 0.0f,          // 纹理（-100 到 +100）
+    var dehaze: Float = 0.0f,           // 去雾（-100 到 +100）
+    var vignette: Float = 0.0f,         // 晕影（-100 到 +100）
+    var grain: Float = 0.0f,            // 颗粒（0 到 100）
+    
+    // 细节调整
+    var sharpening: Float = 0.0f,       // 锐化（0 到 100）
+    var noiseReduction: Float = 0.0f,   // 降噪（0 到 100）
+    
+    // 色调曲线（动态控制点列表，每个点为 (x, y) 坐标，范围 0.0-1.0）
     var enableRgbCurve: Boolean = false,
-    var rgbCurve: FloatArray = FloatArray(16) { it / 15.0f },
+    var rgbCurvePoints: List<Pair<Float, Float>> = listOf(Pair(0f, 0f), Pair(1f, 1f)),
     var enableRedCurve: Boolean = false,
-    var redCurve: FloatArray = FloatArray(16) { it / 15.0f },
+    var redCurvePoints: List<Pair<Float, Float>> = listOf(Pair(0f, 0f), Pair(1f, 1f)),
     var enableGreenCurve: Boolean = false,
-    var greenCurve: FloatArray = FloatArray(16) { it / 15.0f },
+    var greenCurvePoints: List<Pair<Float, Float>> = listOf(Pair(0f, 0f), Pair(1f, 1f)),
     var enableBlueCurve: Boolean = false,
-    var blueCurve: FloatArray = FloatArray(16) { it / 15.0f },
+    var blueCurvePoints: List<Pair<Float, Float>> = listOf(Pair(0f, 0f), Pair(1f, 1f)),
     
     // HSL 调整（8个色相段：红、橙、黄、绿、青、蓝、紫、品红）
     var enableHSL: Boolean = false,
@@ -60,14 +84,30 @@ data class BasicAdjustmentParams(
         if (blacks != other.blacks) return false
         if (clarity != other.clarity) return false
         if (vibrance != other.vibrance) return false
+        if (temperature != other.temperature) return false
+        if (tint != other.tint) return false
+        if (gradingHighlightsTemp != other.gradingHighlightsTemp) return false
+        if (gradingHighlightsTint != other.gradingHighlightsTint) return false
+        if (gradingMidtonesTemp != other.gradingMidtonesTemp) return false
+        if (gradingMidtonesTint != other.gradingMidtonesTint) return false
+        if (gradingShadowsTemp != other.gradingShadowsTemp) return false
+        if (gradingShadowsTint != other.gradingShadowsTint) return false
+        if (gradingBlending != other.gradingBlending) return false
+        if (gradingBalance != other.gradingBalance) return false
+        if (texture != other.texture) return false
+        if (dehaze != other.dehaze) return false
+        if (vignette != other.vignette) return false
+        if (grain != other.grain) return false
+        if (sharpening != other.sharpening) return false
+        if (noiseReduction != other.noiseReduction) return false
         if (enableRgbCurve != other.enableRgbCurve) return false
-        if (!rgbCurve.contentEquals(other.rgbCurve)) return false
+        if (rgbCurvePoints != other.rgbCurvePoints) return false
         if (enableRedCurve != other.enableRedCurve) return false
-        if (!redCurve.contentEquals(other.redCurve)) return false
+        if (redCurvePoints != other.redCurvePoints) return false
         if (enableGreenCurve != other.enableGreenCurve) return false
-        if (!greenCurve.contentEquals(other.greenCurve)) return false
+        if (greenCurvePoints != other.greenCurvePoints) return false
         if (enableBlueCurve != other.enableBlueCurve) return false
-        if (!blueCurve.contentEquals(other.blueCurve)) return false
+        if (blueCurvePoints != other.blueCurvePoints) return false
         if (enableHSL != other.enableHSL) return false
         if (!hslHueShift.contentEquals(other.hslHueShift)) return false
         if (!hslSaturation.contentEquals(other.hslSaturation)) return false
@@ -86,14 +126,30 @@ data class BasicAdjustmentParams(
         result = 31 * result + blacks.hashCode()
         result = 31 * result + clarity.hashCode()
         result = 31 * result + vibrance.hashCode()
+        result = 31 * result + temperature.hashCode()
+        result = 31 * result + tint.hashCode()
+        result = 31 * result + gradingHighlightsTemp.hashCode()
+        result = 31 * result + gradingHighlightsTint.hashCode()
+        result = 31 * result + gradingMidtonesTemp.hashCode()
+        result = 31 * result + gradingMidtonesTint.hashCode()
+        result = 31 * result + gradingShadowsTemp.hashCode()
+        result = 31 * result + gradingShadowsTint.hashCode()
+        result = 31 * result + gradingBlending.hashCode()
+        result = 31 * result + gradingBalance.hashCode()
+        result = 31 * result + texture.hashCode()
+        result = 31 * result + dehaze.hashCode()
+        result = 31 * result + vignette.hashCode()
+        result = 31 * result + grain.hashCode()
+        result = 31 * result + sharpening.hashCode()
+        result = 31 * result + noiseReduction.hashCode()
         result = 31 * result + enableRgbCurve.hashCode()
-        result = 31 * result + rgbCurve.contentHashCode()
+        result = 31 * result + rgbCurvePoints.hashCode()
         result = 31 * result + enableRedCurve.hashCode()
-        result = 31 * result + redCurve.contentHashCode()
+        result = 31 * result + redCurvePoints.hashCode()
         result = 31 * result + enableGreenCurve.hashCode()
-        result = 31 * result + greenCurve.contentHashCode()
+        result = 31 * result + greenCurvePoints.hashCode()
         result = 31 * result + enableBlueCurve.hashCode()
-        result = 31 * result + blueCurve.contentHashCode()
+        result = 31 * result + blueCurvePoints.hashCode()
         result = 31 * result + enableHSL.hashCode()
         result = 31 * result + hslHueShift.contentHashCode()
         result = 31 * result + hslSaturation.contentHashCode()
