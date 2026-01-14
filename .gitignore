@@ -37,18 +37,11 @@ captures/
 
 # IntelliJ
 *.iml
-.idea/workspace.xml
-.idea/tasks.xml
-.idea/gradle.xml
-.idea/assetWizardSettings.xml
-.idea/dictionaries
-.idea/libraries
-.idea/jarRepositories.xml
-# .idea/compiler.xml
-# .idea/modules.xml
-# .idea/misc.xml
-# .idea/vcs.xml
-# .idea/runConfigurations.xml
+.idea/
+# Keep only these specific files if needed
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!.idea/copyright/
 
 # Keystore files
 *.jks
@@ -87,6 +80,8 @@ lint/tmp/
 
 # NDK
 obj/
+libs/
+jniLibs/
 
 # macOS
 .DS_Store
@@ -95,3 +90,7 @@ obj/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# Kiro
+.kiro/cache/
+.kiro/logs/
