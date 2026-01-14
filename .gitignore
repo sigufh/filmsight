@@ -94,3 +94,11 @@ Desktop.ini
 # Kiro
 .kiro/cache/
 .kiro/logs/
+
+# Documentation (keep local only)
+*.md
+!README.md
+
+# Documentation (keep local only)
+*.md
+!README.md
