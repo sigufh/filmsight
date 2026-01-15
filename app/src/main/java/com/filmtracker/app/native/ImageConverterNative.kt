@@ -11,6 +11,7 @@ class ImageConverterNative {
     
     private external fun nativeGetImageSize(imagePtr: Long): IntArray?
     private external fun nativeLinearToSRGB(imagePtr: Long): ByteArray?
+    private external fun nativeLinearToSRGBWithDithering(imagePtr: Long): ByteArray?
     private external fun nativeBitmapToLinear(bitmap: Bitmap): Long
     private external fun nativeReleaseImage(imagePtr: Long)
     
@@ -37,6 +38,28 @@ class ImageConverterNative {
             bitmap
         } catch (e: Exception) {
             Log.e(TAG, "Error converting to bitmap", e)
+            null
+        }
+    }
+    
+    /**
+     * 将线性图像转换为 sRGB Bitmap，使用误差扩散抖动
+     * 
+     * 这个版本使用 Floyd-Steinberg 误差扩散算法来减少色彩断层。
+     * 推荐用于最终输出，特别是在渐变区域较多的图像。
+     */
+    fun linearToBitmapWithDithering(image: LinearImageNative): Bitmap? {
+        return try {
+            val (width, height) = getImageSize(image) ?: return null
+            val rgbaData = nativeLinearToSRGBWithDithering(image.nativePtr) ?: return null
+            
+            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val buffer = java.nio.ByteBuffer.wrap(rgbaData)
+            bitmap.copyPixelsFromBuffer(buffer)
+            
+            bitmap
+        } catch (e: Exception) {
+            Log.e(TAG, "Error converting to bitmap with dithering", e)
             null
         }
     }

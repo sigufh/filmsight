@@ -2,6 +2,7 @@
 #define FILMTRACKER_IMAGE_CONVERTER_H
 
 #include "raw_types.h"
+#include "error_diffusion_dithering.h"
 
 namespace filmtracker {
 
@@ -20,6 +21,33 @@ public:
      * @return sRGB 输出图像
      */
     static OutputImage linearToSRGB(const LinearImage& linear);
+    
+    /**
+     * 将线性 RGB 转换为 sRGB（8位 RGBA），使用误差扩散抖动
+     * 
+     * 这个版本使用 Floyd-Steinberg 误差扩散算法来减少色彩断层。
+     * 推荐用于最终输出，特别是在渐变区域较多的图像。
+     * 
+     * @param linear 线性域图像
+     * @return sRGB 输出图像
+     */
+    static OutputImage linearToSRGBWithDithering(const LinearImage& linear);
+    
+    /**
+     * 将线性 RGB 转换为 sRGB（8位 RGBA），使用软裁剪和抖动
+     * 
+     * 这是推荐的最终输出方法，包含：
+     * 1. 软裁剪：保护高光和阴影细节
+     * 2. Gamma 编码：转换到 sRGB 空间
+     * 3. 误差扩散抖动：消除色彩断层
+     * 
+     * @param linear 线性空间的图像数据
+     * @param applySoftClip 是否应用软裁剪（默认 true）
+     * @return sRGB 空间的 8-bit 输出图像
+     */
+    static OutputImage linearToSRGBWithSoftClipAndDithering(
+        const LinearImage& linear, 
+        bool applySoftClip = true);
     
     /**
      * 应用 Gamma 校正（线性 -> sRGB）

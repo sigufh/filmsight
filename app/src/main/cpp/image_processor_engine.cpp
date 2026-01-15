@@ -1,4 +1,9 @@
 #include "image_processor_engine.h"
+#include "adobe_tone_adjustment.h"
+#include "contrast_adjustment.h"
+#include "color_temperature.h"
+#include "color_grading.h"
+#include "bilateral_filter.h"
 #include <algorithm>
 #include <cmath>
 #include <thread>
@@ -51,17 +56,18 @@ void ImageProcessorEngine::applyBasicAdjustments(LinearImage& image,
                 g *= exposureFactor;
                 b *= exposureFactor;
                 
-                // 2. 对比度调整（围绕中灰）
-                const float mid = 0.18f;  // 中灰值（线性空间）
-                r = mid + (r - mid) * contrast;
-                g = mid + (g - mid) * contrast;
-                b = mid + (b - mid) * contrast;
+                // 2. 对比度调整（使用 S 曲线）
+                if (std::abs(contrast - 1.0f) > 0.01f) {
+                    ContrastAdjustment::applyContrast(r, g, b, contrast);
+                }
                 
                 // 3. 饱和度调整
-                float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
-                r = luminance + (r - luminance) * saturation;
-                g = luminance + (g - luminance) * saturation;
-                b = luminance + (b - luminance) * saturation;
+                if (std::abs(saturation - 1.0f) > 0.01f) {
+                    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                    r = luminance + (r - luminance) * saturation;
+                    g = luminance + (g - luminance) * saturation;
+                    b = luminance + (b - luminance) * saturation;
+                }
                 
                 // 限制范围（允许超出 [0,1]，保留动态范围）
                 image.r[i] = std::max(0.0f, r);
@@ -93,60 +99,33 @@ void ImageProcessorEngine::applyToneAdjustments(LinearImage& image,
     }
     
     const uint32_t pixelCount = image.width * image.height;
+    const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+    const uint32_t pixelsPerThread = pixelCount / numThreads;
     
-    // 归一化参数到 [-1, 1]
-    highlights /= 100.0f;
-    shadows /= 100.0f;
-    whites /= 100.0f;
-    blacks /= 100.0f;
+    std::vector<std::thread> threads;
+    for (uint32_t t = 0; t < numThreads; ++t) {
+        uint32_t start = t * pixelsPerThread;
+        uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+        
+        threads.emplace_back([&image, start, end, highlights, shadows, whites, blacks]() {
+            for (uint32_t i = start; i < end; ++i) {
+                float r = image.r[i];
+                float g = image.g[i];
+                float b = image.b[i];
+                
+                // 使用 Adobe 标准算法应用色调调整
+                AdobeToneAdjustment::applyToneAdjustments(r, g, b, highlights, shadows, whites, blacks);
+                
+                // 保留动态范围，只限制下界
+                image.r[i] = std::max(0.0f, r);
+                image.g[i] = std::max(0.0f, g);
+                image.b[i] = std::max(0.0f, b);
+            }
+        });
+    }
     
-    auto smoothstep = [](float edge0, float edge1, float v) {
-        float t = std::max(0.0f, std::min(1.0f, (v - edge0) / (edge1 - edge0)));
-        return t * t * (3.0f - 2.0f * t);
-    };
-    
-    for (uint32_t i = 0; i < pixelCount; ++i) {
-        float r = image.r[i];
-        float g = image.g[i];
-        float b = image.b[i];
-        
-        // 计算亮度
-        float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
-        float newLuminance = luminance;
-        
-        // 高光调整（影响亮部）
-        if (std::abs(highlights) > 0.01f) {
-            float weight = smoothstep(0.5f, 1.0f, luminance);
-            float adjustment = highlights * weight * (luminance - 0.5f);
-            newLuminance -= adjustment;
-        }
-        
-        // 阴影调整（影响暗部）
-        if (std::abs(shadows) > 0.01f) {
-            float weight = 1.0f - smoothstep(0.2f, 0.6f, luminance);
-            float adjustment = shadows * weight * (0.5f - luminance);
-            newLuminance += adjustment;
-        }
-        
-        // 白场调整
-        if (std::abs(whites) > 0.01f) {
-            float weight = smoothstep(0.5f, 1.0f, luminance);
-            newLuminance += whites * weight * 0.2f;
-        }
-        
-        // 黑场调整
-        if (std::abs(blacks) > 0.01f) {
-            float weight = 1.0f - smoothstep(0.0f, 0.4f, luminance);
-            newLuminance += blacks * weight * 0.2f;
-        }
-        
-        // 按比例调整 RGB
-        float eps = 1e-5f;
-        float scale = (luminance > eps) ? (newLuminance / luminance) : 1.0f;
-        
-        image.r[i] = std::max(0.0f, r * scale);
-        image.g[i] = std::max(0.0f, g * scale);
-        image.b[i] = std::max(0.0f, b * scale);
+    for (auto& thread : threads) {
+        thread.join();
     }
     
     LOGI("applyToneAdjustments completed");
@@ -164,32 +143,113 @@ void ImageProcessorEngine::applyPresence(LinearImage& image,
     
     const uint32_t pixelCount = image.width * image.height;
     
-    // 归一化参数
-    vibrance /= 100.0f;
-    
-    // 自然饱和度调整
-    if (std::abs(vibrance) > 0.01f) {
-        for (uint32_t i = 0; i < pixelCount; ++i) {
-            float r = image.r[i];
-            float g = image.g[i];
-            float b = image.b[i];
+    // 1. 清晰度调整（使用双边滤波器）
+    if (std::abs(clarity) > 0.01f) {
+        LOGI("applyPresence: Applying clarity adjustment");
+        
+        // 归一化清晰度参数（-100 到 +100 -> -1.0 到 +1.0）
+        float clarityAmount = clarity / 100.0f;
+        
+        // 双边滤波器参数
+        // spatialSigma: 控制滤波器大小（像素）
+        // rangeSigma: 控制边缘保持程度（0.0-1.0）
+        float spatialSigma = 5.0f;  // 中等尺度
+        float rangeSigma = 0.2f;    // 较强的边缘保持
+        
+        // 提取细节层
+        LinearImage detail(image.width, image.height);
+        BilateralFilter::extractDetail(image, detail, spatialSigma, rangeSigma);
+        
+        // 应用清晰度调整
+        // clarity > 0: 增强细节
+        // clarity < 0: 柔化图像
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
             
-            float maxC = std::max(r, std::max(g, b));
-            float minC = std::min(r, std::min(g, b));
-            float currentSat = (maxC > 0.0f) ? (maxC - minC) / maxC : 0.0f;
-            
-            // 低饱和区域提升更多
-            float factor = 1.0f + vibrance * (1.0f - currentSat);
-            
-            float avg = (r + g + b) / 3.0f;
-            image.r[i] = std::max(0.0f, avg + (r - avg) * factor);
-            image.g[i] = std::max(0.0f, avg + (g - avg) * factor);
-            image.b[i] = std::max(0.0f, avg + (b - avg) * factor);
+            threads.emplace_back([&image, &detail, clarityAmount, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    // 计算亮度（用于保护高光和阴影）
+                    float luminance = 0.2126f * image.r[i] + 0.7152f * image.g[i] + 0.0722f * image.b[i];
+                    
+                    // 保护高光和阴影区域
+                    // 在高光（> 0.8）和阴影（< 0.2）区域减少清晰度效果
+                    float protection = 1.0f;
+                    if (luminance > 0.8f) {
+                        protection = 1.0f - (luminance - 0.8f) / 0.2f;  // 0.8-1.0 -> 1.0-0.0
+                    } else if (luminance < 0.2f) {
+                        protection = luminance / 0.2f;  // 0.0-0.2 -> 0.0-1.0
+                    }
+                    protection = std::max(0.2f, protection);  // 至少保留 20% 效果
+                    
+                    // 应用清晰度调整
+                    float amount = clarityAmount * protection;
+                    image.r[i] = image.r[i] + detail.r[i] * amount;
+                    image.g[i] = image.g[i] + detail.g[i] * amount;
+                    image.b[i] = image.b[i] + detail.b[i] * amount;
+                    
+                    // 限制范围（允许超出 [0,1]，保留动态范围）
+                    image.r[i] = std::max(0.0f, image.r[i]);
+                    image.g[i] = std::max(0.0f, image.g[i]);
+                    image.b[i] = std::max(0.0f, image.b[i]);
+                }
+            });
         }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyPresence: Clarity adjustment completed");
     }
     
-    // 清晰度调整（简化实现，实际应该用局部对比度）
-    // 这里暂时跳过，因为需要空间域滤波
+    // 2. 自然饱和度调整
+    if (std::abs(vibrance) > 0.01f) {
+        LOGI("applyPresence: Applying vibrance adjustment");
+        
+        // 归一化参数
+        vibrance /= 100.0f;
+        
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+            
+            threads.emplace_back([&image, vibrance, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    float r = image.r[i];
+                    float g = image.g[i];
+                    float b = image.b[i];
+                    
+                    // 计算当前饱和度
+                    float maxC = std::max(r, std::max(g, b));
+                    float minC = std::min(r, std::min(g, b));
+                    float currentSat = (maxC > 0.0f) ? (maxC - minC) / maxC : 0.0f;
+                    
+                    // 自然饱和度：低饱和区域提升更多
+                    float factor = 1.0f + vibrance * (1.0f - currentSat);
+                    
+                    float avg = (r + g + b) / 3.0f;
+                    image.r[i] = std::max(0.0f, avg + (r - avg) * factor);
+                    image.g[i] = std::max(0.0f, avg + (g - avg) * factor);
+                    image.b[i] = std::max(0.0f, avg + (b - avg) * factor);
+                }
+            });
+        }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyPresence: Vibrance adjustment completed");
+    }
     
     LOGI("applyPresence completed");
 }
@@ -500,81 +560,78 @@ void ImageProcessorEngine::applyColorAdjustments(LinearImage& image, const Basic
     
     LOGI("applyColorAdjustments: temp=%.2f, tint=%.2f, grading enabled", params.temperature, params.tint);
     
-    const uint32_t pixelCount = image.width * image.height;
-    
-    // 归一化参数
-    float globalTemp = params.temperature / 100.0f;
-    float globalTint = params.tint / 100.0f;
-    
-    // 分级参数
-    float highlightsTemp = params.gradingHighlightsTemp / 100.0f;
-    float highlightsTint = params.gradingHighlightsTint / 100.0f;
-    float midtonesTemp = params.gradingMidtonesTemp / 100.0f;
-    float midtonesTint = params.gradingMidtonesTint / 100.0f;
-    float shadowsTemp = params.gradingShadowsTemp / 100.0f;
-    float shadowsTint = params.gradingShadowsTint / 100.0f;
-    float blending = params.gradingBlending / 100.0f; // 0-1
-    float balance = params.gradingBalance / 100.0f;   // -1 到 +1
-    
-    // 平滑过渡函数
-    auto smoothstep = [](float edge0, float edge1, float v) {
-        float t = std::max(0.0f, std::min(1.0f, (v - edge0) / (edge1 - edge0)));
-        return t * t * (3.0f - 2.0f * t);
-    };
-    
-    for (uint32_t i = 0; i < pixelCount; ++i) {
-        float r = image.r[i];
-        float g = image.g[i];
-        float b = image.b[i];
+    // 1. 首先应用全局色温和色调调整
+    if (std::abs(params.temperature) > 0.01f || std::abs(params.tint) > 0.01f) {
+        const uint32_t pixelCount = image.width * image.height;
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
         
-        // 计算亮度（用于分级权重）
-        float luminance = 0.299f * r + 0.587f * g + 0.114f * b;
-        
-        // 根据 balance 调整分级区域的边界
-        float shadowEdge = 0.33f + balance * 0.2f;
-        float highlightEdge = 0.67f + balance * 0.2f;
-        
-        // 计算三个区域的权重（使用平滑过渡）
-        float shadowWeight = 1.0f - smoothstep(0.0f, shadowEdge, luminance);
-        float highlightWeight = smoothstep(highlightEdge, 1.0f, luminance);
-        float midtoneWeight = 1.0f - shadowWeight - highlightWeight;
-        
-        // 应用 blending 参数（控制分级效果的强度）
-        shadowWeight *= blending;
-        highlightWeight *= blending;
-        midtoneWeight *= blending;
-        
-        // 计算总的色温和色调调整
-        float totalTemp = globalTemp + 
-                         shadowWeight * shadowsTemp +
-                         midtoneWeight * midtonesTemp +
-                         highlightWeight * highlightsTemp;
-        
-        float totalTint = globalTint +
-                         shadowWeight * shadowsTint +
-                         midtoneWeight * midtonesTint +
-                         highlightWeight * highlightsTint;
-        
-        // 应用色温调整（Lightroom 风格）
-        // 色温：正值增加暖色（红/黄），负值增加冷色（蓝）
-        if (totalTemp != 0.0f) {
-            float tempScale = totalTemp * 0.4f;
-            r *= (1.0f + tempScale);
-            b *= (1.0f - tempScale);
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+            
+            threads.emplace_back([&image, &params, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    float r = image.r[i];
+                    float g = image.g[i];
+                    float b = image.b[i];
+                    
+                    // 使用 Planckian Locus 算法应用色温和色调调整
+                    ColorTemperature::applyColorTemperature(r, g, b, params.temperature, params.tint);
+                    
+                    image.r[i] = std::max(0.0f, r);
+                    image.g[i] = std::max(0.0f, g);
+                    image.b[i] = std::max(0.0f, b);
+                }
+            });
         }
         
-        // 应用色调调整（绿-品红轴）
-        // 色调：正值增加品红，负值增加绿色
-        if (totalTint != 0.0f) {
-            float tintScale = totalTint * 0.3f;
-            r *= (1.0f + tintScale * 0.5f);
-            g *= (1.0f - tintScale);
-            b *= (1.0f + tintScale * 0.5f);
+        for (auto& thread : threads) {
+            thread.join();
         }
+    }
+    
+    // 2. 应用色彩分级（使用高斯权重函数）
+    bool hasGrading = std::abs(params.gradingHighlightsTemp) > 0.01f || 
+                     std::abs(params.gradingHighlightsTint) > 0.01f ||
+                     std::abs(params.gradingMidtonesTemp) > 0.01f || 
+                     std::abs(params.gradingMidtonesTint) > 0.01f ||
+                     std::abs(params.gradingShadowsTemp) > 0.01f || 
+                     std::abs(params.gradingShadowsTint) > 0.01f;
+    
+    if (hasGrading) {
+        // 准备色彩分级参数
+        ColorGrading::GradingParams gradingParams;
         
-        image.r[i] = std::max(0.0f, r);
-        image.g[i] = std::max(0.0f, g);
-        image.b[i] = std::max(0.0f, b);
+        // 将色温和色调转换为 RGB 偏移
+        // 这里使用简化的映射：
+        // - 色温主要影响 R 和 B 通道
+        // - 色调主要影响 G 通道
+        float tempScale = 0.01f;  // 色温缩放因子
+        float tintScale = 0.01f;  // 色调缩放因子
+        
+        // 高光分级
+        gradingParams.highlightR = params.gradingHighlightsTemp * tempScale;
+        gradingParams.highlightG = params.gradingHighlightsTint * tintScale;
+        gradingParams.highlightB = -params.gradingHighlightsTemp * tempScale * 0.5f;
+        
+        // 中间调分级
+        gradingParams.midtoneR = params.gradingMidtonesTemp * tempScale;
+        gradingParams.midtoneG = params.gradingMidtonesTint * tintScale;
+        gradingParams.midtoneB = -params.gradingMidtonesTemp * tempScale * 0.5f;
+        
+        // 阴影分级
+        gradingParams.shadowR = params.gradingShadowsTemp * tempScale;
+        gradingParams.shadowG = params.gradingShadowsTint * tintScale;
+        gradingParams.shadowB = -params.gradingShadowsTemp * tempScale * 0.5f;
+        
+        // 整体强度和区域平衡
+        gradingParams.blending = params.gradingBlending / 100.0f;  // 0-1
+        gradingParams.balance = params.gradingBalance / 100.0f;    // -1 到 +1
+        
+        // 应用色彩分级
+        ColorGrading::applyGrading(image, gradingParams);
     }
     
     LOGI("applyColorAdjustments completed");
@@ -583,113 +640,260 @@ void ImageProcessorEngine::applyColorAdjustments(LinearImage& image, const Basic
 // ========== 效果模块 ==========
 
 void ImageProcessorEngine::applyEffects(LinearImage& image, const BasicAdjustmentParams& params) {
-    // 简单实现
-    // TODO: 实现完整的纹理、去雾、晕影、颗粒效果
-    
     if (params.texture == 0.0f && params.dehaze == 0.0f && 
         params.vignette == 0.0f && params.grain == 0.0f) {
         return; // 没有调整，直接返回
     }
     
+    LOGI("applyEffects: texture=%.2f, dehaze=%.2f", params.texture, params.dehaze);
+    
     const uint32_t pixelCount = image.width * image.height;
     
-    // 简单的对比度调整作为纹理效果的占位符
-    if (params.texture != 0.0f) {
-        float textureFactor = 1.0f + params.texture / 200.0f;
-        for (uint32_t i = 0; i < pixelCount; ++i) {
-            float r = image.r[i];
-            float g = image.g[i];
-            float b = image.b[i];
+    // 纹理效果：使用双边滤波器提取细节并增强
+    if (std::abs(params.texture) > 0.01f) {
+        LOGI("applyEffects: Applying texture adjustment");
+        
+        // 归一化纹理参数（-100 到 +100 -> -1.0 到 +1.0）
+        float textureAmount = params.texture / 100.0f;
+        
+        // 使用较小的 spatialSigma 来提取高频细节
+        float spatialSigma = 2.0f;  // 小尺度，提取细节
+        float rangeSigma = 0.1f;    // 强边缘保持
+        
+        // 提取细节层
+        LinearImage detail(image.width, image.height);
+        BilateralFilter::extractDetail(image, detail, spatialSigma, rangeSigma);
+        
+        // 应用纹理调整
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
             
-            // 增强中频细节
-            r = 0.5f + (r - 0.5f) * textureFactor;
-            g = 0.5f + (g - 0.5f) * textureFactor;
-            b = 0.5f + (b - 0.5f) * textureFactor;
-            
-            image.r[i] = std::max(0.0f, std::min(1.0f, r));
-            image.g[i] = std::max(0.0f, std::min(1.0f, g));
-            image.b[i] = std::max(0.0f, std::min(1.0f, b));
+            threads.emplace_back([&image, &detail, textureAmount, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    // 应用纹理调整（增强或减弱细节）
+                    image.r[i] = image.r[i] + detail.r[i] * textureAmount;
+                    image.g[i] = image.g[i] + detail.g[i] * textureAmount;
+                    image.b[i] = image.b[i] + detail.b[i] * textureAmount;
+                    
+                    // 限制范围
+                    image.r[i] = std::max(0.0f, image.r[i]);
+                    image.g[i] = std::max(0.0f, image.g[i]);
+                    image.b[i] = std::max(0.0f, image.b[i]);
+                }
+            });
         }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyEffects: Texture adjustment completed");
     }
     
-    // 去雾效果（简化版：增加对比度和饱和度）
-    if (params.dehaze != 0.0f) {
+    // 去雾效果（增强对比度和饱和度）
+    if (std::abs(params.dehaze) > 0.01f) {
+        LOGI("applyEffects: Applying dehaze");
+        
         float dehazeFactor = params.dehaze / 100.0f;
-        for (uint32_t i = 0; i < pixelCount; ++i) {
-            float r = image.r[i];
-            float g = image.g[i];
-            float b = image.b[i];
+        
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
             
-            // 增强对比度
-            r = r + (r - 0.5f) * dehazeFactor * 0.5f;
-            g = g + (g - 0.5f) * dehazeFactor * 0.5f;
-            b = b + (b - 0.5f) * dehazeFactor * 0.5f;
-            
-            image.r[i] = std::max(0.0f, std::min(1.0f, r));
-            image.g[i] = std::max(0.0f, std::min(1.0f, g));
-            image.b[i] = std::max(0.0f, std::min(1.0f, b));
+            threads.emplace_back([&image, dehazeFactor, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    float r = image.r[i];
+                    float g = image.g[i];
+                    float b = image.b[i];
+                    
+                    // 增强对比度
+                    r = r + (r - 0.5f) * dehazeFactor * 0.5f;
+                    g = g + (g - 0.5f) * dehazeFactor * 0.5f;
+                    b = b + (b - 0.5f) * dehazeFactor * 0.5f;
+                    
+                    // 增强饱和度
+                    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                    r = luminance + (r - luminance) * (1.0f + dehazeFactor * 0.3f);
+                    g = luminance + (g - luminance) * (1.0f + dehazeFactor * 0.3f);
+                    b = luminance + (b - luminance) * (1.0f + dehazeFactor * 0.3f);
+                    
+                    image.r[i] = std::max(0.0f, r);
+                    image.g[i] = std::max(0.0f, g);
+                    image.b[i] = std::max(0.0f, b);
+                }
+            });
         }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyEffects: Dehaze completed");
     }
+    
+    LOGI("applyEffects completed");
 }
 
 // ========== 细节模块 ==========
 
 void ImageProcessorEngine::applyDetails(LinearImage& image, const BasicAdjustmentParams& params) {
-    // 简单实现
-    // TODO: 实现完整的锐化和降噪效果
-    
     if (params.sharpening == 0.0f && params.noiseReduction == 0.0f) {
         return; // 没有调整，直接返回
     }
     
-    // 锐化效果（简化版：增强边缘）
+    LOGI("applyDetails: sharpening=%.2f, noiseReduction=%.2f", params.sharpening, params.noiseReduction);
+    
+    const uint32_t width = image.width;
+    const uint32_t height = image.height;
+    const uint32_t pixelCount = width * height;
+    
+    // 降噪效果：使用双边滤波器
+    if (params.noiseReduction > 0.0f) {
+        LOGI("applyDetails: Applying noise reduction");
+        
+        // 归一化降噪参数（0 到 100 -> 0.0 到 1.0）
+        float nrAmount = params.noiseReduction / 100.0f;
+        
+        // 双边滤波器参数
+        float spatialSigma = 3.0f + nrAmount * 5.0f;  // 3-8 像素
+        float rangeSigma = 0.1f + nrAmount * 0.2f;    // 0.1-0.3
+        
+        // 应用双边滤波器
+        LinearImage filtered(width, height);
+        BilateralFilter::apply(image, filtered, spatialSigma, rangeSigma);
+        
+        // 混合原图和滤波结果
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t pixelsPerThread = pixelCount / numThreads;
+        
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+            
+            threads.emplace_back([&image, &filtered, nrAmount, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    // 线性混合
+                    image.r[i] = image.r[i] * (1.0f - nrAmount) + filtered.r[i] * nrAmount;
+                    image.g[i] = image.g[i] * (1.0f - nrAmount) + filtered.g[i] * nrAmount;
+                    image.b[i] = image.b[i] * (1.0f - nrAmount) + filtered.b[i] * nrAmount;
+                }
+            });
+        }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyDetails: Noise reduction completed");
+    }
+    
+    // 锐化效果：使用 Unsharp Mask
     if (params.sharpening > 0.0f) {
+        LOGI("applyDetails: Applying sharpening");
+        
+        // 归一化锐化参数（0 到 100 -> 0.0 到 1.0）
         float sharpenAmount = params.sharpening / 100.0f;
         
-        // 简单的 unsharp mask
-        const uint32_t width = image.width;
-        const uint32_t height = image.height;
+        // 创建模糊版本（使用简单的高斯模糊）
+        std::vector<float> blurR(pixelCount);
+        std::vector<float> blurG(pixelCount);
+        std::vector<float> blurB(pixelCount);
         
-        std::vector<float> blurR(width * height);
-        std::vector<float> blurG(width * height);
-        std::vector<float> blurB(width * height);
+        // 简单的 3x3 高斯模糊核
+        // 1  2  1
+        // 2  4  2
+        // 1  2  1
+        // 总和 = 16
+        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+        const uint32_t rowsPerThread = height / numThreads;
         
-        // 简单的 3x3 box blur
-        for (uint32_t y = 1; y < height - 1; ++y) {
-            for (uint32_t x = 1; x < width - 1; ++x) {
-                uint32_t idx = y * width + x;
-                
-                float sumR = 0.0f, sumG = 0.0f, sumB = 0.0f;
-                for (int dy = -1; dy <= 1; ++dy) {
-                    for (int dx = -1; dx <= 1; ++dx) {
-                        uint32_t nidx = (y + dy) * width + (x + dx);
-                        sumR += image.r[nidx];
-                        sumG += image.g[nidx];
-                        sumB += image.b[nidx];
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t startRow = t * rowsPerThread;
+            uint32_t endRow = (t == numThreads - 1) ? height : (t + 1) * rowsPerThread;
+            
+            threads.emplace_back([&image, &blurR, &blurG, &blurB, width, height, startRow, endRow]() {
+                for (uint32_t y = startRow; y < endRow; ++y) {
+                    for (uint32_t x = 0; x < width; ++x) {
+                        uint32_t idx = y * width + x;
+                        
+                        float sumR = 0.0f, sumG = 0.0f, sumB = 0.0f;
+                        float sumWeight = 0.0f;
+                        
+                        // 3x3 高斯核
+                        for (int dy = -1; dy <= 1; ++dy) {
+                            int ny = static_cast<int>(y) + dy;
+                            if (ny < 0 || ny >= static_cast<int>(height)) continue;
+                            
+                            for (int dx = -1; dx <= 1; ++dx) {
+                                int nx = static_cast<int>(x) + dx;
+                                if (nx < 0 || nx >= static_cast<int>(width)) continue;
+                                
+                                uint32_t nidx = ny * width + nx;
+                                
+                                // 高斯权重
+                                float weight = 1.0f;
+                                if (dx == 0 || dy == 0) {
+                                    weight = (dx == 0 && dy == 0) ? 4.0f : 2.0f;
+                                }
+                                
+                                sumR += image.r[nidx] * weight;
+                                sumG += image.g[nidx] * weight;
+                                sumB += image.b[nidx] * weight;
+                                sumWeight += weight;
+                            }
+                        }
+                        
+                        blurR[idx] = sumR / sumWeight;
+                        blurG[idx] = sumG / sumWeight;
+                        blurB[idx] = sumB / sumWeight;
                     }
                 }
-                
-                blurR[idx] = sumR / 9.0f;
-                blurG[idx] = sumG / 9.0f;
-                blurB[idx] = sumB / 9.0f;
-            }
+            });
         }
         
-        // 应用锐化
-        for (uint32_t y = 1; y < height - 1; ++y) {
-            for (uint32_t x = 1; x < width - 1; ++x) {
-                uint32_t idx = y * width + x;
-                
-                float r = image.r[idx] + (image.r[idx] - blurR[idx]) * sharpenAmount;
-                float g = image.g[idx] + (image.g[idx] - blurG[idx]) * sharpenAmount;
-                float b = image.b[idx] + (image.b[idx] - blurB[idx]) * sharpenAmount;
-                
-                image.r[idx] = std::max(0.0f, std::min(1.0f, r));
-                image.g[idx] = std::max(0.0f, std::min(1.0f, g));
-                image.b[idx] = std::max(0.0f, std::min(1.0f, b));
-            }
+        for (auto& thread : threads) {
+            thread.join();
         }
+        
+        // 应用 Unsharp Mask：原图 + (原图 - 模糊) * 强度
+        threads.clear();
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * (pixelCount / numThreads);
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * (pixelCount / numThreads);
+            
+            threads.emplace_back([&image, &blurR, &blurG, &blurB, sharpenAmount, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    // Unsharp Mask
+                    float r = image.r[i] + (image.r[i] - blurR[i]) * sharpenAmount;
+                    float g = image.g[i] + (image.g[i] - blurG[i]) * sharpenAmount;
+                    float b = image.b[i] + (image.b[i] - blurB[i]) * sharpenAmount;
+                    
+                    image.r[i] = std::max(0.0f, r);
+                    image.g[i] = std::max(0.0f, g);
+                    image.b[i] = std::max(0.0f, b);
+                }
+            });
+        }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+        
+        LOGI("applyDetails: Sharpening completed");
     }
+    
+    LOGI("applyDetails completed");
 }
 
 } // namespace filmtracker

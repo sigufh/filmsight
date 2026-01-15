@@ -70,6 +70,53 @@ Java_com_filmtracker_app_native_ImageConverterNative_nativeLinearToSRGB(
 }
 
 /**
+ * 转换为输出图像（sRGB），使用误差扩散抖动
+ * 
+ * 这个版本使用 Floyd-Steinberg 误差扩散算法来减少色彩断层。
+ * 推荐用于最终输出，特别是在渐变区域较多的图像。
+ */
+JNIEXPORT jbyteArray JNICALL
+Java_com_filmtracker_app_native_ImageConverterNative_nativeLinearToSRGBWithDithering(
+    JNIEnv *env, jobject thiz, jlong imagePtr) {
+    
+    LOGI("nativeLinearToSRGBWithDithering: Starting");
+    
+    LinearImage* image = reinterpret_cast<LinearImage*>(imagePtr);
+    if (!image) {
+        LOGE("nativeLinearToSRGBWithDithering: Image pointer is null");
+        return nullptr;
+    }
+    
+    LOGI("nativeLinearToSRGBWithDithering: Image size=%dx%d", image->width, image->height);
+    
+    try {
+        LOGI("nativeLinearToSRGBWithDithering: Calling ImageConverter::linearToSRGBWithDithering");
+        OutputImage output = ImageConverter::linearToSRGBWithDithering(*image);
+        LOGI("nativeLinearToSRGBWithDithering: Conversion completed, data size=%zu bytes", output.data.size());
+        
+        LOGI("nativeLinearToSRGBWithDithering: Creating byte array");
+        jbyteArray result = env->NewByteArray(output.data.size());
+        if (result == nullptr) {
+            LOGE("nativeLinearToSRGBWithDithering: Failed to create byte array");
+            return nullptr;
+        }
+        
+        LOGI("nativeLinearToSRGBWithDithering: Copying data to byte array");
+        env->SetByteArrayRegion(result, 0, output.data.size(), 
+                               reinterpret_cast<const jbyte*>(output.data.data()));
+        
+        LOGI("nativeLinearToSRGBWithDithering: Completed successfully");
+        return result;
+    } catch (const std::exception& e) {
+        LOGE("Exception in nativeLinearToSRGBWithDithering: %s", e.what());
+        return nullptr;
+    } catch (...) {
+        LOGE("Unknown exception in nativeLinearToSRGBWithDithering");
+        return nullptr;
+    }
+}
+
+/**
  * 释放图像资源
  */
 JNIEXPORT void JNICALL

@@ -36,6 +36,13 @@ set(RAW_PROCESSOR_SOURCES
 
 set(IMAGE_PROCESSOR_SOURCES
     image_processor_engine.cpp
+    error_diffusion_dithering.cpp
+    dynamic_range_protection.cpp
+    adobe_tone_adjustment.cpp
+    contrast_adjustment.cpp
+    color_temperature.cpp
+    color_grading.cpp
+    bilateral_filter.cpp
 )
 
 set(IMAGE_CONVERTER_SOURCES
