@@ -33,6 +33,195 @@
 📖 **详细功能清单**：查看 [FEATURES.md](FEATURES.md)
 
 ## 📋 项目概述
+
+FilmSight 是一款面向 Android 平台的专业级 RAW/DNG 摄影后期处理软件。产品以"数字暗房"为核心理念，围绕 RAW 图像的线性光域处理，结合胶片银盐成像机理模拟与 AI 辅助参数决策，为摄影师提供高度可控、可解释、可定制的影像风格构建工具。
+
+### 核心特性
+
+- **RAW 优先**：所有核心计算在 RAW 线性域完成
+- **模型先于结果**：模拟成像过程，而非结果映射
+- **AI 辅助而非替代**：AI 输出建议参数，不直接输出颜色
+- **离线可用**：无网络情况下具备完整功能
+- **专业工作流**：符合摄影后期软件使用习惯
+
+---
+
+## 🏗️ 架构设计
+
+本项目采用 **Clean Architecture** 分层架构，确保代码的可维护性、可测试性和可扩展性。
+
+### 架构层次
+
+```
+┌─────────────────────────────────────────┐
+│          UI Layer (Compose)             │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │  ViewModel  │    │   Screen    │    │
+│  └─────────────┘    └─────────────┘    │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│         Domain Layer (Kotlin)           │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │   UseCase   │    │    Model    │    │
+│  └─────────────┘    └─────────────┘    │
+│  ┌─────────────────────────────────┐   │
+│  │      Repository Interface       │   │
+│  └─────────────────────────────────┘   │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│          Data Layer (Kotlin)            │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │ Repository  │    │   Mapper    │    │
+│  │    Impl     │    │             │    │
+│  └─────────────┘    └─────────────┘    │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │   Native    │    │    Local    │    │
+│  │   Source    │    │   Source    │    │
+│  └─────────────┘    └─────────────┘    │
+└─────────────────────────────────────────┘
+                  ↓
+┌─────────────────────────────────────────┐
+│        Native Layer (C++/JNI)           │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │ RAW Decoder │    │   Image     │    │
+│  │             │    │  Processor  │    │
+│  └─────────────┘    └─────────────┘    │
+│  ┌─────────────┐    ┌─────────────┐    │
+│  │   Bayer     │    │    Tone     │    │
+│  │  Demosaic   │    │    Curve    │    │
+│  └─────────────┘    └─────────────┘    │
+└─────────────────────────────────────────┘
+```
+
+### 模块说明
+
+#### UI Layer
+- **ViewModel**: 管理 UI 状态和业务逻辑
+- **Screen**: Jetpack Compose UI 组件
+- **ViewModelFactory**: ViewModel 创建工厂（临时方案，未来将使用 DI）
+
+#### Domain Layer
+- **UseCase**: 封装业务逻辑用例
+- **Model**: 领域模型，独立于具体实现
+- **Repository Interface**: 数据访问接口定义
+
+#### Data Layer
+- **Repository Implementation**: 仓储接口实现
+- **Mapper**: 数据模型转换
+- **Data Source**: 数据源封装（Native、Local）
+
+#### Native Layer
+- **RAW Decoder**: RAW 文件解码（LibRaw）
+- **Image Processor**: 图像处理引擎
+- **Bayer Demosaic**: 拜耳阵列去马赛克
+- **Tone Curve**: 色调曲线处理
+
+### 数据流
+
+```
+User Input → ViewModel → UseCase → Repository → Data Source → Native Code
+                ↓           ↓           ↓            ↓             ↓
+            UI State ← Domain Model ← Data Model ← JNI ← C++ Processing
+```
+
+### 依赖规则
+
+- **UI Layer** 依赖 **Domain Layer**
+- **Data Layer** 依赖 **Domain Layer**
+- **Domain Layer** 不依赖任何其他层（纯业务逻辑）
+- **Native Layer** 被 **Data Layer** 调用
+
+📖 **详细架构文档**：查看 [docs/architecture/REFACTORING_GUIDE.md](docs/architecture/REFACTORING_GUIDE.md)
+
+---
+
+## 🛠️ 开发指南
+
+### 环境要求
+
+- **Android Studio**: Hedgehog (2023.1.1) 或更高版本
+- **Gradle**: 8.0+
+- **NDK**: 27.0.12077973
+- **Kotlin**: 1.9.0+
+- **Java**: 17+
+- **CMake**: 3.22.1+
+
+### 项目结构
+
+```
+filmsight/
+├── app/
+│   ├── src/main/
+│   │   ├── cpp/                    # C++ Native 代码
+│   │   │   ├── jni/               # JNI 接口层
+│   │   │   ├── include/           # 头文件
+│   │   │   └── *.cpp              # 实现文件
+│   │   └── java/com/filmtracker/app/
+│   │       ├── domain/            # 领域层
+│   │       │   ├── model/         # 领域模型
+│   │       │   ├── repository/    # 仓储接口
+│   │       │   └── usecase/       # 用例
+│   │       ├── data/              # 数据层
+│   │       │   ├── repository/    # 仓储实现
+│   │       │   ├── source/        # 数据源
+│   │       │   └── mapper/        # 映射器
+│   │       ├── ui/                # UI 层
+│   │       │   ├── viewmodel/     # ViewModel
+│   │       │   ├── screens/       # 界面
+│   │       │   └── theme/         # 主题
+│   │       ├── native/            # Native 接口
+│   │       └── util/              # 工具类
+│   └── build.gradle.kts
+├── docs/                          # 文档
+│   └── architecture/              # 架构文档
+├── .kiro/                         # Kiro 配置
+│   └── specs/                     # 规格文档
+└── README.md
+```
+
+### 构建项目
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd filmsight
+
+# 构建 Debug 版本
+./gradlew assembleDebug
+
+# 构建 Release 版本
+./gradlew assembleRelease
+
+# 运行测试
+./gradlew test
+
+# 安装到设备
+./gradlew installDebug
+```
+
+### 代码规范
+
+- **Kotlin**: 遵循 [Kotlin Coding Conventions](https://kotlinlang.org/docs/coding-conventions.html)
+- **C++**: 遵循 C++17 标准
+- **命名规范**:
+  - Kotlin: camelCase (变量/函数), PascalCase (类)
+  - C++: snake_case (变量/函数), PascalCase (类)
+- **注释**: 所有公共 API 必须有 KDoc/Doxygen 注释
+
+### 迁移指南
+
+如果你正在从旧代码迁移到新架构：
+
+1. 查看 [docs/architecture/MIGRATION_CHECKLIST.md](docs/architecture/MIGRATION_CHECKLIST.md)
+2. 使用新的 ViewModel 而不是直接调用 ImageProcessor
+3. 通过 UseCase 访问业务逻辑
+4. 使用 Repository 访问数据
+
+---
+
+## 📋 项目概述（详细）
 一、项目概述
 本项目是一款面向 Android 平台的专业级 RAW / DNG 摄影后期处理软件。产品以“数字暗房”为核心理念，围绕 RAW 图像的线性光域处理，结合胶片银盐成像机理模拟与AI 辅助参数决策，为摄影师提供高度可控、可解释、可定制的影像风格构建工具。
 本软件不依赖系统相机，仅处理用户相册中的 RAW 图像；不以 GPU 为主要算力依赖，核心算法以 CPU / NPU 为主；AI 不直接生成影像，而是作为“理解 RAW 与约束参数空间的暗房助手”。

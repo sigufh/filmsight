@@ -24,9 +24,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.filmtracker.app.data.BasicAdjustmentParams
+import com.filmtracker.app.data.mapper.AdjustmentParamsMapper
+import com.filmtracker.app.ui.viewmodel.ProcessingViewModel
+import com.filmtracker.app.ui.viewmodel.ViewModelFactory
 import com.filmtracker.app.util.ImageProcessor
 import kotlin.math.abs
 import kotlin.math.pow
@@ -48,38 +52,40 @@ fun ProcessingScreen(
     onExport: (BasicAdjustmentParams) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 状态管理
-    var basicParams by remember { mutableStateOf(BasicAdjustmentParams.neutral()) }
-    var selectedPrimaryTool by remember { mutableStateOf<PrimaryTool?>(null) }
-    var selectedSecondaryTool by remember { mutableStateOf<SecondaryTool?>(null) }
-    var processedImage by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
-    var originalImage by remember { mutableStateOf<android.graphics.Bitmap?>(null) } // 保存原图引用
-    var isInitialLoading by remember { mutableStateOf(true) }
-    
     val context = androidx.compose.ui.platform.LocalContext.current
     
-    // 加载原始图像（使用适中分辨率用于预览，最大 1920px）
+    // 获取 ViewModel
+    val viewModel: ProcessingViewModel = viewModel(
+        factory = ViewModelFactory.getInstance(context)
+    )
+    
+    // 观察 ViewModel 状态
+    val processedImage by viewModel.processedImage.collectAsState()
+    val domainParams by viewModel.adjustmentParams.collectAsState()
+    val isProcessing by viewModel.isProcessing.collectAsState()
+    
+    // 将 Domain 参数映射为 UI 参数（BasicAdjustmentParams）
+    val mapper = remember { AdjustmentParamsMapper() }
+    val basicParams = remember(domainParams) {
+        mapper.toData(domainParams)
+    }
+    
+    // UI 状态
+    var selectedPrimaryTool by remember { mutableStateOf<PrimaryTool?>(null) }
+    var selectedSecondaryTool by remember { mutableStateOf<SecondaryTool?>(null) }
+    var isInitialLoading by remember { mutableStateOf(true) }
+    
+    // 加载原始图像（使用旧的 ImageProcessor 临时方案）
     LaunchedEffect(imageUri) {
         if (imageUri != null) {
             isInitialLoading = true
             val imageProcessor = ImageProcessor(context)
             // 加载适合预览的分辨率（不是缩略图，而是适中的预览图）
             val loadedImage = imageProcessor.loadOriginalImage(imageUri, previewMode = true)
-            originalImage = loadedImage
-            processedImage = loadedImage
-            isInitialLoading = false
-        }
-    }
-    
-    // 应用参数变化（使用已加载的原图，后台处理）
-    LaunchedEffect(basicParams) {
-        if (originalImage != null && !isInitialLoading) {
-            // 在后台处理，使用已加载的原图
-            val imageProcessor = ImageProcessor(context)
-            val newProcessedImage = imageProcessor.applyBasicAdjustmentsToOriginal(originalImage!!, basicParams)
-            if (newProcessedImage != null) {
-                processedImage = newProcessedImage
+            if (loadedImage != null) {
+                viewModel.setOriginalImage(loadedImage)
             }
+            isInitialLoading = false
         }
     }
     
@@ -203,7 +209,11 @@ fun ProcessingScreen(
                             PrimaryTool.COLOR -> {
                                 ColorAdjustmentPanel(
                                     params = basicParams,
-                                    onParamsChange = { basicParams = it },
+                                    onParamsChange = { newParams ->
+                                        // 将 BasicAdjustmentParams 映射回 Domain 参数并更新 ViewModel
+                                        val newDomainParams = mapper.toDomain(newParams)
+                                        viewModel.updateParams(newDomainParams)
+                                    },
                                     selectedSecondaryTool = selectedSecondaryTool,
                                     onSecondaryToolSelected = { selectedSecondaryTool = it }
                                 )

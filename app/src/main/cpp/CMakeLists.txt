@@ -43,7 +43,11 @@ set(IMAGE_CONVERTER_SOURCES
 )
 
 set(JNI_SOURCES
-    jni_bridge.cpp
+    jni/jni_common.h
+    jni/jni_raw_processor.cpp
+    jni/jni_converter.cpp
+    jni/jni_image_processor.cpp
+    jni/jni_parameters.cpp
 )
 
 # Include directories

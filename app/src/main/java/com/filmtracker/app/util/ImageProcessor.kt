@@ -13,6 +13,19 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
+/**
+ * 图像处理器（旧版）
+ * 
+ * @deprecated 此类已被新架构替代，请使用：
+ * - ProcessingViewModel + ApplyAdjustmentsUseCase（用于图像处理）
+ * - ImageRepositoryImpl（用于图像加载）
+ * 
+ * 迁移指南：docs/architecture/REFACTORING_GUIDE.md
+ */
+@Deprecated(
+    message = "Use new architecture with ViewModel, UseCase and Repository. See docs/architecture/REFACTORING_GUIDE.md",
+    level = DeprecationLevel.WARNING
+)
 class ImageProcessor(private val context: Context? = null) {
     
     private val rawProcessor = RawProcessorNative()
