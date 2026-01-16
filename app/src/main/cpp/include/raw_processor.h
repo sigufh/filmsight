@@ -48,27 +48,6 @@ public:
                         uint32_t height);
     
     /**
-     * 应用白电平归一化
-     */
-    void normalizeWhiteLevel(std::vector<float>& linearData,
-                            float whiteLevel,
-                            uint32_t pixelCount);
-    
-    /**
-     * Bayer 去马赛克（基本双线性插值）
-     * 
-     * @param rawData 原始 Bayer 数据（uint16_t，未归一化）
-     * @param width 图像宽度
-     * @param height 图像高度
-     * @param cfaPattern CFA 模式（0=RGGB, 1=GRBG, 2=GBRG, 3=BGGR）
-     * @return 线性 RGB 图像
-     */
-    LinearImage demosaicBayer(const std::vector<uint16_t>& rawData,
-                             uint32_t width,
-                             uint32_t height,
-                             uint32_t cfaPattern);
-    
-    /**
      * Bayer 去马赛克（使用归一化的float数据）
      * 
      * @param normalizedRawData 归一化的 Bayer 数据（float，0-1范围）
@@ -81,80 +60,6 @@ public:
                                        uint32_t width,
                                        uint32_t height,
                                        uint32_t cfaPattern);
-    
-private:
-    /**
-     * 解析 DNG 标签（简化版）
-     */
-    void parseDngTags(const uint8_t* buffer, size_t size, RawMetadata& metadata);
-    
-    /**
-     * AHD 去马赛克核心算法
-     */
-    void demosaicAHD(const std::vector<uint16_t>& rawData,
-                    LinearImage& output,
-                    uint32_t width,
-                    uint32_t height,
-                    uint32_t cfaPattern);
-    
-    /**
-     * 加载ARW文件（Sony ARW格式）
-     */
-    LinearImage loadArwFile(std::ifstream& file, RawMetadata& metadata);
-    
-    /**
-     * 解析TIFF IFD并提取EXIF信息
-     */
-    void parseTiffIfd(std::ifstream& file, 
-                      uint32_t ifdOffset, 
-                      bool isLittleEndian,
-                      size_t fileSize,
-                      RawMetadata& metadata);
-    
-    /**
-     * 读取TIFF标签值（支持不同数据类型）
-     */
-    uint32_t readTiffValue(std::ifstream& file,
-                          uint16_t dataType,
-                          uint32_t count,
-                          uint32_t valueOffset,
-                          bool isLittleEndian,
-                          size_t fileSize);
-    
-    /**
-     * 读取TIFF字符串值
-     */
-    void readTiffString(std::ifstream& file,
-                       uint32_t valueOffset,
-                       uint32_t count,
-                       bool isLittleEndian,
-                       char* buffer,
-                       size_t bufferSize);
-    
-    /**
-     * 读取ARW文件的RAW数据条带
-     */
-    bool readArwRawData(std::ifstream& file,
-                       uint32_t stripOffset,
-                       uint32_t stripByteCount,
-                       uint32_t width,
-                       uint32_t height,
-                       uint16_t bitsPerSample,
-                       bool isLittleEndian,
-                       std::vector<uint16_t>& rawData);
-    
-    /**
-     * 解析ARW文件的RAW数据位置（StripOffsets和StripByteCounts）
-     */
-    bool findArwRawDataLocation(std::ifstream& file,
-                               uint32_t ifdOffset,
-                               bool isLittleEndian,
-                               size_t fileSize,
-                               uint32_t& stripOffset,
-                               uint32_t& stripByteCount,
-                               uint32_t& width,
-                               uint32_t& height,
-                               uint16_t& bitsPerSample);
 };
 
 } // namespace filmtracker

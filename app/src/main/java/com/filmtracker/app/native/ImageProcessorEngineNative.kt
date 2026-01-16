@@ -104,18 +104,6 @@ class ImageProcessorEngineNative {
     }
     
     /**
-     * 应用胶片模拟（已移除，保留空实现以兼容）
-     */
-    @Deprecated("Film simulation has been removed")
-    fun applyFilmSimulation(
-        image: LinearImageNative,
-        params: BasicAdjustmentParamsNative,
-        metadata: RawMetadataNative? = null
-    ) {
-        // 空实现，不做任何事
-    }
-    
-    /**
      * 释放资源
      */
     fun release() {

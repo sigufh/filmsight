@@ -81,24 +81,6 @@ class RawProcessorNative {
         }
     }
     
-    /**
-     * 加载 RAW 图像文件（兼容旧接口）
-     */
-    fun loadRawLegacy(filePath: String): LinearImageNative? {
-        return try {
-            val imagePtr = nativeLoadRaw(nativePtr, filePath)
-            if (imagePtr != 0L) {
-                LinearImageNative(imagePtr)
-            } else {
-                Log.e(TAG, "Failed to load RAW image")
-                null
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading RAW", e)
-            null
-        }
-    }
-    
     private external fun nativeLoadRawWithMetadata(nativePtr: Long, filePath: String): LongArray?
     
     companion object {
