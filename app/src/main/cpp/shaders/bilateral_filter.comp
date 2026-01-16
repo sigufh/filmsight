@@ -1,0 +1,107 @@
+#version 450
+
+// 工作组大小（8x8 线程）
+layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
+
+// 输入输出缓冲区（存储图像数据）
+layout(binding = 0) readonly buffer InputBuffer {
+    float inputData[];
+};
+
+layout(binding = 1) writeonly buffer OutputBuffer {
+    float outputData[];
+};
+
+// Push constants（滤波参数）
+layout(push_constant) uniform PushConstants {
+    uint width;           // 图像宽度
+    uint height;          // 图像高度
+    float spatialSigma;   // 空间域标准差
+    float rangeSigma;     // 强度域标准差
+} params;
+
+// 计算高斯权重
+float gaussianWeight(float distance, float sigma) {
+    return exp(-(distance * distance) / (2.0 * sigma * sigma));
+}
+
+// 获取像素索引
+uint getPixelIndex(uint x, uint y, uint channel) {
+    return (y * params.width + x) * 3 + channel;
+}
+
+void main() {
+    // 获取当前像素坐标
+    uint x = gl_GlobalInvocationID.x;
+    uint y = gl_GlobalInvocationID.y;
+    
+    // 边界检查
+    if (x >= params.width || y >= params.height) {
+        return;
+    }
+    
+    // 计算滤波器半径（基于 spatialSigma）
+    int radius = int(ceil(3.0 * params.spatialSigma));
+    
+    // 获取中心像素值
+    float centerR = inputData[getPixelIndex(x, y, 0)];
+    float centerG = inputData[getPixelIndex(x, y, 1)];
+    float centerB = inputData[getPixelIndex(x, y, 2)];
+    
+    // 累加器
+    float sumR = 0.0;
+    float sumG = 0.0;
+    float sumB = 0.0;
+    float sumWeight = 0.0;
+    
+    // 遍历邻域
+    for (int dy = -radius; dy <= radius; dy++) {
+        for (int dx = -radius; dx <= radius; dx++) {
+            // 计算邻域像素坐标
+            int nx = int(x) + dx;
+            int ny = int(y) + dy;
+            
+            // 边界检查
+            if (nx < 0 || nx >= int(params.width) || ny < 0 || ny >= int(params.height)) {
+                continue;
+            }
+            
+            // 获取邻域像素值
+            float neighborR = inputData[getPixelIndex(uint(nx), uint(ny), 0)];
+            float neighborG = inputData[getPixelIndex(uint(nx), uint(ny), 1)];
+            float neighborB = inputData[getPixelIndex(uint(nx), uint(ny), 2)];
+            
+            // 计算空间距离
+            float spatialDist = sqrt(float(dx * dx + dy * dy));
+            
+            // 计算强度差异（使用 RGB 欧氏距离）
+            float dr = neighborR - centerR;
+            float dg = neighborG - centerG;
+            float db = neighborB - centerB;
+            float rangeDist = sqrt(dr * dr + dg * dg + db * db);
+            
+            // 计算权重（空间权重 × 强度权重）
+            float spatialWeight = gaussianWeight(spatialDist, params.spatialSigma);
+            float rangeWeight = gaussianWeight(rangeDist, params.rangeSigma);
+            float weight = spatialWeight * rangeWeight;
+            
+            // 累加加权像素值
+            sumR += neighborR * weight;
+            sumG += neighborG * weight;
+            sumB += neighborB * weight;
+            sumWeight += weight;
+        }
+    }
+    
+    // 归一化并写入输出
+    if (sumWeight > 0.0) {
+        outputData[getPixelIndex(x, y, 0)] = sumR / sumWeight;
+        outputData[getPixelIndex(x, y, 1)] = sumG / sumWeight;
+        outputData[getPixelIndex(x, y, 2)] = sumB / sumWeight;
+    } else {
+        // 如果权重为 0（不应该发生），保持原值
+        outputData[getPixelIndex(x, y, 0)] = centerR;
+        outputData[getPixelIndex(x, y, 1)] = centerG;
+        outputData[getPixelIndex(x, y, 2)] = centerB;
+    }
+}

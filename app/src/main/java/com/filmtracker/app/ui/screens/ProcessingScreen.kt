@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -32,6 +34,7 @@ import com.filmtracker.app.data.mapper.AdjustmentParamsMapper
 import com.filmtracker.app.ui.viewmodel.ProcessingViewModel
 import com.filmtracker.app.ui.viewmodel.ViewModelFactory
 import com.filmtracker.app.util.ImageProcessor
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -53,6 +56,7 @@ fun ProcessingScreen(
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     
     // 获取 ViewModel
     val viewModel: ProcessingViewModel = viewModel(
@@ -63,6 +67,8 @@ fun ProcessingScreen(
     val processedImage by viewModel.processedImage.collectAsState()
     val domainParams by viewModel.adjustmentParams.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val isExporting by viewModel.isExporting.collectAsState()
+    val exportProgress by viewModel.exportProgress.collectAsState()
     
     // 将 Domain 参数映射为 UI 参数（BasicAdjustmentParams）
     val mapper = remember { AdjustmentParamsMapper() }
@@ -74,6 +80,11 @@ fun ProcessingScreen(
     var selectedPrimaryTool by remember { mutableStateOf<PrimaryTool?>(null) }
     var selectedSecondaryTool by remember { mutableStateOf<SecondaryTool?>(null) }
     var isInitialLoading by remember { mutableStateOf(true) }
+    
+    // 图像缩放状态
+    var scale by remember { mutableStateOf(1f) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
     
     // 加载原始图像（使用旧的 ImageProcessor 临时方案）
     LaunchedEffect(imageUri) {
@@ -123,12 +134,32 @@ fun ProcessingScreen(
                         )
                     }
                     // 导出
-                    IconButton(onClick = { onExport(basicParams) }) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "导出",
-                            tint = Color.White
-                        )
+                    IconButton(
+                        onClick = {
+                            // 使用协程导出图像
+                            coroutineScope.launch {
+                                val result = viewModel.exportImageSuspend()
+                                result.onSuccess { exportedBitmap ->
+                                    // 导出成功，调用回调（可以在这里保存到文件）
+                                    onExport(basicParams)
+                                }
+                            }
+                        },
+                        enabled = !isExporting
+                    ) {
+                        if (isExporting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "导出",
+                                tint = Color.White
+                            )
+                        }
                     }
                     // 更多
                     IconButton(onClick = { /* TODO: 实现更多功能 */ }) {
@@ -172,12 +203,48 @@ fun ProcessingScreen(
                     )
                 } else if (processedImage != null) {
                     // 图片始终显示，即使在调整参数时
+                    // 支持双指缩放和双击复位
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(processedImage)
                             .build(),
                         contentDescription = "处理后的图像",
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            )
+                            .pointerInput(Unit) {
+                                // 双指缩放手势
+                                detectTransformGestures { _, pan, zoom, _ ->
+                                    // 更新缩放比例（限制在 1x 到 5x 之间）
+                                    scale = (scale * zoom).coerceIn(1f, 5f)
+                                    
+                                    // 如果缩放比例为 1，重置偏移
+                                    if (scale == 1f) {
+                                        offsetX = 0f
+                                        offsetY = 0f
+                                    } else {
+                                        // 更新偏移量（自由平移，无边界限制）
+                                        offsetX += pan.x
+                                        offsetY += pan.y
+                                    }
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                // 双击复位手势
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        // 复位缩放和偏移
+                                        scale = 1f
+                                        offsetX = 0f
+                                        offsetY = 0f
+                                    }
+                                )
+                            }
                     )
                 }
             }

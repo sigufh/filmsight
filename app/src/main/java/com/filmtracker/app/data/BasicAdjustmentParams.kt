@@ -69,6 +69,20 @@ data class BasicAdjustmentParams(
         }
     }
     
+    /**
+     * 深拷贝方法
+     * 
+     * 注意：Kotlin 的 data class 自动生成的 copy() 方法对数组是浅拷贝，
+     * 这会导致增量渲染的参数比较失败。因此需要手动深拷贝数组字段。
+     */
+    fun deepCopy(): BasicAdjustmentParams {
+        return this.copy(
+            hslHueShift = this.hslHueShift.copyOf(),
+            hslSaturation = this.hslSaturation.copyOf(),
+            hslLuminance = this.hslLuminance.copyOf()
+        )
+    }
+    
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

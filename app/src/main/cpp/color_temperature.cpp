@@ -6,10 +6,10 @@ namespace filmtracker {
 
 void ColorTemperature::temperatureToCIExy(float temperature, float& x, float& y) {
     // Planckian Locus 近似公式
-    // 基于 Hernández-Andrés et al. (1999)
-    // 适用于 2000K 到 25000K
+    // 基于 Hernández-Andrés et al. (1999) 改进版，使用平滑过渡
+    // 适用于 1000K 到 100000K（专业调色软件标准）
     
-    temperature = std::clamp(temperature, 2000.0f, 25000.0f);
+    temperature = std::clamp(temperature, 1000.0f, 100000.0f);
     
     // 计算倒数温度（用于多项式）
     float T = temperature;
@@ -17,11 +17,40 @@ void ColorTemperature::temperatureToCIExy(float temperature, float& x, float& y)
     float T3 = T2 * T;
     
     // 计算 CIE x 色度坐标
-    if (T <= 7000.0f) {
-        // 低色温（暖色）
-        x = -4.6070e9f / T3 + 2.9678e6f / T2 + 0.09911e3f / T + 0.244063f;
+    // 使用平滑的分段多项式，在分段点使用线性混合避免突变
+    if (T <= 4000.0f) {
+        // 极低色温（1000K-4000K）：烛光到白炽灯
+        x = -0.2661239e9f / T3 - 0.2343589e6f / T2 + 0.8776956e3f / T + 0.179910f;
+    } else if (T < 7000.0f) {
+        // 低色温（4000K-7000K）：暖白到日光
+        // 在 4000K 附近使用平滑过渡
+        float x1 = -0.2661239e9f / T3 - 0.2343589e6f / T2 + 0.8776956e3f / T + 0.179910f;
+        float x2 = -4.6070e9f / T3 + 2.9678e6f / T2 + 0.09911e3f / T + 0.244063f;
+        
+        if (T < 4500.0f) {
+            // 4000K-4500K：平滑过渡
+            float blend = (T - 4000.0f) / 500.0f;
+            blend = blend * blend * (3.0f - 2.0f * blend);  // Smoothstep
+            x = x1 * (1.0f - blend) + x2 * blend;
+        } else {
+            x = x2;
+        }
+    } else if (T < 25000.0f) {
+        // 高色温（7000K-25000K）：冷白到天空光
+        // 在 7000K 附近使用平滑过渡
+        float x1 = -4.6070e9f / T3 + 2.9678e6f / T2 + 0.09911e3f / T + 0.244063f;
+        float x2 = -2.0064e9f / T3 + 1.9018e6f / T2 + 0.24748e3f / T + 0.237040f;
+        
+        if (T < 8000.0f) {
+            // 7000K-8000K：平滑过渡
+            float blend = (T - 7000.0f) / 1000.0f;
+            blend = blend * blend * (3.0f - 2.0f * blend);  // Smoothstep
+            x = x1 * (1.0f - blend) + x2 * blend;
+        } else {
+            x = x2;
+        }
     } else {
-        // 高色温（冷色）
+        // 极高色温（25000K+）：保持稳定
         x = -2.0064e9f / T3 + 1.9018e6f / T2 + 0.24748e3f / T + 0.237040f;
     }
     
@@ -29,12 +58,39 @@ void ColorTemperature::temperatureToCIExy(float temperature, float& x, float& y)
     float x2 = x * x;
     float x3 = x2 * x;
     
-    if (T <= 7000.0f) {
-        // 低色温
-        y = -3.000f * x2 + 2.870f * x - 0.275f;
+    if (T <= 2222.0f) {
+        // 极低色温：使用修正公式避免过度偏移
+        y = -1.1063814f * x3 - 1.34811020f * x2 + 2.18555832f * x - 0.20219683f;
+    } else if (T < 4000.0f) {
+        // 低色温过渡区：平滑混合
+        float y1 = -1.1063814f * x3 - 1.34811020f * x2 + 2.18555832f * x - 0.20219683f;
+        float y2 = -0.9549476f * x3 - 1.37418593f * x2 + 2.09137015f * x - 0.16748867f;
+        
+        if (T < 3000.0f) {
+            // 2222K-3000K：平滑过渡
+            float blend = (T - 2222.0f) / (3000.0f - 2222.0f);
+            blend = blend * blend * (3.0f - 2.0f * blend);  // Smoothstep
+            y = y1 * (1.0f - blend) + y2 * blend;
+        } else {
+            y = y2;
+        }
+    } else if (T < 7000.0f) {
+        // 中等色温：平滑混合
+        float y1 = -0.9549476f * x3 - 1.37418593f * x2 + 2.09137015f * x - 0.16748867f;
+        float y2 = -3.000f * x2 + 2.870f * x - 0.275f;
+        
+        if (T < 5000.0f) {
+            // 4000K-5000K：平滑过渡
+            float blend = (T - 4000.0f) / 1000.0f;
+            blend = blend * blend * (3.0f - 2.0f * blend);  // Smoothstep
+            y = y1 * (1.0f - blend) + y2 * blend;
+        } else {
+            y = y2;
+        }
     } else {
-        // 高色温
-        y = -2.000f * x2 + 1.900f * x - 0.200f;
+        // 高色温：使用单一公式避免紫色偏移
+        // 使用更温和的系数确保平滑过渡
+        y = -2.400f * x2 + 2.600f * x - 0.239f;
     }
     
     // 确保在有效范围内
@@ -72,26 +128,38 @@ void ColorTemperature::calculateTemperatureScale(float temperatureShift,
                                                  float& gScale,
                                                  float& bScale) {
     // 将 temperatureShift 从 [-100, 100] 映射到色温变化
+    // 参考专业调色软件标准（DaVinci Resolve, Lightroom）
     // temperatureShift = 0 对应 D65 (6500K)
-    // temperatureShift = -100 对应约 2000K（非常暖）
-    // temperatureShift = +100 对应约 25000K（非常冷）
+    // temperatureShift = -100 对应约 2000K（暖色，黄橙色）
+    // temperatureShift = +100 对应约 10000K（冷色，蓝色）
     
-    // 基准色温（D65）
+    // 基准色温（D65 标准光源）
     const float baseTemp = 6500.0f;
     
     // 计算目标色温
+    // 使用分段线性映射，参考 Adobe Lightroom 的色温曲线
     float targetTemp;
     if (temperatureShift < 0.0f) {
         // 负值：降低色温（更暖）
-        // 从 6500K 到 2000K
+        // 从 6500K 线性映射到 2000K
+        // 使用对数空间映射以获得更自然的感知过渡
         float t = -temperatureShift / 100.0f;  // 0 到 1
-        targetTemp = baseTemp - t * (baseTemp - 2000.0f);
+        
+        // 在对数空间中线性插值
+        float logBase = std::log(baseTemp);
+        float logMin = std::log(2000.0f);
+        float logTarget = logBase + t * (logMin - logBase);
+        targetTemp = std::exp(logTarget);
     } else {
         // 正值：提高色温（更冷）
-        // 从 6500K 到 25000K
+        // 从 6500K 线性映射到 10000K
+        // 使用线性映射，因为高色温区域感知较为线性
         float t = temperatureShift / 100.0f;  // 0 到 1
-        targetTemp = baseTemp + t * (25000.0f - baseTemp);
+        targetTemp = baseTemp + t * (10000.0f - baseTemp);
     }
+    
+    // 确保在有效范围内
+    targetTemp = std::clamp(targetTemp, 1000.0f, 100000.0f);
     
     // 计算基准和目标的 CIE xy 坐标
     float baseX, baseY, targetX, targetY;
@@ -114,9 +182,10 @@ void ColorTemperature::calculateTemperatureScale(float temperatureShift,
     bScale = (baseB > 0.0001f) ? (targetB / baseB) : 1.0f;
     
     // 限制缩放范围以避免极端值
-    rScale = std::clamp(rScale, 0.5f, 2.0f);
-    gScale = std::clamp(gScale, 0.5f, 2.0f);
-    bScale = std::clamp(bScale, 0.5f, 2.0f);
+    // 参考 Adobe Camera Raw 的限制范围
+    rScale = std::clamp(rScale, 0.3f, 3.0f);
+    gScale = std::clamp(gScale, 0.3f, 3.0f);
+    bScale = std::clamp(bScale, 0.3f, 3.0f);
 }
 
 void ColorTemperature::calculateTintScale(float tintShift,

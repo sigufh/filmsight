@@ -13,6 +13,7 @@ class ImageConverterNative {
     private external fun nativeLinearToSRGB(imagePtr: Long): ByteArray?
     private external fun nativeLinearToSRGBWithDithering(imagePtr: Long): ByteArray?
     private external fun nativeBitmapToLinear(bitmap: Bitmap): Long
+    private external fun nativeCloneLinearImage(imagePtr: Long): Long
     private external fun nativeReleaseImage(imagePtr: Long)
     
     /**
@@ -79,6 +80,17 @@ class ImageConverterNative {
             Log.e(TAG, "Error converting bitmap to linear", e)
             null
         }
+    }
+    
+    /**
+     * 克隆线性图像
+     */
+    fun cloneLinearImage(image: LinearImageNative): LinearImageNative {
+        val clonedPtr = nativeCloneLinearImage(image.nativePtr)
+        if (clonedPtr == 0L) {
+            throw RuntimeException("Failed to clone linear image")
+        }
+        return LinearImageNative(clonedPtr)
     }
     
     /**

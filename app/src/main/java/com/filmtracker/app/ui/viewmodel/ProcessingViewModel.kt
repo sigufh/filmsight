@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.filmtracker.app.domain.model.AdjustmentParams
 import com.filmtracker.app.domain.model.ProcessingResult
 import com.filmtracker.app.domain.usecase.ApplyAdjustmentsUseCase
+import com.filmtracker.app.domain.usecase.ExportImageUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,7 +32,8 @@ import kotlinx.coroutines.launch
  * ```
  */
 class ProcessingViewModel(
-    private val applyAdjustmentsUseCase: ApplyAdjustmentsUseCase
+    private val applyAdjustmentsUseCase: ApplyAdjustmentsUseCase,
+    private val exportImageUseCase: ExportImageUseCase
 ) : ViewModel() {
     
     // 原始图像
@@ -54,12 +56,24 @@ class ProcessingViewModel(
     private val _isProcessing = MutableStateFlow(false)
     val isProcessing: StateFlow<Boolean> = _isProcessing.asStateFlow()
     
+    // 是否正在导出
+    private val _isExporting = MutableStateFlow(false)
+    val isExporting: StateFlow<Boolean> = _isExporting.asStateFlow()
+    
+    // 导出进度（0.0 - 1.0）
+    private val _exportProgress = MutableStateFlow(0f)
+    val exportProgress: StateFlow<Float> = _exportProgress.asStateFlow()
+    
     /**
      * 设置原始图像
+     * 
+     * 注意：加载新图像时会自动重置所有参数为默认值
      */
     fun setOriginalImage(bitmap: Bitmap) {
         _originalImage.value = bitmap
         _processedImage.value = bitmap
+        // 重置参数为默认值
+        _adjustmentParams.value = AdjustmentParams.default()
     }
     
     /**
@@ -215,6 +229,67 @@ class ProcessingViewModel(
     }
     
     /**
+     * 导出图像（使用完整分辨率）
+     */
+    fun exportImage(): Bitmap? {
+        val original = _originalImage.value ?: return null
+        var result: Bitmap? = null
+        
+        viewModelScope.launch {
+            _isExporting.value = true
+            _exportProgress.value = 0f
+            
+            try {
+                // 模拟进度更新
+                _exportProgress.value = 0.1f
+                
+                // 使用完整分辨率处理
+                val exportResult = exportImageUseCase(original, _adjustmentParams.value)
+                
+                _exportProgress.value = 0.9f
+                
+                exportResult.onSuccess { bitmap ->
+                    result = bitmap
+                    _exportProgress.value = 1.0f
+                }.onFailure { exception ->
+                    _processingState.value = ProcessingResult.Error(exception as Exception)
+                }
+            } finally {
+                _isExporting.value = false
+                _exportProgress.value = 0f
+            }
+        }
+        
+        return result
+    }
+    
+    /**
+     * 导出图像（挂起版本，用于协程）
+     */
+    suspend fun exportImageSuspend(): Result<Bitmap> {
+        val original = _originalImage.value 
+            ?: return Result.failure(Exception("No original image"))
+        
+        _isExporting.value = true
+        _exportProgress.value = 0f
+        
+        return try {
+            _exportProgress.value = 0.1f
+            
+            val result = exportImageUseCase(original, _adjustmentParams.value)
+            
+            _exportProgress.value = 0.9f
+            
+            result.also {
+                _exportProgress.value = 1.0f
+            }
+        } finally {
+            _isExporting.value = false
+            _exportProgress.value = 0f
+        }
+    }
+    
+    /**
      * 应用调整
      */
     private fun applyAdjustments() {
@@ -227,7 +302,7 @@ class ProcessingViewModel(
             _isProcessing.value = true
             _processingState.value = ProcessingResult.Loading
             
-            // 添加短暂延迟，实现防抖效果
+            // 使用较短的防抖延迟（增量处理更快）
             kotlinx.coroutines.delay(50)
             
             val result = applyAdjustmentsUseCase(original, _adjustmentParams.value)

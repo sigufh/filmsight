@@ -10,6 +10,7 @@ import com.filmtracker.app.data.source.local.FileImageSource
 import com.filmtracker.app.data.source.native.NativeImageProcessor
 import com.filmtracker.app.data.source.native.NativeRawProcessor
 import com.filmtracker.app.domain.usecase.ApplyAdjustmentsUseCase
+import com.filmtracker.app.domain.usecase.ExportImageUseCase
 import com.filmtracker.app.domain.usecase.LoadImageUseCase
 
 /**
@@ -49,6 +50,10 @@ class ViewModelFactory private constructor(
         ApplyAdjustmentsUseCase(processingRepository)
     }
     
+    private val exportImageUseCase by lazy {
+        ExportImageUseCase(processingRepository)
+    }
+    
     private val loadImageUseCase by lazy {
         LoadImageUseCase(imageRepository)
     }
@@ -57,7 +62,7 @@ class ViewModelFactory private constructor(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(ProcessingViewModel::class.java) -> {
-                ProcessingViewModel(applyAdjustmentsUseCase) as T
+                ProcessingViewModel(applyAdjustmentsUseCase, exportImageUseCase) as T
             }
             modelClass.isAssignableFrom(ImageSelectionViewModel::class.java) -> {
                 ImageSelectionViewModel() as T

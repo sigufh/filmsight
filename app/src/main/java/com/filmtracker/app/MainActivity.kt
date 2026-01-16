@@ -25,6 +25,7 @@ import com.filmtracker.app.ui.theme.FilmTrackerTheme
 import com.filmtracker.app.util.ImageExporter
 import com.filmtracker.app.util.ImageProcessor
 import com.filmtracker.app.native.RawProcessorNative
+import com.filmtracker.app.native.BilateralFilterNative
 import android.widget.Toast
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
@@ -38,6 +39,9 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 初始化双边滤波器配置
+        initializeBilateralFilterConfig()
         
         var selectedImageUri by mutableStateOf<String?>(null)
         var recentImages by mutableStateOf<List<ImageInfo>>(emptyList())
@@ -332,6 +336,34 @@ class MainActivity : ComponentActivity() {
             } else {
                 Toast.makeText(this@MainActivity, "加载图像失败", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+    
+    /**
+     * 初始化双边滤波器配置
+     * 在应用启动时调用，启用所有性能优化功能
+     */
+    private fun initializeBilateralFilterConfig() {
+        try {
+            android.util.Log.d("MainActivity", "Initializing bilateral filter configuration...")
+            
+            // 初始化默认配置（启用所有优化）
+            BilateralFilterNative.initializeDefaults()
+            
+            // 记录默认配置值（无需调用 nativeGetConfig，避免 JNI 复杂性）
+            android.util.Log.i("MainActivity", "Bilateral filter configuration initialized with defaults:")
+            android.util.Log.i("MainActivity", "  - Cache enabled: true")
+            android.util.Log.i("MainActivity", "  - Fast approximation enabled: true")
+            android.util.Log.i("MainActivity", "  - GPU enabled: true")
+            android.util.Log.i("MainActivity", "  - Fast approx threshold: 4.5")
+            android.util.Log.i("MainActivity", "  - GPU threshold pixels: 1500000")
+            android.util.Log.i("MainActivity", "  - Max cache size: 100")
+            android.util.Log.i("MainActivity", "  - Max cache memory: 512 MB")
+            
+            android.util.Log.d("MainActivity", "Bilateral filter configuration initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to initialize bilateral filter configuration", e)
+            // 不抛出异常，允许应用继续运行
         }
     }
     

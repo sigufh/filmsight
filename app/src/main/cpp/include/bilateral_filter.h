@@ -2,6 +2,8 @@
 #define FILMTRACKER_BILATERAL_FILTER_H
 
 #include "raw_types.h"
+#include <cstdint>
+#include <string>
 
 namespace filmtracker {
 
@@ -18,6 +20,34 @@ namespace filmtracker {
 class BilateralFilter {
 public:
     /**
+     * 配置选项
+     */
+    struct Config {
+        bool enableFastApproximation = true;
+        bool enableGPU = true;
+        bool enableCache = true;
+        size_t maxCacheSize = 100;  // 最多缓存 100 个结果
+        size_t maxCacheMemoryMB = 512;  // 最大缓存内存 512MB
+        
+        // 可调整的阈值
+        float fastApproxThreshold = 4.5f;     // 快速近似触发阈值（降低从5.0到4.5）
+        uint32_t gpuThresholdPixels = 1500000; // GPU加速触发阈值（降低从2MP到1.5MP）
+    };
+    
+    /**
+     * 性能统计
+     */
+    struct Stats {
+        uint64_t totalCalls = 0;
+        uint64_t cacheHits = 0;
+        uint64_t cacheMisses = 0;
+        uint64_t gpuCalls = 0;
+        uint64_t fastApproxCalls = 0;
+        uint64_t standardCalls = 0;
+        double avgProcessingTimeMs = 0.0;
+    };
+    
+    /**
      * 应用双边滤波器
      * 
      * @param input 输入图像
@@ -29,6 +59,21 @@ public:
                      LinearImage& output,
                      float spatialSigma,
                      float rangeSigma);
+    
+    /**
+     * 应用带缓存的双边滤波器
+     * 
+     * @param input 输入图像
+     * @param output 输出图像（必须预先分配）
+     * @param spatialSigma 空间域标准差
+     * @param rangeSigma 强度域标准差
+     * @param enableCache 是否启用缓存
+     */
+    static void applyWithCache(const LinearImage& input,
+                              LinearImage& output,
+                              float spatialSigma,
+                              float rangeSigma,
+                              bool enableCache = true);
     
     /**
      * 应用快速双边滤波器（使用可分离近似）
@@ -62,6 +107,26 @@ public:
                              float spatialSigma,
                              float rangeSigma);
     
+    /**
+     * 配置管理
+     */
+    static void setConfig(const Config& config);
+    static Config getConfig();
+    static void initializeDefaultConfig();
+    static std::string getConfigString();
+    
+    /**
+     * 性能统计
+     */
+    static Stats getStats();
+    static void resetStats();
+    
+    /**
+     * 缓存管理
+     */
+    static void clearCache();
+    static size_t getCacheSize();
+    
 private:
     /**
      * 计算高斯权重
@@ -79,6 +144,9 @@ private:
      * @return 滤波器半径（像素）
      */
     static int calculateRadius(float sigma);
+    
+    static Config s_config;
+    static Stats s_stats;
 };
 
 } // namespace filmtracker

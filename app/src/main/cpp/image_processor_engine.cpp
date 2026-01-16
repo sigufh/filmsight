@@ -756,20 +756,20 @@ void ImageProcessorEngine::applyDetails(LinearImage& image, const BasicAdjustmen
     const uint32_t height = image.height;
     const uint32_t pixelCount = width * height;
     
-    // 降噪效果：使用双边滤波器
+    // 降噪效果：使用快速近似算法
     if (params.noiseReduction > 0.0f) {
         LOGI("applyDetails: Applying noise reduction");
         
         // 归一化降噪参数（0 到 100 -> 0.0 到 1.0）
         float nrAmount = params.noiseReduction / 100.0f;
         
-        // 双边滤波器参数
-        float spatialSigma = 3.0f + nrAmount * 5.0f;  // 3-8 像素
-        float rangeSigma = 0.1f + nrAmount * 0.2f;    // 0.1-0.3
+        // 使用更快的参数设置
+        float spatialSigma = 2.0f + nrAmount * 3.0f;  // 2-5 像素（更小更快）
+        float rangeSigma = 0.15f + nrAmount * 0.15f;  // 0.15-0.3
         
-        // 应用双边滤波器
+        // 使用快速双边滤波器
         LinearImage filtered(width, height);
-        BilateralFilter::apply(image, filtered, spatialSigma, rangeSigma);
+        BilateralFilter::applyFast(image, filtered, spatialSigma, rangeSigma);
         
         // 混合原图和滤波结果
         const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());

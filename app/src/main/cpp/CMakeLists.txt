@@ -36,6 +36,7 @@ set(RAW_PROCESSOR_SOURCES
 
 set(IMAGE_PROCESSOR_SOURCES
     image_processor_engine.cpp
+    parallel_processor.cpp
     error_diffusion_dithering.cpp
     dynamic_range_protection.cpp
     adobe_tone_adjustment.cpp
@@ -43,6 +44,10 @@ set(IMAGE_PROCESSOR_SOURCES
     color_temperature.cpp
     color_grading.cpp
     bilateral_filter.cpp
+    fast_bilateral_filter.cpp
+    bilateral_filter_optimizer.cpp
+    image_hash_cache.cpp
+    vulkan_bilateral_filter.cpp
 )
 
 set(IMAGE_CONVERTER_SOURCES
@@ -55,6 +60,8 @@ set(JNI_SOURCES
     jni/jni_converter.cpp
     jni/jni_image_processor.cpp
     jni/jni_parameters.cpp
+    jni/jni_parallel_processor.cpp
+    jni/jni_bilateral_filter.cpp
 )
 
 # Include directories
@@ -111,6 +118,7 @@ add_library(filmtracker SHARED
 find_library(log-lib log)
 find_library(jnigraphics-lib jnigraphics)
 find_library(m-lib m)
+find_library(vulkan-lib vulkan)
 
 # 链接 LibRaw 静态库
 target_link_libraries(filmtracker
@@ -118,4 +126,5 @@ target_link_libraries(filmtracker
     ${log-lib}
     ${jnigraphics-lib}
     ${m-lib}  # 数学库（LibRaw 需要）
+    ${vulkan-lib}  # Vulkan 库（GPU 加速）
 )

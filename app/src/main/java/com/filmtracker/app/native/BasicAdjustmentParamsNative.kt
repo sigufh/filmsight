@@ -6,6 +6,12 @@ package com.filmtracker.app.native
  */
 class BasicAdjustmentParamsNative private constructor(private var nativeHandle: Long) {
     
+    /**
+     * 获取 Native 句柄（用于传递给其他 Native 方法）
+     */
+    internal val handle: Long
+        get() = nativeHandle
+    
     companion object {
         init {
             System.loadLibrary("filmtracker")

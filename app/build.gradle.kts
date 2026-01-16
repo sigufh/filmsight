@@ -47,6 +47,12 @@ android {
         jvmTarget = "17"
     }
     
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+    
     buildFeatures {
         compose = true
     }
@@ -94,6 +100,8 @@ dependencies {
     
     // Testing
     testImplementation("junit:junit:4.13.2")
+    testImplementation("net.jqwik:jqwik:1.8.2")
+    testImplementation("net.jqwik:jqwik-kotlin:1.8.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation(platform("androidx.compose:compose-bom:2023.10.01"))

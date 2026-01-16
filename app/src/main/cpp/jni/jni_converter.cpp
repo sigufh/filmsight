@@ -117,6 +117,36 @@ Java_com_filmtracker_app_native_ImageConverterNative_nativeLinearToSRGBWithDithe
 }
 
 /**
+ * 克隆线性图像
+ */
+JNIEXPORT jlong JNICALL
+Java_com_filmtracker_app_native_ImageConverterNative_nativeCloneLinearImage(
+    JNIEnv *env, jobject thiz, jlong imagePtr) {
+    
+    LinearImage* source = reinterpret_cast<LinearImage*>(imagePtr);
+    if (!source) {
+        LOGE("Source image pointer is null");
+        return 0;
+    }
+    
+    try {
+        // 创建新的 LinearImage 并复制数据
+        LinearImage* cloned = new LinearImage(source->width, source->height);
+        
+        // 复制像素数据
+        uint32_t pixelCount = source->width * source->height;
+        std::copy(source->r.begin(), source->r.end(), cloned->r.begin());
+        std::copy(source->g.begin(), source->g.end(), cloned->g.begin());
+        std::copy(source->b.begin(), source->b.end(), cloned->b.begin());
+        
+        return reinterpret_cast<jlong>(cloned);
+    } catch (const std::exception& e) {
+        LOGE("Failed to clone image: %s", e.what());
+        return 0;
+    }
+}
+
+/**
  * 释放图像资源
  */
 JNIEXPORT void JNICALL
