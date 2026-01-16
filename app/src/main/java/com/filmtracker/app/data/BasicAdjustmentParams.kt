@@ -1,13 +1,42 @@
 package com.filmtracker.app.data
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.buildClassSerialDescriptor
+import kotlinx.serialization.descriptors.listSerialDescriptor
+import kotlinx.serialization.descriptors.serialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+
+/**
+ * FloatArray 序列化器
+ */
+object FloatArraySerializer : KSerializer<FloatArray> {
+    private val listSerializer = ListSerializer(Float.serializer())
+    
+    override val descriptor: SerialDescriptor = listSerializer.descriptor
+    
+    override fun serialize(encoder: Encoder, value: FloatArray) {
+        encoder.encodeSerializableValue(listSerializer, value.toList())
+    }
+    
+    override fun deserialize(decoder: Decoder): FloatArray {
+        return decoder.decodeSerializableValue(listSerializer).toFloatArray()
+    }
+}
+
 /**
  * 基础调整参数（独立于胶片模拟）
  * 对应 Adobe Camera RAW / Lightroom 的基础面板
  */
+@Serializable
 data class BasicAdjustmentParams(
     // 全局调整
     var globalExposure: Float = 0.0f,   // 曝光（EV，-5 到 +5）
-    var contrast: Float = 1.0f,         // 对比度（0.5 到 2.0，1.0 为不变）
+    var contrast: Float = 1.0f,         // 对比度（推荐 0.6 到 1.3，1.0 为不变）
     var saturation: Float = 1.0f,       // 饱和度（0.0 到 2.0，1.0 为不变）
     
     // 色调调整
@@ -56,8 +85,11 @@ data class BasicAdjustmentParams(
     
     // HSL 调整（8个色相段：红、橙、黄、绿、青、蓝、紫、品红）
     var enableHSL: Boolean = false,
+    @Serializable(with = FloatArraySerializer::class)
     var hslHueShift: FloatArray = FloatArray(8) { 0.0f },      // [-180, 180] 度
+    @Serializable(with = FloatArraySerializer::class)
     var hslSaturation: FloatArray = FloatArray(8) { 0.0f },   // [-100, 100] %
+    @Serializable(with = FloatArraySerializer::class)
     var hslLuminance: FloatArray = FloatArray(8) { 0.0f }     // [-100, 100] %
 ) {
     companion object {

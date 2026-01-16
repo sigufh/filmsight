@@ -21,9 +21,10 @@ public:
      * - 增加对比度时，亮部更亮，暗部更暗
      * - 减少对比度时，整体趋向中灰
      * - 保护高光和阴影不被过度裁剪
+     * - 使用三次方曲线映射，提供极度精细的低值控制
      * 
      * @param value 输入值（线性空间）
-     * @param contrast 对比度参数（0.5 到 2.0，1.0 为不变）
+     * @param contrast 对比度参数（推荐范围 0.6 到 1.3，1.0 为不变）
      * @return 调整后的值
      */
     static float applySCurveContrast(float value, float contrast);
@@ -36,7 +37,7 @@ public:
      * @param r 红色通道（输入/输出）
      * @param g 绿色通道（输入/输出）
      * @param b 蓝色通道（输入/输出）
-     * @param contrast 对比度参数（0.5 到 2.0，1.0 为不变）
+     * @param contrast 对比度参数（推荐范围 0.6 到 1.3，1.0 为不变）
      */
     static void applyContrast(float& r, float& g, float& b, float contrast);
 

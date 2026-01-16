@@ -60,11 +60,22 @@ float ContrastAdjustment::applySCurveContrast(float value, float contrast) {
     // 18% 中灰（线性空间）
     const float midGray = 0.18f;
     
-    // 将 contrast 参数从 [0.5, 2.0] 映射到合适的强度范围
+    // 极度精细的 strength 映射：
     // contrast = 1.0 时，strength = 0（无调整）
-    // contrast > 1.0 时，strength > 0（增加对比度）
-    // contrast < 1.0 时，strength < 0（减少对比度）
-    float strength = (contrast - 1.0f);
+    // contrast = 1.1 时，strength ≈ 0.15（非常温和）
+    // contrast = 1.3 时，strength ≈ 0.6（适中）
+    // 使用三次方曲线来提供更好的低值控制
+    float strength;
+    if (contrast >= 1.0f) {
+        // 增加对比度：使用三次方根曲线，极度温和
+        float delta = contrast - 1.0f;
+        strength = std::pow(delta / 0.3f, 0.5f) * 0.8f;  // 三次方根 * 缩放
+        strength = std::min(strength, 0.8f);  // 限制最大值为 0.8
+    } else {
+        // 减少对比度：线性映射，更温和
+        strength = (contrast - 1.0f) * 1.2f;
+        strength = std::max(strength, -0.8f);  // 限制最小值
+    }
     
     // 将值归一化到以中灰为中心的范围
     // 先转换到对数空间以获得更好的感知均匀性
@@ -86,14 +97,14 @@ float ContrastAdjustment::applySCurveContrast(float value, float contrast) {
     // 转换回线性空间
     float result = midGray * std::pow(2.0f, newLogValue);
     
-    // 渐进式压缩（当对比度 > 1.5 时）
-    if (contrast > 1.5f) {
-        // 对高光应用压缩
-        if (result > 0.8f) {
-            result = progressiveCompression(result, 0.8f);
+    // 更早且更温和的渐进式压缩（当对比度 > 1.15 时）
+    if (contrast > 1.15f) {
+        // 对高光应用非常温和的压缩
+        if (result > 0.95f) {
+            result = progressiveCompression(result, 0.95f);
         }
         // 对阴影应用保护
-        if (result < 0.05f) {
+        if (result < 0.03f) {
             result = std::max(result, 0.001f);
         }
     }
