@@ -23,6 +23,14 @@ object StageParameterMapping {
         WHITES,
         BLACKS,
         
+        // GEOMETRY 阶段参数
+        ROTATION,
+        CROP_ENABLED,
+        CROP_LEFT,
+        CROP_TOP,
+        CROP_RIGHT,
+        CROP_BOTTOM,
+        
         // CURVES 阶段参数
         ENABLE_RGB_CURVE,
         RGB_CURVE_POINTS,
@@ -67,6 +75,13 @@ object StageParameterMapping {
      * 参数到阶段的映射表
      */
     private val parameterToStage: Map<ParameterName, ProcessingStage> = mapOf(
+        // GEOMETRY 阶段
+        ParameterName.ROTATION to ProcessingStage.GEOMETRY,
+        ParameterName.CROP_ENABLED to ProcessingStage.GEOMETRY,
+        ParameterName.CROP_LEFT to ProcessingStage.GEOMETRY,
+        ParameterName.CROP_TOP to ProcessingStage.GEOMETRY,
+        ParameterName.CROP_RIGHT to ProcessingStage.GEOMETRY,
+        ParameterName.CROP_BOTTOM to ProcessingStage.GEOMETRY,
         // TONE_BASE 阶段
         ParameterName.GLOBAL_EXPOSURE to ProcessingStage.TONE_BASE,
         ParameterName.CONTRAST to ProcessingStage.TONE_BASE,
@@ -288,6 +303,26 @@ object StageParameterMapping {
         }
         if (!floatEquals(oldParams.noiseReduction, newParams.noiseReduction)) {
             changedParams.add(ParameterName.NOISE_REDUCTION)
+        }
+        
+        // GEOMETRY 阶段参数比较
+        if (!floatEquals(oldParams.rotation, newParams.rotation)) {
+            changedParams.add(ParameterName.ROTATION)
+        }
+        if (oldParams.cropEnabled != newParams.cropEnabled) {
+            changedParams.add(ParameterName.CROP_ENABLED)
+        }
+        if (!floatEquals(oldParams.cropLeft, newParams.cropLeft)) {
+            changedParams.add(ParameterName.CROP_LEFT)
+        }
+        if (!floatEquals(oldParams.cropTop, newParams.cropTop)) {
+            changedParams.add(ParameterName.CROP_TOP)
+        }
+        if (!floatEquals(oldParams.cropRight, newParams.cropRight)) {
+            changedParams.add(ParameterName.CROP_RIGHT)
+        }
+        if (!floatEquals(oldParams.cropBottom, newParams.cropBottom)) {
+            changedParams.add(ParameterName.CROP_BOTTOM)
         }
         
         return changedParams

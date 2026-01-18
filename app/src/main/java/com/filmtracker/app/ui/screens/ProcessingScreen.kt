@@ -55,6 +55,12 @@ fun ProcessingScreen(
     val processedImage by viewModel.processedImage.collectAsState()
     val domainParams by viewModel.adjustmentParams.collectAsState()
     val isProcessing by viewModel.isProcessing.collectAsState()
+    val canUndo by viewModel.canUndo.collectAsState()
+    val canRedo by viewModel.canRedo.collectAsState()
+    val editSession by viewModel.editSession.collectAsState()
+    val isExporting by viewModel.isExporting.collectAsState()
+    val exportProgress by viewModel.exportProgress.collectAsState()
+    val exportResult by viewModel.exportResult.collectAsState()
     
     // 将 Domain 参数映射为 UI 参数（BasicAdjustmentParams）
     val mapper = remember { AdjustmentParamsMapper() }
@@ -70,6 +76,8 @@ fun ProcessingScreen(
     var copiedParams by remember { mutableStateOf<BasicAdjustmentParams?>(null) }
     var showCreatePresetDialog by remember { mutableStateOf(false) }
     var showPresetManagementDialog by remember { mutableStateOf(false) }
+    var showExportDialog by remember { mutableStateOf(false) }
+    var showExportResultDialog by remember { mutableStateOf(false) }
     
     // 预设管理器
     val presetManager = remember { com.filmtracker.app.data.PresetManager(context) }
@@ -80,14 +88,25 @@ fun ProcessingScreen(
         userPresets = presetManager.getAllPresets().filter { it.category == com.filmtracker.app.data.PresetCategory.USER }
     }
     
+    // 监听导出结果
+    LaunchedEffect(exportResult) {
+        if (exportResult != null) {
+            showExportResultDialog = true
+        }
+    }
+    
     // 加载原始图像
     LaunchedEffect(imageUri) {
         if (imageUri != null) {
+            android.util.Log.d("ProcessingScreen", "Loading image from URI: $imageUri")
             isInitialLoading = true
             val imageProcessor = ImageProcessor(context)
             val loadedImage = imageProcessor.loadOriginalImage(imageUri, previewMode = true)
             if (loadedImage != null) {
+                android.util.Log.d("ProcessingScreen", "Image loaded successfully: ${loadedImage.width}x${loadedImage.height}")
                 viewModel.setOriginalImage(loadedImage)
+            } else {
+                android.util.Log.e("ProcessingScreen", "Failed to load image from URI: $imageUri")
             }
             isInitialLoading = false
         }
@@ -101,10 +120,8 @@ fun ProcessingScreen(
                 onBack = onSelectImage,
                 onShowImageInfo = { showImageInfoDialog = true },
                 onExport = {
-                    coroutineScope.launch {
-                        val result = viewModel.exportImageSuspend()
-                        result.onSuccess { onExport(basicParams) }
-                    }
+                    // 显示导出对话框
+                    showExportDialog = true
                 },
                 onCopyParams = { copiedParams = basicParams },
                 onPasteParams = {
@@ -120,7 +137,12 @@ fun ProcessingScreen(
                 },
                 onCreatePreset = { showCreatePresetDialog = true },
                 onManagePresets = { showPresetManagementDialog = true },
-                canPaste = copiedParams != null
+                canPaste = copiedParams != null,
+                onUndo = { viewModel.undo() },
+                onRedo = { viewModel.redo() },
+                canUndo = canUndo,
+                canRedo = canRedo,
+                isModified = editSession?.isModified ?: false
             )
         },
         containerColor = Color.Black
@@ -143,7 +165,31 @@ fun ProcessingScreen(
                         } else {
                             70.dp // 只有一级菜单高度
                         }
+                    ),
+                cropEnabled = basicParams.cropEnabled,
+                cropLeft = basicParams.cropLeft,
+                cropTop = basicParams.cropTop,
+                cropRight = basicParams.cropRight,
+                cropBottom = basicParams.cropBottom,
+                onCropChange = { l, t, r, b ->
+                    val newParams = basicParams.copy(
+                        cropEnabled = true,
+                        cropLeft = l,
+                        cropTop = t,
+                        cropRight = r,
+                        cropBottom = b
                     )
+                    val newDomainParams = mapper.toDomain(newParams)
+                    viewModel.updateParams(newDomainParams)
+                },
+                rotation = basicParams.rotation,
+                onRotationChange = { rot ->
+                    val newParams = basicParams.copy(rotation = rot)
+                    val newDomainParams = mapper.toDomain(newParams)
+                    viewModel.updateParams(newDomainParams)
+                },
+                showRotationDial = (selectedPrimaryTool == PrimaryTool.CROP),
+                showCropOverlay = (selectedPrimaryTool == PrimaryTool.CROP)  // 只在裁剪工具时显示裁剪框
             )
             
             // 底部面板和工具栏
@@ -169,7 +215,14 @@ fun ProcessingScreen(
                                     viewModel.updateParams(newDomainParams)
                                 }
                             )
-                            PrimaryTool.CROP -> CropRotatePanel()
+                            PrimaryTool.CROP -> CropRotatePanel(
+                                previewBitmap = processedImage,
+                                params = basicParams,
+                                onParamsChange = { newParams ->
+                                    val newDomainParams = mapper.toDomain(newParams)
+                                    viewModel.updateParams(newDomainParams)
+                                }
+                            )
                             PrimaryTool.COLOR -> ColorAdjustmentPanel(
                                 params = basicParams,
                                 onParamsChange = { newParams ->
@@ -257,6 +310,130 @@ fun ProcessingScreen(
                     }
                 }
             )
+        }
+        
+        // 导出对话框
+        if (showExportDialog) {
+            val defaultPath = imageUri?.let { uri ->
+                // 生成默认输出路径
+                val fileName = uri.substringAfterLast("/").substringBeforeLast(".")
+                val timestamp = System.currentTimeMillis()
+                "${context.getExternalFilesDir(null)}/exports/${fileName}_edited_$timestamp.jpg"
+            } ?: ""
+            
+            ExportDialog(
+                onDismiss = { showExportDialog = false },
+                onConfirm = { config ->
+                    showExportDialog = false
+                    viewModel.exportImage(config)
+                },
+                defaultOutputPath = defaultPath
+            )
+        }
+        
+        // 导出进度对话框
+        if (isExporting) {
+            AlertDialog(
+                onDismissRequest = { /* 不允许取消 */ },
+                title = { Text("正在导出") },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("正在以完整分辨率处理图像...")
+                        LinearProgressIndicator(
+                            progress = exportProgress,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            text = "${(exportProgress * 100).toInt()}%",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        
+        // 导出结果对话框
+        if (showExportResultDialog && exportResult != null) {
+            when (val result = exportResult) {
+                is com.filmtracker.app.processing.ExportRenderingPipeline.ExportResult.Success -> {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showExportResultDialog = false
+                            viewModel.clearExportResult()
+                        },
+                        title = { Text("导出成功") },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text("图像已成功导出")
+                                Text(
+                                    text = "路径: ${result.outputFile.absolutePath}",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = "大小: ${result.outputFile.length() / 1024} KB",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Text(
+                                    text = "耗时: ${result.totalTimeMs} ms",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showExportResultDialog = false
+                                    viewModel.clearExportResult()
+                                }
+                            ) {
+                                Text("确定")
+                            }
+                        }
+                    )
+                }
+                is com.filmtracker.app.processing.ExportRenderingPipeline.ExportResult.Failure -> {
+                    AlertDialog(
+                        onDismissRequest = {
+                            showExportResultDialog = false
+                            viewModel.clearExportResult()
+                        },
+                        title = { Text("导出失败") },
+                        text = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(result.message)
+                                Text(
+                                    text = "错误: ${result.error.message}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    showExportResultDialog = false
+                                    viewModel.clearExportResult()
+                                }
+                            ) {
+                                Text("确定")
+                            }
+                        }
+                    )
+                }
+                null -> {
+                    // 不应该发生，因为外层已经检查了 exportResult != null
+                }
+            }
         }
     }
 }

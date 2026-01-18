@@ -50,7 +50,13 @@ class AdjustmentParamsMapper {
             enableHSL = domain.enableHSL,
             hslHueShift = domain.hslHueShift,
             hslSaturation = domain.hslSaturation,
-            hslLuminance = domain.hslLuminance
+            hslLuminance = domain.hslLuminance,
+            rotation = domain.rotation,
+            cropEnabled = domain.cropEnabled,
+            cropLeft = domain.cropLeft,
+            cropTop = domain.cropTop,
+            cropRight = domain.cropRight,
+            cropBottom = domain.cropBottom
         )
     }
     
@@ -95,7 +101,13 @@ class AdjustmentParamsMapper {
             enableHSL = data.enableHSL,
             hslHueShift = data.hslHueShift,
             hslSaturation = data.hslSaturation,
-            hslLuminance = data.hslLuminance
+            hslLuminance = data.hslLuminance,
+            rotation = data.rotation,
+            cropEnabled = data.cropEnabled,
+            cropLeft = data.cropLeft,
+            cropTop = data.cropTop,
+            cropRight = data.cropRight,
+            cropBottom = data.cropBottom
         )
     }
 }

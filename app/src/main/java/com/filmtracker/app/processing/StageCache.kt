@@ -524,6 +524,14 @@ object ParameterHasher {
         sb.append(stage.name).append(":")
         
         when (stage) {
+            ProcessingStage.GEOMETRY -> {
+                sb.append(roundToDecimal(params.rotation, 1))
+                sb.append(params.cropEnabled)
+                sb.append(roundToDecimal(params.cropLeft, 3))
+                sb.append(roundToDecimal(params.cropTop, 3))
+                sb.append(roundToDecimal(params.cropRight, 3))
+                sb.append(roundToDecimal(params.cropBottom, 3))
+            }
             ProcessingStage.TONE_BASE -> {
                 // 舍入到 1 位小数
                 sb.append(roundToDecimal(params.globalExposure, 1))

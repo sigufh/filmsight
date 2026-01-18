@@ -47,6 +47,7 @@ data class StageConfig(
          */
         private fun getEstimatedTime(stage: ProcessingStage): Long {
             return when (stage) {
+                ProcessingStage.GEOMETRY -> 4L    // 旋转/裁剪，开销较小
                 ProcessingStage.TONE_BASE -> 5L   // SIMD 优化，非常快
                 ProcessingStage.CURVES -> 3L      // LUT 查找，非常快
                 ProcessingStage.COLOR -> 8L       // 颜色变换，较快

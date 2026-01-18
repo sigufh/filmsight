@@ -58,7 +58,15 @@ data class AdjustmentParams(
     val enableHSL: Boolean = false,
     val hslHueShift: FloatArray = FloatArray(8) { 0f },
     val hslSaturation: FloatArray = FloatArray(8) { 0f },
-    val hslLuminance: FloatArray = FloatArray(8) { 0f }
+    val hslLuminance: FloatArray = FloatArray(8) { 0f },
+    
+    // 几何（旋转、裁剪）
+    val rotation: Float = 0f,
+    val cropEnabled: Boolean = false,
+    val cropLeft: Float = 0f,
+    val cropTop: Float = 0f,
+    val cropRight: Float = 1f,
+    val cropBottom: Float = 1f
 ) {
     companion object {
         fun default() = AdjustmentParams()
@@ -108,6 +116,12 @@ data class AdjustmentParams(
         if (!hslHueShift.contentEquals(other.hslHueShift)) return false
         if (!hslSaturation.contentEquals(other.hslSaturation)) return false
         if (!hslLuminance.contentEquals(other.hslLuminance)) return false
+        if (rotation != other.rotation) return false
+        if (cropEnabled != other.cropEnabled) return false
+        if (cropLeft != other.cropLeft) return false
+        if (cropTop != other.cropTop) return false
+        if (cropRight != other.cropRight) return false
+        if (cropBottom != other.cropBottom) return false
         
         return true
     }
@@ -150,6 +164,12 @@ data class AdjustmentParams(
         result = 31 * result + hslHueShift.contentHashCode()
         result = 31 * result + hslSaturation.contentHashCode()
         result = 31 * result + hslLuminance.contentHashCode()
+        result = 31 * result + rotation.hashCode()
+        result = 31 * result + cropEnabled.hashCode()
+        result = 31 * result + cropLeft.hashCode()
+        result = 31 * result + cropTop.hashCode()
+        result = 31 * result + cropRight.hashCode()
+        result = 31 * result + cropBottom.hashCode()
         return result
     }
 }

@@ -173,6 +173,7 @@ object StageProcessorFactory {
      */
     private fun createProcessor(stage: ProcessingStage): StageProcessor {
         return when (stage) {
+            ProcessingStage.GEOMETRY -> GeometryProcessor()
             ProcessingStage.TONE_BASE -> ToneBaseProcessor()
             ProcessingStage.CURVES -> CurvesProcessor()
             ProcessingStage.COLOR -> ColorProcessor()

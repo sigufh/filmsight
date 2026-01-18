@@ -15,6 +15,16 @@ enum class ProcessingStage(
     val description: String
 ) {
     /**
+     * 阶段 0：几何
+     * 包含：旋转、裁剪
+     * 不缓存：计算简单
+     */
+    GEOMETRY(
+        order = 0,
+        shouldCache = false,
+        description = "几何调整（旋转、裁剪）"
+    ),
+    /**
      * 阶段 1：基础影调
      * 包含：曝光、高光、阴影、白场、黑场、对比度
      * 不缓存：SIMD 优化后足够快

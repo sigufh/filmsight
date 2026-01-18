@@ -212,6 +212,16 @@ class CacheValidityChecker {
         sb.append(stage.name).append(":")
         
         when (stage) {
+            ProcessingStage.GEOMETRY -> {
+                sb.append("rot:").append(formatFloat(params.rotation))
+                sb.append(",crop:").append(params.cropEnabled)
+                if (params.cropEnabled) {
+                    sb.append(",l:").append(formatFloat(params.cropLeft))
+                    sb.append(",t:").append(formatFloat(params.cropTop))
+                    sb.append(",r:").append(formatFloat(params.cropRight))
+                    sb.append(",b:").append(formatFloat(params.cropBottom))
+                }
+            }
             ProcessingStage.TONE_BASE -> {
                 sb.append("exp:").append(formatFloat(params.globalExposure))
                 sb.append(",con:").append(formatFloat(params.contrast))

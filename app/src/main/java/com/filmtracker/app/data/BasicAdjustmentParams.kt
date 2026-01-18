@@ -90,7 +90,15 @@ data class BasicAdjustmentParams(
     @Serializable(with = FloatArraySerializer::class)
     var hslSaturation: FloatArray = FloatArray(8) { 0.0f },   // [-100, 100] %
     @Serializable(with = FloatArraySerializer::class)
-    var hslLuminance: FloatArray = FloatArray(8) { 0.0f }     // [-100, 100] %
+    var hslLuminance: FloatArray = FloatArray(8) { 0.0f },    // [-100, 100] %
+    
+    // 几何调整
+    var rotation: Float = 0.0f,         // 旋转角度（度）
+    var cropEnabled: Boolean = false,   // 是否启用裁剪
+    var cropLeft: Float = 0.0f,         // 裁剪左（0-1，归一化）
+    var cropTop: Float = 0.0f,          // 裁剪上（0-1，归一化）
+    var cropRight: Float = 1.0f,        // 裁剪右（0-1，归一化）
+    var cropBottom: Float = 1.0f        // 裁剪下（0-1，归一化）
 ) {
     companion object {
         /**
@@ -158,6 +166,12 @@ data class BasicAdjustmentParams(
         if (!hslHueShift.contentEquals(other.hslHueShift)) return false
         if (!hslSaturation.contentEquals(other.hslSaturation)) return false
         if (!hslLuminance.contentEquals(other.hslLuminance)) return false
+        if (rotation != other.rotation) return false
+        if (cropEnabled != other.cropEnabled) return false
+        if (cropLeft != other.cropLeft) return false
+        if (cropTop != other.cropTop) return false
+        if (cropRight != other.cropRight) return false
+        if (cropBottom != other.cropBottom) return false
 
         return true
     }
@@ -200,6 +214,12 @@ data class BasicAdjustmentParams(
         result = 31 * result + hslHueShift.contentHashCode()
         result = 31 * result + hslSaturation.contentHashCode()
         result = 31 * result + hslLuminance.contentHashCode()
+        result = 31 * result + rotation.hashCode()
+        result = 31 * result + cropEnabled.hashCode()
+        result = 31 * result + cropLeft.hashCode()
+        result = 31 * result + cropTop.hashCode()
+        result = 31 * result + cropRight.hashCode()
+        result = 31 * result + cropBottom.hashCode()
         return result
     }
 }

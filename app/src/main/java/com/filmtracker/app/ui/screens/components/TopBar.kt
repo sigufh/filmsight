@@ -20,12 +20,26 @@ fun ProcessingTopBar(
     onResetParams: () -> Unit,
     onCreatePreset: () -> Unit,
     onManagePresets: () -> Unit,
-    canPaste: Boolean
+    canPaste: Boolean,
+    onUndo: () -> Unit = {},
+    onRedo: () -> Unit = {},
+    canUndo: Boolean = false,
+    canRedo: Boolean = false,
+    isModified: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
     
     TopAppBar(
-        title = { },
+        title = {
+            // 显示修改状态指示器
+            if (isModified) {
+                Text(
+                    text = "●",
+                    color = Color(0xFFFFD700), // 金色圆点表示已修改
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
@@ -36,6 +50,30 @@ fun ProcessingTopBar(
             }
         },
         actions = {
+            // 撤销按钮
+            IconButton(
+                onClick = onUndo,
+                enabled = canUndo
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowLeft,
+                    contentDescription = "撤销",
+                    tint = if (canUndo) Color.White else Color.Gray
+                )
+            }
+            
+            // 重做按钮
+            IconButton(
+                onClick = onRedo,
+                enabled = canRedo
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = "重做",
+                    tint = if (canRedo) Color.White else Color.Gray
+                )
+            }
+            
             IconButton(onClick = onResetParams) {
                 Icon(
                     imageVector = Icons.Default.Refresh,

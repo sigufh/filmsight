@@ -5,13 +5,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.filmtracker.app.data.mapper.AdjustmentParamsMapper
 import com.filmtracker.app.data.repository.ImageRepositoryImpl
+import com.filmtracker.app.data.repository.MetadataRepositoryImpl
 import com.filmtracker.app.data.repository.ProcessingRepositoryImpl
+import com.filmtracker.app.data.repository.SessionRepositoryImpl
 import com.filmtracker.app.data.source.local.FileImageSource
 import com.filmtracker.app.data.source.native.NativeImageProcessor
 import com.filmtracker.app.data.source.native.NativeRawProcessor
 import com.filmtracker.app.domain.usecase.ApplyAdjustmentsUseCase
 import com.filmtracker.app.domain.usecase.ExportImageUseCase
 import com.filmtracker.app.domain.usecase.LoadImageUseCase
+import com.filmtracker.app.processing.ExportRenderingPipeline
+import com.filmtracker.app.processing.StageProcessorFactory
 
 /**
  * ViewModel 工厂
@@ -45,6 +49,14 @@ class ViewModelFactory private constructor(
         ImageRepositoryImpl(fileImageSource, nativeRawProcessor)
     }
     
+    private val metadataRepository by lazy {
+        MetadataRepositoryImpl(context)
+    }
+    
+    private val sessionRepository by lazy {
+        SessionRepositoryImpl(context)
+    }
+    
     // Use Cases
     private val applyAdjustmentsUseCase by lazy {
         ApplyAdjustmentsUseCase(processingRepository)
@@ -58,14 +70,28 @@ class ViewModelFactory private constructor(
         LoadImageUseCase(imageRepository)
     }
     
+    // Processing Pipeline
+    private val exportRenderingPipeline by lazy {
+        ExportRenderingPipeline(StageProcessorFactory, adjustmentParamsMapper)
+    }
+    
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(ProcessingViewModel::class.java) -> {
-                ProcessingViewModel(applyAdjustmentsUseCase, exportImageUseCase) as T
+                ProcessingViewModel(
+                    applyAdjustmentsUseCase,
+                    exportImageUseCase,
+                    metadataRepository,
+                    sessionRepository,
+                    exportRenderingPipeline
+                ) as T
             }
             modelClass.isAssignableFrom(ImageSelectionViewModel::class.java) -> {
-                ImageSelectionViewModel() as T
+                ImageSelectionViewModel(sessionRepository) as T
+            }
+            modelClass.isAssignableFrom(FilmWorkflowViewModel::class.java) -> {
+                FilmWorkflowViewModel(context) as T
             }
             else -> throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
         }

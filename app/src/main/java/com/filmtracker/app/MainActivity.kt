@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,9 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.filmtracker.app.data.BasicAdjustmentParams
+import com.filmtracker.app.ui.screens.HomeScreen
 import com.filmtracker.app.ui.screens.ImageImportScreen
 import com.filmtracker.app.ui.screens.ImageInfo
 import com.filmtracker.app.ui.screens.ProcessingScreen
+import com.filmtracker.app.ui.navigation.FilmWorkflowNavigation
 import com.filmtracker.app.ui.theme.FilmTrackerTheme
 import com.filmtracker.app.util.ImageExporter
 import com.filmtracker.app.util.ImageProcessor
@@ -43,17 +46,71 @@ class MainActivity : ComponentActivity() {
         // 初始化双边滤波器配置
         initializeBilateralFilterConfig()
         
-        var selectedImageUri by mutableStateOf<String?>(null)
-        var recentImages by mutableStateOf<List<ImageInfo>>(emptyList())
-        var showImportScreen by mutableStateOf(true)
+        setContent {
+            var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+            
+            when (currentScreen) {
+                Screen.Home -> {
+                    // 首页
+                    FilmTrackerTheme(useVintageTheme = true) {
+                        HomeScreen(
+                            onFilmModeClick = {
+                                currentScreen = Screen.FilmWorkflow
+                            },
+                            onProModeClick = {
+                                currentScreen = Screen.ProMode
+                            },
+                            onAIColorClick = {
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "AI 仿色功能即将推出",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                    }
+                }
+                Screen.FilmWorkflow -> {
+                    // 胶卷工作流
+                    FilmWorkflowNavigation(
+                        startDestination = "filmFormat",
+                        onExit = {
+                            currentScreen = Screen.Home
+                        }
+                    )
+                }
+                Screen.ProMode -> {
+                    // 专业修图模式（原有界面）
+                    renderProMode(
+                        onBack = { currentScreen = Screen.Home }
+                    )
+                }
+            }
+        }
+    }
+    
+    /**
+     * 屏幕枚举
+     */
+    private enum class Screen {
+        Home,           // 首页
+        FilmWorkflow,   // 胶卷工作流
+        ProMode         // 专业修图模式
+    }
+    
+    @Composable
+    private fun renderProMode(onBack: () -> Unit) {
+        var selectedImageUri by remember { mutableStateOf<String?>(null) }
+        var recentImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
+        var showImportScreen by remember { mutableStateOf(true) }
         
         // 加载最近图片列表
-        lifecycleScope.launch {
+        LaunchedEffect(Unit) {
             recentImages = loadRecentImages()
         }
         
         // 重新注册以访问状态
-        val imagePickerLauncher = registerForActivityResult(
+        val imagePickerLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.GetContent()
         ) { uri: Uri? ->
             if (uri != null) {
@@ -74,7 +131,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        val requestPermissionLauncher = registerForActivityResult(
+        val requestPermissionLauncher = rememberLauncherForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted ->
             if (isGranted) {
@@ -82,48 +139,46 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        setContent {
-            FilmTrackerTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    android.util.Log.d("MainActivity", "Rendering UI, showImportScreen=$showImportScreen, selectedImageUri=$selectedImageUri")
-                    
-                    if (showImportScreen) {
-                        android.util.Log.d("MainActivity", "Showing ImageImportScreen with ${recentImages.size} recent images")
-                        ImageImportScreen(
-                            recentImages = recentImages,
-                            onSelectImage = {
-                                android.util.Log.d("MainActivity", "onSelectImage clicked")
-                                checkPermissionsAndOpenPicker(requestPermissionLauncher, imagePickerLauncher)
-                            },
-                            onImageSelected = { imageInfo ->
-                                android.util.Log.d("MainActivity", "Image selected: ${imageInfo.fileName}")
-                                selectedImageUri = imageInfo.uri
-                                showImportScreen = false
-                            },
-                            onDeleteImage = { imageInfo ->
-                                android.util.Log.d("MainActivity", "Deleting image: ${imageInfo.fileName}")
-                                recentImages = recentImages.filter { it.uri != imageInfo.uri }
-                                lifecycleScope.launch {
-                                    saveRecentImages(recentImages)
-                                }
+        FilmTrackerTheme {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                android.util.Log.d("MainActivity", "Rendering UI, showImportScreen=$showImportScreen, selectedImageUri=$selectedImageUri")
+                
+                if (showImportScreen) {
+                    android.util.Log.d("MainActivity", "Showing ImageImportScreen with ${recentImages.size} recent images")
+                    ImageImportScreen(
+                        recentImages = recentImages,
+                        onSelectImage = {
+                            android.util.Log.d("MainActivity", "onSelectImage clicked")
+                            checkPermissionsAndOpenPicker(requestPermissionLauncher, imagePickerLauncher)
+                        },
+                        onImageSelected = { imageInfo ->
+                            android.util.Log.d("MainActivity", "Image selected: ${imageInfo.fileName}")
+                            selectedImageUri = imageInfo.uri
+                            showImportScreen = false
+                        },
+                        onDeleteImage = { imageInfo ->
+                            android.util.Log.d("MainActivity", "Deleting image: ${imageInfo.fileName}")
+                            recentImages = recentImages.filter { it.uri != imageInfo.uri }
+                            lifecycleScope.launch {
+                                saveRecentImages(recentImages)
                             }
-                        )
-                    } else {
-                        android.util.Log.d("MainActivity", "Showing ProcessingScreen")
-                        ProcessingScreen(
-                            imageUri = selectedImageUri,
-                            onSelectImage = {
-                                android.util.Log.d("MainActivity", "Returning to import screen")
-                                showImportScreen = true
-                            },
-                            onExport = { params ->
-                                exportImage(selectedImageUri, params)
-                            }
-                        )
-                    }
+                        }
+                    )
+                } else {
+                    android.util.Log.d("MainActivity", "Showing ProcessingScreen")
+                    ProcessingScreen(
+                        imageUri = selectedImageUri,
+                        onSelectImage = {
+                            android.util.Log.d("MainActivity", "Returning to import screen")
+                            showImportScreen = true
+                        },
+                        onExport = { params ->
+                            exportImage(selectedImageUri, params)
+                        }
+                    )
                 }
             }
         }

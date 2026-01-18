@@ -34,7 +34,11 @@ data class ImageInfo(
     val height: Int,
     val isRaw: Boolean,
     val previewBitmap: Bitmap?,
-    val filePath: String?
+    val filePath: String?,
+    // 编辑状态
+    val adjustmentParams: com.filmtracker.app.data.BasicAdjustmentParams? = null,  // 调色参数
+    val processedBitmap: Bitmap? = null,  // 处理后的缩略图
+    val isModified: Boolean = false  // 是否已修改
 )
 
 /**

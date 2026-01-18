@@ -103,6 +103,90 @@ class PresetManager(private val context: Context) {
     }
     
     /**
+     * 应用预设到当前参数
+     * 如果预设包含参数掩码（部分预设），则仅应用掩码中指定的参数
+     * 如果预设不包含参数掩码（完整预设），则应用所有参数
+     * 
+     * @param preset 要应用的预设
+     * @param currentParams 当前的调整参数
+     * @return 应用预设后的新参数
+     */
+    fun applyPreset(preset: Preset, currentParams: BasicAdjustmentParams): BasicAdjustmentParams {
+        val mask = preset.parameterMask
+        
+        // 如果没有掩码，应用所有参数（完整预设）
+        if (mask == null) {
+            return preset.params
+        }
+        
+        // 如果有掩码，仅应用掩码中指定的参数（部分预设）
+        return currentParams.copy(
+            // 基础调整
+            globalExposure = if (mask.exposure) preset.params.globalExposure else currentParams.globalExposure,
+            contrast = if (mask.contrast) preset.params.contrast else currentParams.contrast,
+            saturation = if (mask.saturation) preset.params.saturation else currentParams.saturation,
+            
+            // 色调调整
+            highlights = if (mask.highlights) preset.params.highlights else currentParams.highlights,
+            shadows = if (mask.shadows) preset.params.shadows else currentParams.shadows,
+            whites = if (mask.whites) preset.params.whites else currentParams.whites,
+            blacks = if (mask.blacks) preset.params.blacks else currentParams.blacks,
+            
+            // 存在感
+            clarity = if (mask.clarity) preset.params.clarity else currentParams.clarity,
+            vibrance = if (mask.vibrance) preset.params.vibrance else currentParams.vibrance,
+            
+            // 颜色
+            temperature = if (mask.temperature) preset.params.temperature else currentParams.temperature,
+            tint = if (mask.tint) preset.params.tint else currentParams.tint,
+            
+            // 分级
+            gradingHighlightsTemp = if (mask.gradingHighlightsTemp) preset.params.gradingHighlightsTemp else currentParams.gradingHighlightsTemp,
+            gradingHighlightsTint = if (mask.gradingHighlightsTint) preset.params.gradingHighlightsTint else currentParams.gradingHighlightsTint,
+            gradingMidtonesTemp = if (mask.gradingMidtonesTemp) preset.params.gradingMidtonesTemp else currentParams.gradingMidtonesTemp,
+            gradingMidtonesTint = if (mask.gradingMidtonesTint) preset.params.gradingMidtonesTint else currentParams.gradingMidtonesTint,
+            gradingShadowsTemp = if (mask.gradingShadowsTemp) preset.params.gradingShadowsTemp else currentParams.gradingShadowsTemp,
+            gradingShadowsTint = if (mask.gradingShadowsTint) preset.params.gradingShadowsTint else currentParams.gradingShadowsTint,
+            gradingBlending = if (mask.gradingBlending) preset.params.gradingBlending else currentParams.gradingBlending,
+            gradingBalance = if (mask.gradingBalance) preset.params.gradingBalance else currentParams.gradingBalance,
+            
+            // 效果
+            texture = if (mask.texture) preset.params.texture else currentParams.texture,
+            dehaze = if (mask.dehaze) preset.params.dehaze else currentParams.dehaze,
+            vignette = if (mask.vignette) preset.params.vignette else currentParams.vignette,
+            grain = if (mask.grain) preset.params.grain else currentParams.grain,
+            
+            // 细节
+            sharpening = if (mask.sharpening) preset.params.sharpening else currentParams.sharpening,
+            noiseReduction = if (mask.noiseReduction) preset.params.noiseReduction else currentParams.noiseReduction,
+            
+            // 曲线
+            enableRgbCurve = if (mask.enableRgbCurve) preset.params.enableRgbCurve else currentParams.enableRgbCurve,
+            rgbCurvePoints = if (mask.rgbCurvePoints) preset.params.rgbCurvePoints else currentParams.rgbCurvePoints,
+            enableRedCurve = if (mask.enableRedCurve) preset.params.enableRedCurve else currentParams.enableRedCurve,
+            redCurvePoints = if (mask.redCurvePoints) preset.params.redCurvePoints else currentParams.redCurvePoints,
+            enableGreenCurve = if (mask.enableGreenCurve) preset.params.enableGreenCurve else currentParams.enableGreenCurve,
+            greenCurvePoints = if (mask.greenCurvePoints) preset.params.greenCurvePoints else currentParams.greenCurvePoints,
+            enableBlueCurve = if (mask.enableBlueCurve) preset.params.enableBlueCurve else currentParams.enableBlueCurve,
+            blueCurvePoints = if (mask.blueCurvePoints) preset.params.blueCurvePoints else currentParams.blueCurvePoints,
+            
+            // HSL
+            enableHSL = if (mask.enableHSL) preset.params.enableHSL else currentParams.enableHSL,
+            hslHueShift = if (mask.hslHueShift) preset.params.hslHueShift else currentParams.hslHueShift,
+            hslSaturation = if (mask.hslSaturation) preset.params.hslSaturation else currentParams.hslSaturation,
+            hslLuminance = if (mask.hslLuminance) preset.params.hslLuminance else currentParams.hslLuminance,
+            
+            // 几何
+            rotation = if (mask.rotation) preset.params.rotation else currentParams.rotation,
+            cropEnabled = if (mask.cropEnabled) preset.params.cropEnabled else currentParams.cropEnabled,
+            cropLeft = if (mask.cropLeft) preset.params.cropLeft else currentParams.cropLeft,
+            cropTop = if (mask.cropTop) preset.params.cropTop else currentParams.cropTop,
+            cropRight = if (mask.cropRight) preset.params.cropRight else currentParams.cropRight,
+            cropBottom = if (mask.cropBottom) preset.params.cropBottom else currentParams.cropBottom
+        )
+    }
+    
+    /**
      * 加载用户预设
      */
     private fun loadUserPresets(): List<Preset> {

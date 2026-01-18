@@ -96,8 +96,13 @@ class ProcessingRepositoryImpl(
             // 转换参数
             val dataParams = mapper.toData(params)
             
-            // 处理图像（完整分辨率）
-            val result = nativeProcessor.process(image, dataParams)
+            // 处理图像（完整分辨率，不包含裁剪）
+            var result = nativeProcessor.process(image, dataParams)
+            
+            // 在最后应用裁剪（Lightroom 风格：裁剪只在导出时应用）
+            if (result != null && dataParams.cropEnabled) {
+                result = applyCrop(result, dataParams)
+            }
             
             // 恢复预览模式
             nativeProcessor.setPreviewMode(enabled = true, maxWidth = 1920, maxHeight = 1080)
@@ -114,6 +119,26 @@ class ProcessingRepositoryImpl(
             Log.e(TAG, "Export error", e)
             Result.failure(e)
         }
+    }
+    
+    /**
+     * 应用裁剪（仅在导出时使用）
+     */
+    private fun applyCrop(bitmap: Bitmap, params: com.filmtracker.app.data.BasicAdjustmentParams): Bitmap {
+        val l = params.cropLeft.coerceIn(0f, 1f)
+        val t = params.cropTop.coerceIn(0f, 1f)
+        val r = params.cropRight.coerceIn(0f, 1f)
+        val b = params.cropBottom.coerceIn(0f, 1f)
+        
+        val leftPx = (l * bitmap.width).toInt().coerceIn(0, bitmap.width - 1)
+        val topPx = (t * bitmap.height).toInt().coerceIn(0, bitmap.height - 1)
+        val rightPx = (r * bitmap.width).toInt().coerceIn(leftPx + 1, bitmap.width)
+        val bottomPx = (b * bitmap.height).toInt().coerceIn(topPx + 1, bitmap.height)
+        
+        val w = (rightPx - leftPx).coerceAtLeast(1)
+        val h = (bottomPx - topPx).coerceAtLeast(1)
+        
+        return android.graphics.Bitmap.createBitmap(bitmap, leftPx, topPx, w, h)
     }
     
     /**

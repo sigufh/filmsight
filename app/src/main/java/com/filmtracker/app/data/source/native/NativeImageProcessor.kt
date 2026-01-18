@@ -1,6 +1,7 @@
 package com.filmtracker.app.data.source.native
 
 import android.graphics.Bitmap
+import android.graphics.Matrix
 import android.util.Log
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.native.BasicAdjustmentParamsNative
@@ -256,17 +257,20 @@ open class NativeImageProcessor {
         var nativeParams: BasicAdjustmentParamsNative? = null
         
         try {
+            // 先应用几何（旋转、裁剪），确保与增量管线一致
+            val processingBitmap = applyGeometryIfNeeded(bitmap, params) ?: return null
+            
             // 检查是否需要重新转换
-            val needsConversion = cachedOriginalBitmap !== bitmap || cachedLinearImage == null
+            val needsConversion = cachedOriginalBitmap !== processingBitmap || cachedLinearImage == null
             
             if (needsConversion) {
                 // 清理旧缓存
                 clearCache()
                 
                 // 转换到线性空间
-                cachedLinearImage = imageConverter.bitmapToLinear(bitmap) 
+                cachedLinearImage = imageConverter.bitmapToLinear(processingBitmap) 
                     ?: return null
-                cachedOriginalBitmap = bitmap
+                cachedOriginalBitmap = processingBitmap
                 cachedParams = null // 重置参数缓存
             }
             
@@ -627,5 +631,49 @@ open class NativeImageProcessor {
     
     companion object {
         private const val TAG = "NativeImageProcessor"
+    }
+
+    /**
+     * 如果需要，应用几何变换（旋转、裁剪）。
+     */
+    private fun applyGeometryIfNeeded(bitmap: Bitmap?, params: BasicAdjustmentParams): Bitmap? {
+        bitmap ?: return null
+        var working = bitmap
+        var owns = false
+        // 旋转
+        val r = normalizeRotation(params.rotation)
+        if (kotlin.math.abs(r) > 0.001f) {
+            val m = Matrix()
+            m.postRotate(r)
+            val rotated = Bitmap.createBitmap(working, 0, 0, working.width, working.height, m, true)
+            if (owns) working.recycle()
+            working = rotated
+            owns = true
+        }
+        // 裁剪
+        if (params.cropEnabled) {
+            val l = params.cropLeft.coerceIn(0f, 1f)
+            val t = params.cropTop.coerceIn(0f, 1f)
+            val rgt = params.cropRight.coerceIn(0f, 1f)
+            val btm = params.cropBottom.coerceIn(0f, 1f)
+            val leftPx = (l * working.width).toInt().coerceIn(0, working.width - 1)
+            val topPx = (t * working.height).toInt().coerceIn(0, working.height - 1)
+            val rightPx = (rgt * working.width).toInt().coerceIn(leftPx + 1, working.width)
+            val bottomPx = (btm * working.height).toInt().coerceIn(topPx + 1, working.height)
+            val w = (rightPx - leftPx).coerceAtLeast(1)
+            val h = (bottomPx - topPx).coerceAtLeast(1)
+            val cropped = Bitmap.createBitmap(working, leftPx, topPx, w, h)
+            if (owns) working.recycle()
+            working = cropped
+            owns = true
+        }
+        return working
+    }
+
+    private fun normalizeRotation(deg: Float): Float {
+        var r = deg % 360f
+        if (r > 180f) r -= 360f
+        if (r < -180f) r += 360f
+        return r
     }
 }

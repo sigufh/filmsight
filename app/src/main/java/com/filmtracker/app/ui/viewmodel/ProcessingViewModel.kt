@@ -1,12 +1,20 @@
 package com.filmtracker.app.ui.viewmodel
 
 import android.graphics.Bitmap
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.filmtracker.app.domain.model.AdjustmentParams
+import com.filmtracker.app.domain.model.EditSession
+import com.filmtracker.app.domain.model.ParameterChange
+import com.filmtracker.app.domain.model.ParameterMetadata
 import com.filmtracker.app.domain.model.ProcessingResult
+import com.filmtracker.app.domain.model.SerializableAdjustmentParams
+import com.filmtracker.app.domain.repository.MetadataRepository
+import com.filmtracker.app.domain.repository.SessionRepository
 import com.filmtracker.app.domain.usecase.ApplyAdjustmentsUseCase
 import com.filmtracker.app.domain.usecase.ExportImageUseCase
+import com.filmtracker.app.processing.ExportRenderingPipeline
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
 
 /**
  * 图像处理 ViewModel
@@ -33,7 +42,10 @@ import kotlinx.coroutines.launch
  */
 class ProcessingViewModel(
     private val applyAdjustmentsUseCase: ApplyAdjustmentsUseCase,
-    private val exportImageUseCase: ExportImageUseCase
+    private val exportImageUseCase: ExportImageUseCase,
+    private val metadataRepository: MetadataRepository,
+    private val sessionRepository: SessionRepository,
+    private val exportRenderingPipeline: ExportRenderingPipeline
 ) : ViewModel() {
     
     // 原始图像
@@ -64,6 +76,53 @@ class ProcessingViewModel(
     private val _exportProgress = MutableStateFlow(0f)
     val exportProgress: StateFlow<Float> = _exportProgress.asStateFlow()
     
+    // 导出结果
+    private val _exportResult = MutableStateFlow<ExportRenderingPipeline.ExportResult?>(null)
+    val exportResult: StateFlow<ExportRenderingPipeline.ExportResult?> = _exportResult.asStateFlow()
+    
+    // 编辑会话
+    private val _editSession = MutableStateFlow<EditSession?>(null)
+    val editSession: StateFlow<EditSession?> = _editSession.asStateFlow()
+    
+    // 是否可以撤销
+    private val _canUndo = MutableStateFlow(false)
+    val canUndo: StateFlow<Boolean> = _canUndo.asStateFlow()
+    
+    // 是否可以重做
+    private val _canRedo = MutableStateFlow(false)
+    val canRedo: StateFlow<Boolean> = _canRedo.asStateFlow()
+    
+    // 当前图像路径（用于元数据保存）
+    private var currentImagePath: String? = null
+    private var currentImageUri: Uri? = null
+    
+    init {
+        // 尝试恢复上次的编辑会话
+        restoreLastSession()
+    }
+    
+    /**
+     * 恢复上次的编辑会话
+     */
+    private fun restoreLastSession() {
+        viewModelScope.launch {
+            val sessionResult = sessionRepository.loadLastSession()
+            
+            sessionResult.onSuccess { session ->
+                if (session != null) {
+                    _editSession.value = session
+                    _adjustmentParams.value = session.currentParams
+                    currentImageUri = session.imageUri
+                    currentImagePath = session.imagePath
+                    updateUndoRedoState()
+                    
+                    // 注意：这里不加载图像位图，因为需要由 UI 层触发
+                    // UI 层应该检测到会话恢复并加载对应的图像
+                }
+            }
+        }
+    }
+    
     /**
      * 设置原始图像
      * 
@@ -77,139 +136,213 @@ class ProcessingViewModel(
     }
     
     /**
+     * 加载图像（带元数据加载）
+     * 
+     * @param uri 图像 URI
+     * @param path 图像文件路径
+     * @param bitmap 图像位图
+     */
+    fun loadImage(uri: Uri, path: String, bitmap: Bitmap) {
+        currentImageUri = uri
+        currentImagePath = path
+        
+        _originalImage.value = bitmap
+        _processedImage.value = bitmap
+        
+        // 尝试加载元数据
+        viewModelScope.launch {
+            val metadataResult = metadataRepository.loadMetadata(path)
+            
+            metadataResult.onSuccess { metadata ->
+                if (metadata != null) {
+                    // 加载已保存的参数（转换为领域模型）
+                    val params = metadata.parameters.toAdjustmentParams()
+                    _adjustmentParams.value = params
+                    
+                    // 创建或恢复编辑会话
+                    val session = EditSession.create(uri, path).copy(
+                        currentParams = params,
+                        isModified = false
+                    )
+                    _editSession.value = session
+                    updateUndoRedoState()
+                    
+                    // 应用加载的参数
+                    applyAdjustments()
+                } else {
+                    // 没有元数据，创建新会话
+                    val session = EditSession.create(uri, path)
+                    _editSession.value = session
+                    _adjustmentParams.value = AdjustmentParams.default()
+                    updateUndoRedoState()
+                }
+            }.onFailure {
+                // 加载失败，使用默认参数
+                val session = EditSession.create(uri, path)
+                _editSession.value = session
+                _adjustmentParams.value = AdjustmentParams.default()
+                updateUndoRedoState()
+            }
+        }
+    }
+    
+    /**
      * 更新曝光
      */
     fun updateExposure(value: Float) {
-        _adjustmentParams.update { it.copy(exposure = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.ExposureChange(value))
     }
     
     /**
      * 更新对比度
      */
     fun updateContrast(value: Float) {
-        _adjustmentParams.update { it.copy(contrast = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.ContrastChange(value))
     }
     
     /**
      * 更新饱和度
      */
     fun updateSaturation(value: Float) {
-        _adjustmentParams.update { it.copy(saturation = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.SaturationChange(value))
     }
     
     /**
      * 更新高光
      */
     fun updateHighlights(value: Float) {
-        _adjustmentParams.update { it.copy(highlights = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.HighlightsChange(value))
     }
     
     /**
      * 更新阴影
      */
     fun updateShadows(value: Float) {
-        _adjustmentParams.update { it.copy(shadows = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.ShadowsChange(value))
     }
     
     /**
      * 更新白场
      */
     fun updateWhites(value: Float) {
-        _adjustmentParams.update { it.copy(whites = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.WhitesChange(value))
     }
     
     /**
      * 更新黑场
      */
     fun updateBlacks(value: Float) {
-        _adjustmentParams.update { it.copy(blacks = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.BlacksChange(value))
     }
     
     /**
      * 更新清晰度
      */
     fun updateClarity(value: Float) {
-        _adjustmentParams.update { it.copy(clarity = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.ClarityChange(value))
     }
     
     /**
      * 更新自然饱和度
      */
     fun updateVibrance(value: Float) {
-        _adjustmentParams.update { it.copy(vibrance = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.VibranceChange(value))
     }
     
     /**
      * 更新色温
      */
     fun updateTemperature(value: Float) {
-        _adjustmentParams.update { it.copy(temperature = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.TemperatureChange(value))
     }
     
     /**
      * 更新色调
      */
     fun updateTint(value: Float) {
-        _adjustmentParams.update { it.copy(tint = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.TintChange(value))
     }
     
     /**
      * 更新纹理
      */
     fun updateTexture(value: Float) {
-        _adjustmentParams.update { it.copy(texture = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.TextureChange(value))
     }
     
     /**
      * 更新去雾
      */
     fun updateDehaze(value: Float) {
-        _adjustmentParams.update { it.copy(dehaze = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.DehazeChange(value))
     }
     
     /**
      * 更新晕影
      */
     fun updateVignette(value: Float) {
-        _adjustmentParams.update { it.copy(vignette = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.VignetteChange(value))
     }
     
     /**
      * 更新颗粒
      */
     fun updateGrain(value: Float) {
-        _adjustmentParams.update { it.copy(grain = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.GrainChange(value))
     }
     
     /**
      * 更新锐化
      */
     fun updateSharpening(value: Float) {
-        _adjustmentParams.update { it.copy(sharpening = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.SharpeningChange(value))
     }
     
     /**
      * 更新降噪
      */
     fun updateNoiseReduction(value: Float) {
-        _adjustmentParams.update { it.copy(noiseReduction = value) }
-        applyAdjustments()
+        updateParameterWithHistory(ParameterChange.NoiseReductionChange(value))
+    }
+    
+    /**
+     * 撤销操作
+     */
+    fun undo() {
+        val session = _editSession.value ?: return
+        
+        val newSession = session.undo()
+        if (newSession != null) {
+            _editSession.value = newSession
+            _adjustmentParams.value = newSession.currentParams
+            updateUndoRedoState()
+            
+            // 触发预览更新
+            applyAdjustments()
+            
+            // 自动保存元数据
+            autoSaveMetadata()
+        }
+    }
+    
+    /**
+     * 重做操作
+     */
+    fun redo() {
+        val session = _editSession.value ?: return
+        
+        val newSession = session.redo()
+        if (newSession != null) {
+            _editSession.value = newSession
+            _adjustmentParams.value = newSession.currentParams
+            updateUndoRedoState()
+            
+            // 触发预览更新
+            applyAdjustments()
+            
+            // 自动保存元数据
+            autoSaveMetadata()
+        }
     }
     
     /**
@@ -229,8 +362,124 @@ class ProcessingViewModel(
     }
     
     /**
-     * 导出图像（使用完整分辨率）
+     * 更新参数并记录到历史
+     * 内部辅助方法
      */
+    private fun updateParameterWithHistory(change: ParameterChange) {
+        val session = _editSession.value
+        
+        if (session != null) {
+            // 使用会话管理参数变更
+            val newSession = session.applyParameterChange(change)
+            _editSession.value = newSession
+            _adjustmentParams.value = newSession.currentParams
+            updateUndoRedoState()
+            
+            // 自动保存元数据
+            autoSaveMetadata()
+        } else {
+            // 没有会话，直接更新参数（向后兼容）
+            val newParams = change.apply(_adjustmentParams.value)
+            _adjustmentParams.value = newParams
+        }
+        
+        applyAdjustments()
+    }
+    
+    /**
+     * 自动保存元数据
+     */
+    private fun autoSaveMetadata() {
+        val path = currentImagePath ?: return
+        val uri = currentImageUri ?: return
+        val params = _adjustmentParams.value
+        
+        viewModelScope.launch {
+            val metadata = ParameterMetadata(
+                imageUri = uri.toString(),
+                imagePath = path,
+                imageHash = null, // 可选：计算文件哈希
+                parameters = SerializableAdjustmentParams.fromAdjustmentParams(params),
+                createdAt = System.currentTimeMillis(),
+                modifiedAt = System.currentTimeMillis(),
+                appVersion = "1.0.0" // TODO: 从 BuildConfig 获取
+            )
+            
+            metadataRepository.saveMetadata(metadata)
+        }
+    }
+    
+    /**
+     * 更新撤销/重做状态
+     */
+    private fun updateUndoRedoState() {
+        val session = _editSession.value
+        _canUndo.value = session?.canUndo() ?: false
+        _canRedo.value = session?.canRedo() ?: false
+    }
+    
+    /**
+     * 导出图像（使用 ExportRenderingPipeline）
+     * 
+     * Requirements: 6.1, 6.5
+     * 
+     * @param config 导出配置
+     */
+    fun exportImage(config: ExportRenderingPipeline.ExportConfig) {
+        val path = currentImagePath
+        if (path == null) {
+            _exportResult.value = ExportRenderingPipeline.ExportResult.Failure(
+                error = IllegalStateException("No image loaded"),
+                message = "请先加载图像"
+            )
+            return
+        }
+        
+        viewModelScope.launch {
+            _isExporting.value = true
+            _exportProgress.value = 0f
+            _exportResult.value = null
+            
+            try {
+                // 模拟进度更新
+                _exportProgress.value = 0.1f
+                
+                // 使用 ExportRenderingPipeline 进行完整分辨率导出
+                val result = exportRenderingPipeline.export(
+                    imagePath = path,
+                    params = _adjustmentParams.value,
+                    config = config
+                )
+                
+                _exportProgress.value = 1.0f
+                _exportResult.value = result
+                
+            } catch (e: Exception) {
+                _exportResult.value = ExportRenderingPipeline.ExportResult.Failure(
+                    error = e,
+                    message = "导出失败: ${e.message}"
+                )
+            } finally {
+                _isExporting.value = false
+                // 保持进度显示一小段时间
+                delay(500)
+                _exportProgress.value = 0f
+            }
+        }
+    }
+    
+    /**
+     * 清除导出结果
+     */
+    fun clearExportResult() {
+        _exportResult.value = null
+    }
+    
+    /**
+     * 导出图像（使用完整分辨率）
+     * @deprecated 使用 exportImage(config) 代替
+     */
+    @Deprecated("Use exportImage(config) instead")
     fun exportImage(): Bitmap? {
         val original = _originalImage.value ?: return null
         var result: Bitmap? = null
@@ -320,4 +569,19 @@ class ProcessingViewModel(
     
     // 当前处理任务
     private var currentProcessingJob: kotlinx.coroutines.Job? = null
+    
+    /**
+     * ViewModel 清理时保存会话
+     */
+    override fun onCleared() {
+        super.onCleared()
+        
+        // 保存当前会话
+        val session = _editSession.value
+        if (session != null) {
+            viewModelScope.launch {
+                sessionRepository.saveSession(session)
+            }
+        }
+    }
 }
