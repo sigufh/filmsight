@@ -72,7 +72,7 @@ class ViewModelFactory private constructor(
     
     // Processing Pipeline
     private val exportRenderingPipeline by lazy {
-        ExportRenderingPipeline(StageProcessorFactory, adjustmentParamsMapper)
+        ExportRenderingPipeline(context, StageProcessorFactory, adjustmentParamsMapper)
     }
     
     @Suppress("UNCHECKED_CAST")

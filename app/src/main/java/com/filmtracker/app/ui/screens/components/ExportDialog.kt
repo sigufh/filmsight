@@ -22,14 +22,12 @@ import com.filmtracker.app.processing.ExportRenderingPipeline
 @Composable
 fun ExportDialog(
     onDismiss: () -> Unit,
-    onConfirm: (ExportRenderingPipeline.ExportConfig) -> Unit,
-    defaultOutputPath: String = ""
+    onConfirm: (ExportRenderingPipeline.ExportConfig) -> Unit
 ) {
     var selectedFormat by remember { mutableStateOf(ExportRenderingPipeline.ExportFormat.JPEG) }
     var jpegQuality by remember { mutableStateOf(95) }
     var selectedBitDepth by remember { mutableStateOf(ExportRenderingPipeline.BitDepth.BIT_8) }
     var selectedColorSpace by remember { mutableStateOf(ExportRenderingPipeline.ColorSpace.SRGB) }
-    var outputPath by remember { mutableStateOf(defaultOutputPath) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -153,19 +151,9 @@ fun ExportDialog(
                     }
                 }
                 
-                // 输出路径
-                OutlinedTextField(
-                    value = outputPath,
-                    onValueChange = { outputPath = it },
-                    label = { Text("输出路径") },
-                    placeholder = { Text("留空使用默认路径") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                
                 // 提示信息
                 Text(
-                    text = "提示：导出将使用完整分辨率处理图像",
+                    text = "图片将保存到相册的 FilmSight 文件夹",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -174,17 +162,25 @@ fun ExportDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val config = ExportRenderingPipeline.ExportConfig(
-                        format = selectedFormat,
-                        quality = jpegQuality,
-                        bitDepth = selectedBitDepth,
-                        colorSpace = selectedColorSpace,
-                        outputPath = outputPath.ifBlank { defaultOutputPath }
-                    )
-                    onConfirm(config)
+                    android.util.Log.d("ExportDialog", "Export button clicked")
+                    android.util.Log.d("ExportDialog", "selectedFormat=$selectedFormat, jpegQuality=$jpegQuality")
+                    
+                    try {
+                        val config = ExportRenderingPipeline.ExportConfig(
+                            format = selectedFormat,
+                            quality = jpegQuality,
+                            bitDepth = selectedBitDepth,
+                            colorSpace = selectedColorSpace,
+                            saveToGallery = true  // 保存到相册
+                        )
+                        android.util.Log.d("ExportDialog", "Config created successfully")
+                        onConfirm(config)
+                    } catch (e: Exception) {
+                        android.util.Log.e("ExportDialog", "Failed to create config", e)
+                    }
                 }
             ) {
-                Text("导出")
+                Text("导出到相册")
             }
         },
         dismissButton = {

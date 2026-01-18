@@ -318,8 +318,7 @@ fun FilmGridPreviewScreen(
                 // TODO: 实现批量导出逻辑
                 // 这里应该遍历所有图片，应用调色参数并导出
                 showExportDialog = false
-            },
-            defaultOutputPath = ""
+            }
         )
     }
 }

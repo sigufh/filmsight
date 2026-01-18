@@ -23,7 +23,6 @@ fun FilmProcessingScreen(
     imageUri: String?,
     initialParams: BasicAdjustmentParams? = null,  // 初始调色参数（已废弃，使用 MetadataRepository）
     onBack: (BasicAdjustmentParams?, android.graphics.Bitmap?) -> Unit,  // 返回时传递参数和缩略图
-    onExport: (BasicAdjustmentParams) -> Unit = {},
     modifier: Modifier = Modifier,
     useVintageTheme: Boolean = true  // 是否使用胶卷风格主题（暂时未使用）
 ) {
@@ -91,7 +90,6 @@ fun FilmProcessingScreen(
             Log.d("FilmProcessingScreen", "Returning with params: exposure=${currentParams.globalExposure}")
             onBack(currentParams, processedThumbnail)
         },
-        onExport = onExport,
         modifier = modifier
     )
 }

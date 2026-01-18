@@ -174,9 +174,6 @@ class MainActivity : ComponentActivity() {
                         onSelectImage = {
                             android.util.Log.d("MainActivity", "Returning to import screen")
                             showImportScreen = true
-                        },
-                        onExport = { params ->
-                            exportImage(selectedImageUri, params)
                         }
                     )
                 }

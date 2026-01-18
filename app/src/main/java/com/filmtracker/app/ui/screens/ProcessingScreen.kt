@@ -40,7 +40,6 @@ import kotlinx.coroutines.launch
 fun ProcessingScreen(
     imageUri: String?,
     onSelectImage: () -> Unit = {},
-    onExport: (BasicAdjustmentParams) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -104,7 +103,12 @@ fun ProcessingScreen(
             val loadedImage = imageProcessor.loadOriginalImage(imageUri, previewMode = true)
             if (loadedImage != null) {
                 android.util.Log.d("ProcessingScreen", "Image loaded successfully: ${loadedImage.width}x${loadedImage.height}")
-                viewModel.setOriginalImage(loadedImage)
+                
+                // 设置图像并传递 URI 和路径（用于导出）
+                val uri = android.net.Uri.parse(imageUri)
+                viewModel.setOriginalImage(loadedImage, uri, imageUri)
+                
+                android.util.Log.d("ProcessingScreen", "Image path set for export: $imageUri")
             } else {
                 android.util.Log.e("ProcessingScreen", "Failed to load image from URI: $imageUri")
             }
@@ -121,6 +125,7 @@ fun ProcessingScreen(
                 onShowImageInfo = { showImageInfoDialog = true },
                 onExport = {
                     // 显示导出对话框
+                    android.util.Log.d("ProcessingScreen", "Export button clicked, showing dialog")
                     showExportDialog = true
                 },
                 onCopyParams = { copiedParams = basicParams },
@@ -314,20 +319,18 @@ fun ProcessingScreen(
         
         // 导出对话框
         if (showExportDialog) {
-            val defaultPath = imageUri?.let { uri ->
-                // 生成默认输出路径
-                val fileName = uri.substringAfterLast("/").substringBeforeLast(".")
-                val timestamp = System.currentTimeMillis()
-                "${context.getExternalFilesDir(null)}/exports/${fileName}_edited_$timestamp.jpg"
-            } ?: ""
+            android.util.Log.d("ProcessingScreen", "Showing export dialog, imageUri=$imageUri")
             
             ExportDialog(
-                onDismiss = { showExportDialog = false },
+                onDismiss = { 
+                    android.util.Log.d("ProcessingScreen", "Export dialog dismissed")
+                    showExportDialog = false 
+                },
                 onConfirm = { config ->
+                    android.util.Log.d("ProcessingScreen", "Export confirmed with config: format=${config.format}, quality=${config.quality}")
                     showExportDialog = false
                     viewModel.exportImage(config)
-                },
-                defaultOutputPath = defaultPath
+                }
             )
         }
         
@@ -371,15 +374,18 @@ fun ProcessingScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text("图像已成功导出")
-                                Text(
-                                    text = "路径: ${result.outputFile.absolutePath}",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Text(
-                                    text = "大小: ${result.outputFile.length() / 1024} KB",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
+                                Text("图像已成功保存到相册")
+                                if (result.outputUri != null) {
+                                    Text(
+                                        text = "位置: 相册/FilmSight",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                } else if (result.outputFile != null) {
+                                    Text(
+                                        text = "路径: ${result.outputFile.absolutePath}",
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
                                 Text(
                                     text = "耗时: ${result.totalTimeMs} ms",
                                     style = MaterialTheme.typography.bodySmall

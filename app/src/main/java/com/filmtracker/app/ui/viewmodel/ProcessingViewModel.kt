@@ -127,12 +127,22 @@ class ProcessingViewModel(
      * 设置原始图像
      * 
      * 注意：加载新图像时会自动重置所有参数为默认值
+     * 
+     * @param bitmap 图像位图
+     * @param uri 图像 URI（可选，用于导出）
+     * @param path 图像路径（可选，用于导出）
      */
-    fun setOriginalImage(bitmap: Bitmap) {
+    fun setOriginalImage(bitmap: Bitmap, uri: Uri? = null, path: String? = null) {
         _originalImage.value = bitmap
         _processedImage.value = bitmap
         // 重置参数为默认值
         _adjustmentParams.value = AdjustmentParams.default()
+        
+        // 设置路径信息（用于导出）
+        currentImageUri = uri
+        currentImagePath = path
+        
+        android.util.Log.d("ProcessingViewModel", "setOriginalImage: uri=$uri, path=$path")
     }
     
     /**
@@ -426,14 +436,19 @@ class ProcessingViewModel(
      * @param config 导出配置
      */
     fun exportImage(config: ExportRenderingPipeline.ExportConfig) {
-        val path = currentImagePath
-        if (path == null) {
+        android.util.Log.d("ProcessingViewModel", "exportImage called with config: format=${config.format}, quality=${config.quality}, path=${config.outputPath}")
+        
+        val bitmap = _originalImage.value
+        if (bitmap == null) {
+            android.util.Log.e("ProcessingViewModel", "No image bitmap loaded, cannot export")
             _exportResult.value = ExportRenderingPipeline.ExportResult.Failure(
                 error = IllegalStateException("No image loaded"),
                 message = "请先加载图像"
             )
             return
         }
+        
+        android.util.Log.d("ProcessingViewModel", "Starting export with bitmap: ${bitmap.width}x${bitmap.height}")
         
         viewModelScope.launch {
             _isExporting.value = true
@@ -444,17 +459,22 @@ class ProcessingViewModel(
                 // 模拟进度更新
                 _exportProgress.value = 0.1f
                 
-                // 使用 ExportRenderingPipeline 进行完整分辨率导出
-                val result = exportRenderingPipeline.export(
-                    imagePath = path,
+                android.util.Log.d("ProcessingViewModel", "Calling ExportRenderingPipeline.exportFromBitmap")
+                
+                // 使用 ExportRenderingPipeline 进行完整分辨率导出（从位图）
+                val result = exportRenderingPipeline.exportFromBitmap(
+                    originalBitmap = bitmap,
                     params = _adjustmentParams.value,
                     config = config
                 )
+                
+                android.util.Log.d("ProcessingViewModel", "Export result: ${result::class.simpleName}")
                 
                 _exportProgress.value = 1.0f
                 _exportResult.value = result
                 
             } catch (e: Exception) {
+                android.util.Log.e("ProcessingViewModel", "Export failed with exception", e)
                 _exportResult.value = ExportRenderingPipeline.ExportResult.Failure(
                     error = e,
                     message = "导出失败: ${e.message}"
