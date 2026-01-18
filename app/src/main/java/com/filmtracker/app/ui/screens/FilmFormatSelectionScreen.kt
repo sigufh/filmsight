@@ -4,12 +4,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
+import com.filmtracker.app.domain.model.FilmType
 import com.filmtracker.app.ui.screens.components.AIDialogPanel
 import com.filmtracker.app.ui.theme.*
 
@@ -407,9 +408,8 @@ private fun Film120SubFormatOption(
 }
 
 /**
- * 胶卷型号选择器
+ * 胶卷型号选择器（左右滑动选择）
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilmStockSelector(
     selectedFilmStock: FilmStock?,
@@ -420,7 +420,7 @@ private fun FilmStockSelector(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "胶卷型号（可选）",
@@ -429,59 +429,181 @@ private fun FilmStockSelector(
             fontWeight = FontWeight.Medium
         )
         
-        ExposedDropdownMenuBox(
-            expanded = expanded,
-            onExpandedChange = onExpandedChange
+        // 使用 HorizontalPager 实现左右滑动
+        val filmStocks = FilmStock.getAllFilms()
+        val selectedIndex = filmStocks.indexOf(selectedFilmStock).takeIf { it >= 0 } ?: -1
+        
+        // 滑动选择器
+        FilmStockCarousel(
+            filmStocks = filmStocks,
+            selectedFilmStock = selectedFilmStock,
+            onFilmStockSelected = onFilmStockSelected
+        )
+    }
+}
+
+/**
+ * 胶卷型号轮播选择器
+ */
+@Composable
+private fun FilmStockCarousel(
+    filmStocks: List<FilmStock>,
+    selectedFilmStock: FilmStock?,
+    onFilmStockSelected: (FilmStock) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // 横向滚动的胶卷图标
+        androidx.compose.foundation.lazy.LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 24.dp)
         ) {
-            OutlinedTextField(
-                value = selectedFilmStock?.displayName ?: "选择胶卷型号",
-                onValueChange = {},
-                readOnly = true,
+            // 所有胶卷型号
+            items(filmStocks.size) { index ->
+                FilmStockIcon(
+                    filmStock = filmStocks[index],
+                    isSelected = selectedFilmStock == filmStocks[index],
+                    onClick = { onFilmStockSelected(filmStocks[index]) }
+                )
+            }
+        }
+        
+        // 显示当前选中的胶卷信息
+        if (selectedFilmStock != null) {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .menuAnchor(),
-                trailingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = null
-                    )
-                },
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = FilmWhite,
-                    unfocusedContainerColor = FilmWhite,
-                    focusedBorderColor = FilmCaramelOrange,
-                    unfocusedBorderColor = FilmLightGray
+                    .padding(horizontal = 24.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = FilmWhite
                 ),
-                shape = RoundedCornerShape(12.dp)
-            )
-            
-            ExposedDropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { onExpandedChange(false) }
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                FilmStock.getAllFilms().forEach { filmStock ->
-                    DropdownMenuItem(
-                        text = {
-                            Column {
-                                Text(
-                                    text = filmStock.displayName,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = filmStock.description,
-                                    fontSize = 12.sp,
-                                    color = FilmDarkGray
-                                )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = selectedFilmStock.displayName,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = FilmInkBlack
+                        )
+                        
+                        // 类型标签
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = when (selectedFilmStock.type) {
+                                FilmType.NEGATIVE -> Color(0xFFFFB74D)
+                                FilmType.REVERSAL -> Color(0xFF64B5F6)
+                                FilmType.CINEMA -> Color(0xFFBA68C8)
                             }
-                        },
-                        onClick = {
-                            onFilmStockSelected(filmStock)
-                            onExpandedChange(false)
+                        ) {
+                            Text(
+                                text = selectedFilmStock.type.displayName,
+                                fontSize = 11.sp,
+                                color = FilmWhite,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
                         }
+                    }
+                    
+                    Text(
+                        text = selectedFilmStock.englishName,
+                        fontSize = 12.sp,
+                        color = FilmDarkGray
+                    )
+                    
+                    Text(
+                        text = selectedFilmStock.description,
+                        fontSize = 13.sp,
+                        color = FilmDarkGray.copy(alpha = 0.8f)
                     )
                 }
             }
+        } else {
+            // 未选择时的提示
+            Text(
+                text = "← 左右滑动选择胶卷型号",
+                fontSize = 13.sp,
+                color = FilmDarkGray.copy(alpha = 0.6f)
+            )
         }
+    }
+}
+
+/**
+ * 胶卷图标（用于轮播选择）
+ */
+@Composable
+private fun FilmStockIcon(
+    filmStock: FilmStock,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.1f else 1f,
+        label = "icon_scale"
+    )
+    
+    Column(
+        modifier = modifier
+            .width(100.dp)
+            .scale(scale),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // 胶卷图标
+        Card(
+            modifier = Modifier
+                .size(80.dp)
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (isSelected) FilmCaramelOrange else FilmWhite
+            ),
+            elevation = CardDefaults.cardElevation(
+                defaultElevation = if (isSelected) 6.dp else 2.dp
+            )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                // 胶卷图标（根据类型显示不同的 emoji）
+                Text(
+                    text = when (filmStock.type) {
+                        FilmType.NEGATIVE -> "📷"
+                        FilmType.REVERSAL -> "🎞"
+                        FilmType.CINEMA -> "🎬"
+                    },
+                    fontSize = 36.sp
+                )
+            }
+        }
+        
+        // 胶卷名称（简短版）
+        Text(
+            text = filmStock.displayName.take(6),
+            fontSize = 11.sp,
+            color = if (isSelected) FilmCaramelOrange else FilmDarkGray,
+            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+            maxLines = 1
+        )
     }
 }
 

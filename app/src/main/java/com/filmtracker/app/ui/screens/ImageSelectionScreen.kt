@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -54,12 +55,25 @@ fun ImageImportScreen(
     onSelectImage: () -> Unit,
     onImageSelected: (ImageInfo) -> Unit,
     onDeleteImage: (ImageInfo) -> Unit,
+    onBack: (() -> Unit)? = null,  // 添加返回回调
     modifier: Modifier = Modifier
 ) {
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("所有照片") },
+                navigationIcon = {
+                    // 如果提供了返回回调，显示返回按钮
+                    onBack?.let {
+                        IconButton(onClick = it) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Black,
                     titleContentColor = Color.White
@@ -151,6 +165,7 @@ fun ImageImportScreen(
 fun ImageSelectionScreen(
     onSelectImage: () -> Unit,
     onImageSelected: (ImageInfo) -> Unit,
+    onBack: (() -> Unit)? = null,  // 添加返回回调
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -168,6 +183,18 @@ fun ImageSelectionScreen(
         topBar = {
             TopAppBar(
                 title = { Text("所有照片") },
+                navigationIcon = {
+                    // 如果提供了返回回调，显示返回按钮
+                    onBack?.let {
+                        IconButton(onClick = it) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "返回",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Black,
                     titleContentColor = Color.White

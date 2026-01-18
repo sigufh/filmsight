@@ -1,10 +1,10 @@
 package com.filmtracker.app.ui.screens.panels.color
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -52,21 +52,23 @@ fun CurveEditorFullScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // 返回按钮
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "返回",
+                            tint = Color.White
+                        )
+                    }
+                    
                     Text(
                         text = "曲线",
                         color = Color.White,
                         style = MaterialTheme.typography.titleMedium
                     )
                     
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent
-                        ),
-                        border = BorderStroke(1.dp, Color.White)
-                    ) {
-                        Text("完成", color = Color.White)
-                    }
+                    // 占位，保持标题居中
+                    Spacer(modifier = Modifier.width(48.dp))
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))

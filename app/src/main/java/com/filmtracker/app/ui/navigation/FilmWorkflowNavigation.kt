@@ -134,7 +134,8 @@ fun FilmWorkflowNavigation(
                     onAddMoreImages = {
                         // 返回张数选择页添加更多图片
                         navController.popBackStack()
-                    }
+                    },
+                    viewModel = workflowViewModel  // 传递 workflowViewModel
                 )
             }
             

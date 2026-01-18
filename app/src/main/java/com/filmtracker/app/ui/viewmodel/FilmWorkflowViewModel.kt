@@ -1,13 +1,17 @@
 package com.filmtracker.app.ui.viewmodel
 
 import android.content.Context
+import android.graphics.BitmapFactory
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.filmtracker.app.data.mapper.AdjustmentParamsMapper
 import com.filmtracker.app.data.repository.MetadataRepositoryImpl
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
 import com.filmtracker.app.domain.model.ParameterMetadata
 import com.filmtracker.app.domain.model.SerializableAdjustmentParams
+import com.filmtracker.app.processing.ExportRenderingPipeline
 import com.filmtracker.app.ui.screens.ImageInfo
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,6 +34,12 @@ class FilmWorkflowViewModel(
     
     // 元数据仓储（用于持久化参数）
     private val metadataRepository = MetadataRepositoryImpl(context)
+    
+    // 导出渲染管线
+    private val exportRenderingPipeline = ExportRenderingPipeline(context)
+    
+    // 参数映射器
+    private val paramsMapper = AdjustmentParamsMapper()
     
     // ========== 画幅选择 ==========
     
@@ -86,14 +96,90 @@ class FilmWorkflowViewModel(
     
     /**
      * 添加图片到胶卷
+     * 
+     * 自动应用选定胶卷型号的预设参数
      */
     fun addImages(images: List<ImageInfo>) {
         val maxCount = _selectedCount.value
-        if (maxCount > 0) {
-            // 限制图片数量不超过选定的张数
-            _filmImages.value = images.take(maxCount)
+        val limitedImages = if (maxCount > 0) {
+            images.take(maxCount)
         } else {
-            _filmImages.value = images
+            images
+        }
+        
+        // 获取当前选定的胶卷型号预设
+        val filmStockPreset = _selectedFilmStock.value?.getPreset()
+        
+        // 如果有胶卷预设，应用到所有图片
+        val imagesWithPreset = if (filmStockPreset != null) {
+            limitedImages.map { image ->
+                image.copy(
+                    adjustmentParams = filmStockPreset.deepCopy(),
+                    isModified = true  // 标记为已修改（应用了预设）
+                )
+            }
+        } else {
+            limitedImages
+        }
+        
+        _filmImages.value = imagesWithPreset
+        
+        // 持久化预设参数并生成预览缩略图
+        if (filmStockPreset != null) {
+            viewModelScope.launch {
+                imagesWithPreset.forEach { image ->
+                    // 生成应用预设后的缩略图
+                    val thumbnail = generatePresetThumbnail(image.uri, filmStockPreset)
+                    
+                    // 持久化参数（复用 updateImageEdits 方法）
+                    updateImageEdits(
+                        imageUri = image.uri,
+                        params = filmStockPreset.deepCopy(),
+                        processedBitmap = thumbnail
+                    )
+                }
+            }
+        }
+    }
+    
+    /**
+     * 生成应用预设后的缩略图
+     * 
+     * 使用低分辨率快速生成预览效果
+     */
+    private suspend fun generatePresetThumbnail(
+        imageUri: String,
+        preset: com.filmtracker.app.data.BasicAdjustmentParams
+    ): android.graphics.Bitmap? {
+        return try {
+            val contentUri = Uri.parse(imageUri)
+            val inputStream = context.contentResolver.openInputStream(contentUri)
+            
+            // 降采样加载（缩略图尺寸）
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = 4  // 降采样 4 倍，快速生成
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                inMutable = false
+            }
+            
+            val originalBitmap = BitmapFactory.decodeStream(inputStream, null, options)
+            inputStream?.close()
+            
+            if (originalBitmap == null) {
+                return null
+            }
+            
+            // 使用 IncrementalRenderingEngine 应用预设
+            val renderingEngine = com.filmtracker.app.processing.IncrementalRenderingEngine.getInstance()
+            val result = renderingEngine.process(originalBitmap, preset)
+            
+            // 释放原始位图
+            originalBitmap.recycle()
+            
+            result.output
+        } catch (e: Exception) {
+            android.util.Log.e("FilmWorkflowViewModel", "Failed to generate preset thumbnail", e)
+            null
         }
     }
     
@@ -230,5 +316,165 @@ class FilmWorkflowViewModel(
             张数: $count
             已添加: $imageCount 张
         """.trimIndent()
+    }
+    
+    // ========== 批量导出 ==========
+    
+    // 批量导出状态
+    private val _batchExportState = MutableStateFlow<BatchExportState>(BatchExportState.Idle)
+    val batchExportState: StateFlow<BatchExportState> = _batchExportState.asStateFlow()
+    
+    /**
+     * 批量导出状态
+     */
+    sealed class BatchExportState {
+        object Idle : BatchExportState()
+        data class Exporting(
+            val currentIndex: Int,
+            val totalCount: Int,
+            val currentFileName: String
+        ) : BatchExportState()
+        data class Success(
+            val exportedCount: Int,
+            val totalTimeMs: Long,
+            val outputUris: List<Uri>
+        ) : BatchExportState()
+        data class Failure(
+            val error: Throwable,
+            val message: String,
+            val exportedCount: Int
+        ) : BatchExportState()
+    }
+    
+    /**
+     * 批量导出所有图片
+     * 
+     * 使用专业调色的导出方法（ExportRenderingPipeline）
+     * 
+     * @param config 导出配置
+     */
+    fun batchExportImages(config: ExportRenderingPipeline.ExportConfig) {
+        val images = _filmImages.value
+        if (images.isEmpty()) {
+            _batchExportState.value = BatchExportState.Failure(
+                error = IllegalStateException("No images to export"),
+                message = "没有可导出的图片",
+                exportedCount = 0
+            )
+            return
+        }
+        
+        viewModelScope.launch {
+            val startTime = System.currentTimeMillis()
+            val outputUris = mutableListOf<Uri>()
+            var exportedCount = 0
+            
+            try {
+                _batchExportState.value = BatchExportState.Exporting(
+                    currentIndex = 0,
+                    totalCount = images.size,
+                    currentFileName = images[0].fileName
+                )
+                
+                for ((index, imageInfo) in images.withIndex()) {
+                    // 更新进度
+                    _batchExportState.value = BatchExportState.Exporting(
+                        currentIndex = index,
+                        totalCount = images.size,
+                        currentFileName = imageInfo.fileName
+                    )
+                    
+                    // 加载原始图片（完整分辨率）
+                    val originalBitmap = loadOriginalBitmap(imageInfo.uri)
+                    if (originalBitmap == null) {
+                        android.util.Log.e("FilmWorkflowViewModel", "Failed to load image: ${imageInfo.uri}")
+                        continue
+                    }
+                    
+                    // 获取调色参数（如果有）
+                    val params = imageInfo.adjustmentParams?.let { basicParams ->
+                        paramsMapper.toDomain(basicParams)
+                    } ?: com.filmtracker.app.domain.model.AdjustmentParams.default()
+                    
+                    // 生成唯一的文件名
+                    val displayName = "FilmSight_${System.currentTimeMillis()}_${index + 1}"
+                    val exportConfig = config.copy(displayName = displayName)
+                    
+                    // 导出图片
+                    val result = exportRenderingPipeline.exportFromBitmap(
+                        originalBitmap = originalBitmap,
+                        params = params,
+                        config = exportConfig
+                    )
+                    
+                    // 释放位图
+                    originalBitmap.recycle()
+                    
+                    // 处理结果
+                    when (result) {
+                        is ExportRenderingPipeline.ExportResult.Success -> {
+                            exportedCount++
+                            result.outputUri?.let { outputUris.add(it) }
+                            android.util.Log.d("FilmWorkflowViewModel", "Exported ${index + 1}/${images.size}: ${imageInfo.fileName}")
+                        }
+                        is ExportRenderingPipeline.ExportResult.Failure -> {
+                            android.util.Log.e("FilmWorkflowViewModel", "Failed to export ${imageInfo.fileName}: ${result.message}")
+                        }
+                    }
+                }
+                
+                val totalTime = System.currentTimeMillis() - startTime
+                
+                if (exportedCount > 0) {
+                    _batchExportState.value = BatchExportState.Success(
+                        exportedCount = exportedCount,
+                        totalTimeMs = totalTime,
+                        outputUris = outputUris
+                    )
+                } else {
+                    _batchExportState.value = BatchExportState.Failure(
+                        error = IllegalStateException("No images exported"),
+                        message = "所有图片导出失败",
+                        exportedCount = 0
+                    )
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("FilmWorkflowViewModel", "Batch export failed", e)
+                _batchExportState.value = BatchExportState.Failure(
+                    error = e,
+                    message = "批量导出失败: ${e.message}",
+                    exportedCount = exportedCount
+                )
+            }
+        }
+    }
+    
+    /**
+     * 加载原始位图（完整分辨率）
+     */
+    private fun loadOriginalBitmap(uri: String): android.graphics.Bitmap? {
+        return try {
+            val contentUri = Uri.parse(uri)
+            val inputStream = context.contentResolver.openInputStream(contentUri)
+            
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = 1  // 不降采样
+                inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
+                inMutable = false
+            }
+            
+            BitmapFactory.decodeStream(inputStream, null, options)
+        } catch (e: Exception) {
+            android.util.Log.e("FilmWorkflowViewModel", "Error loading bitmap: $uri", e)
+            null
+        }
+    }
+    
+    /**
+     * 清除批量导出状态
+     */
+    fun clearBatchExportState() {
+        _batchExportState.value = BatchExportState.Idle
     }
 }

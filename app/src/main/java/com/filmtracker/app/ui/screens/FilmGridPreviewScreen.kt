@@ -26,11 +26,13 @@ import androidx.compose.ui.unit.sp
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
 import com.filmtracker.app.processing.ExportRenderingPipeline
-import com.filmtracker.app.ui.screens.components.ExportDialog
+import com.filmtracker.app.ui.screens.components.BatchExportConfigDialog
+import com.filmtracker.app.ui.screens.components.BatchExportDialog
 import com.filmtracker.app.ui.screens.components.FilmStripEnd
 import com.filmtracker.app.ui.screens.components.FilmStripFrame
 import com.filmtracker.app.ui.screens.components.FilmStripInfoMarker
 import com.filmtracker.app.ui.theme.*
+import com.filmtracker.app.ui.viewmodel.FilmWorkflowViewModel
 import kotlinx.coroutines.launch
 
 /**
@@ -57,13 +59,17 @@ fun FilmGridPreviewScreen(
     onBack: () -> Unit,
     onImageClick: (ImageInfo) -> Unit,
     onAddMoreImages: () -> Unit,
+    viewModel: FilmWorkflowViewModel,  // 添加 ViewModel 参数
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var selectedImageIndex by remember { mutableStateOf(-1) }
-    var showExportDialog by remember { mutableStateOf(false) }
+    var showExportConfigDialog by remember { mutableStateOf(false) }
+    
+    // 观察批量导出状态
+    val batchExportState by viewModel.batchExportState.collectAsState()
     
     // 自动滚动动画（初始展示效果）
     var autoScrollEnabled by remember { mutableStateOf(true) }
@@ -120,10 +126,10 @@ fun FilmGridPreviewScreen(
                 },
                 actions = {
                     // 导出按钮
-                    IconButton(onClick = { showExportDialog = true }) {
+                    IconButton(onClick = { showExportConfigDialog = true }) {
                         Icon(
                             imageVector = Icons.Default.FileDownload,
-                            contentDescription = "导出",
+                            contentDescription = "批量导出",
                             tint = FilmCaramelOrange
                         )
                     }
@@ -280,15 +286,15 @@ fun FilmGridPreviewScreen(
                         .padding(horizontal = 24.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // 批量处理按钮
+                    // 批量导出按钮
                     OutlinedButton(
-                        onClick = { /* TODO: 批量处理 */ },
+                        onClick = { showExportConfigDialog = true },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = FilmCaramelOrange
                         )
                     ) {
-                        Text("批量处理")
+                        Text("批量导出")
                     }
                     
                     // 开始调色按钮
@@ -310,17 +316,25 @@ fun FilmGridPreviewScreen(
         }
     }
     
-    // 导出对话框
-    if (showExportDialog) {
-        ExportDialog(
-            onDismiss = { showExportDialog = false },
-            onConfirm = { exportConfig ->
-                // TODO: 实现批量导出逻辑
-                // 这里应该遍历所有图片，应用调色参数并导出
-                showExportDialog = false
+    // 批量导出配置对话框
+    if (showExportConfigDialog && batchExportState is FilmWorkflowViewModel.BatchExportState.Idle) {
+        BatchExportConfigDialog(
+            imageCount = images.size,
+            onDismiss = { showExportConfigDialog = false },
+            onConfirm = { config ->
+                showExportConfigDialog = false
+                viewModel.batchExportImages(config)
             }
         )
     }
+    
+    // 批量导出进度/结果对话框
+    BatchExportDialog(
+        exportState = batchExportState,
+        onDismiss = {
+            viewModel.clearBatchExportState()
+        }
+    )
 }
 
 /**

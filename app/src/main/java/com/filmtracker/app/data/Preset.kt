@@ -251,6 +251,38 @@ object BuiltInPresets {
                 saturation = 1.05f,
                 clarity = -5f
             )
+        ),
+        
+        // 胶片色彩系列（基于真实胶卷特性）
+        createPreset(
+            name = "柯达 Portra 400",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakPortra400.getPreset()
+        ),
+        createPreset(
+            name = "富士 Pro 400H",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiPro400H.getPreset()
+        ),
+        createPreset(
+            name = "柯达 E100",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakE100.getPreset()
+        ),
+        createPreset(
+            name = "富士 Velvia 50",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiVelvia50.getPreset()
+        ),
+        createPreset(
+            name = "爱克发 Chrome",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.AgfaChrome.getPreset()
+        ),
+        createPreset(
+            name = "柯达 Vision3 500T",
+            category = PresetCategory.CREATIVE,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakVision3.getPreset()
         )
     )
     

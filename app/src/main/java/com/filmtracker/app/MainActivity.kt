@@ -165,7 +165,8 @@ class MainActivity : ComponentActivity() {
                             lifecycleScope.launch {
                                 saveRecentImages(recentImages)
                             }
-                        }
+                        },
+                        onBack = onBack  // 添加返回回调
                     )
                 } else {
                     android.util.Log.d("MainActivity", "Showing ProcessingScreen")
