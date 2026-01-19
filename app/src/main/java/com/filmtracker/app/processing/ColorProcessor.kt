@@ -27,10 +27,10 @@ class ColorProcessor : BaseStageProcessor(ProcessingStage.COLOR) {
     companion object {
         private const val TAG = "ColorProcessor"
         
-        // 默认值常量
+        // 默认值常量（Adobe 标准）
         private const val DEFAULT_TEMPERATURE = 0.0f
         private const val DEFAULT_TINT = 0.0f
-        private const val DEFAULT_SATURATION = 1.0f
+        private const val DEFAULT_SATURATION = 0.0f  // Adobe 标准：0 为不变
         private const val DEFAULT_VIBRANCE = 0.0f
         private const val DEFAULT_GRADING_TEMP = 0.0f
         private const val DEFAULT_GRADING_TINT = 0.0f
@@ -135,9 +135,12 @@ class ColorProcessor : BaseStageProcessor(ProcessingStage.COLOR) {
     private fun createNativeParams(params: BasicAdjustmentParams): BasicAdjustmentParamsNative {
         val nativeParams = BasicAdjustmentParamsNative.create()
         
+        // 将 Adobe 标准参数转换为 Native 层需要的乘数
+        val saturationMultiplier = com.filmtracker.app.util.AdobeParameterConverter.saturationToMultiplier(params.saturation)
+        
         // 设置参数
         nativeParams.setParams(
-            0f, 1f, params.saturation,  // 曝光、对比度、饱和度
+            0f, 1f, saturationMultiplier,  // 曝光、对比度、饱和度（使用转换后的乘数）
             0f, 0f, 0f, 0f,  // 色调调整（在 TONE_BASE 阶段处理）
             0f, params.vibrance,  // 清晰度（在 EFFECTS 阶段处理）、自然饱和度
             params.temperature, params.tint,  // 色温、色调

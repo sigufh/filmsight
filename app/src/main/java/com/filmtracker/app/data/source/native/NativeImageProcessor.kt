@@ -486,8 +486,12 @@ open class NativeImageProcessor {
             // 创建临时参数对象
             val nativeParams = BasicAdjustmentParamsNative.create()
             try {
+                // 将 Adobe 标准参数转换为 Native 层需要的乘数
+                val contrastMultiplier = com.filmtracker.app.util.AdobeParameterConverter.contrastToMultiplier(params.contrast)
+                val saturationMultiplier = com.filmtracker.app.util.AdobeParameterConverter.saturationToMultiplier(params.saturation)
+                
                 nativeParams.setParams(
-                    params.globalExposure, params.contrast, params.saturation,
+                    params.globalExposure, contrastMultiplier, saturationMultiplier,
                     0f, 0f, 0f, 0f,  // 色调调整由原引擎处理
                     0f, 0f,  // 清晰度和自然饱和度由原引擎处理
                     params.temperature, params.tint,
@@ -591,8 +595,12 @@ open class NativeImageProcessor {
     private fun convertToNativeParams(params: BasicAdjustmentParams): BasicAdjustmentParamsNative {
         val nativeParams = BasicAdjustmentParamsNative.create()
         
+        // 将 Adobe 标准参数转换为 Native 层需要的乘数
+        val contrastMultiplier = com.filmtracker.app.util.AdobeParameterConverter.contrastToMultiplier(params.contrast)
+        val saturationMultiplier = com.filmtracker.app.util.AdobeParameterConverter.saturationToMultiplier(params.saturation)
+        
         nativeParams.setParams(
-            params.globalExposure, params.contrast, params.saturation,
+            params.globalExposure, contrastMultiplier, saturationMultiplier,
             params.highlights, params.shadows, params.whites, params.blacks,
             params.clarity, params.vibrance,
             params.temperature, params.tint,

@@ -29,9 +29,9 @@ class ToneBaseProcessor : BaseStageProcessor(ProcessingStage.TONE_BASE) {
     companion object {
         private const val TAG = "ToneBaseProcessor"
         
-        // 默认值常量
+        // 默认值常量（Adobe 标准）
         private const val DEFAULT_EXPOSURE = 0.0f
-        private const val DEFAULT_CONTRAST = 1.0f
+        private const val DEFAULT_CONTRAST = 0.0f  // Adobe 标准：0 为不变
         private const val DEFAULT_HIGHLIGHTS = 0.0f
         private const val DEFAULT_SHADOWS = 0.0f
         private const val DEFAULT_WHITES = 0.0f
@@ -119,11 +119,14 @@ class ToneBaseProcessor : BaseStageProcessor(ProcessingStage.TONE_BASE) {
         // 创建临时参数对象
         val nativeParams = BasicAdjustmentParamsNative.create()
         try {
+            // 将 Adobe 标准参数转换为 Native 层需要的乘数
+            val contrastMultiplier = com.filmtracker.app.util.AdobeParameterConverter.contrastToMultiplier(params.contrast)
+            
             // 设置基础调整参数（曝光、对比度、饱和度）
             // 注意：饱和度在 COLOR 阶段处理，这里设为 1.0
             nativeParams.setParams(
                 params.globalExposure, 
-                params.contrast, 
+                contrastMultiplier,  // 使用转换后的乘数
                 1.0f,  // 饱和度在 COLOR 阶段处理
                 0f, 0f, 0f, 0f,  // 色调调整单独处理
                 0f, 0f,  // 清晰度和自然饱和度在其他阶段处理

@@ -23,7 +23,8 @@ fun ColorAdjustmentPanel(
     params: BasicAdjustmentParams,
     onParamsChange: (BasicAdjustmentParams) -> Unit,
     selectedSecondaryTool: SecondaryTool?,
-    onSecondaryToolSelected: (SecondaryTool) -> Unit
+    onSecondaryToolSelected: (SecondaryTool) -> Unit,
+    currentBitmap: android.graphics.Bitmap? = null
 ) {
     var showCurveEditor by remember { mutableStateOf(false) }
     var selectedCurveChannel by remember { mutableStateOf(CurveChannel.RGB) }
@@ -63,7 +64,11 @@ fun ColorAdjustmentPanel(
                         onParamsChange = onParamsChange,
                         onOpenCurveEditor = { showCurveEditor = true }
                     )
-                    SecondaryTool.COLOR_TEMP -> ColorAdjustContent(params, onParamsChange)
+                    SecondaryTool.COLOR_TEMP -> ColorAdjustContent(
+                        params = params,
+                        onParamsChange = onParamsChange,
+                        currentBitmap = currentBitmap
+                    )
                     SecondaryTool.EFFECTS -> EffectsAdjustContent(params, onParamsChange)
                     SecondaryTool.DETAIL -> DetailAdjustContent(params, onParamsChange)
                     else -> {}

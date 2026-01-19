@@ -1,5 +1,6 @@
 package com.filmtracker.app.ui.screens.panels.color
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -7,20 +8,41 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.ui.screens.components.AdjustmentSlider
+import com.filmtracker.app.ui.components.HistogramView
+import com.filmtracker.app.util.ExifHelper
+import com.filmtracker.app.util.HistogramInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ColorGradingScreen(
     params: BasicAdjustmentParams,
     onParamsChange: (BasicAdjustmentParams) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    currentBitmap: Bitmap? = null
 ) {
+    // 计算直方图
+    var histogramInfo by remember { mutableStateOf<HistogramInfo?>(null) }
+    val scope = rememberCoroutineScope()
+    
+    LaunchedEffect(currentBitmap) {
+        currentBitmap?.let { bitmap ->
+            scope.launch {
+                histogramInfo = withContext(Dispatchers.Default) {
+                    ExifHelper.calculateHistogram(bitmap)
+                }
+            }
+        }
+    }
+    
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
@@ -53,6 +75,14 @@ fun ColorGradingScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 直方图显示
+            HistogramView(
+                histogramInfo = histogramInfo,
+                modifier = Modifier.fillMaxWidth()
+            )
+            
+            Divider(color = Color.Gray.copy(alpha = 0.3f))
+            
             Text("高光", color = Color.White, style = MaterialTheme.typography.titleSmall)
             AdjustmentSlider("色温", params.gradingHighlightsTemp, 
                 { onParamsChange(params.copy(gradingHighlightsTemp = it)) }, -100f..100f)

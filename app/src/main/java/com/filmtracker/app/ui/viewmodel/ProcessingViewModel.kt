@@ -577,8 +577,21 @@ class ProcessingViewModel(
             val result = applyAdjustmentsUseCase(original, _adjustmentParams.value)
             
             result.onSuccess { bitmap ->
+                // Store the old bitmap reference before updating
+                val oldBitmap = _processedImage.value
+                
+                // Update with new bitmap
                 _processedImage.value = bitmap
                 _processingState.value = ProcessingResult.Success(bitmap)
+                
+                // Recycle old bitmap after a delay to ensure Compose has finished with it
+                // Only recycle if it's not the original image
+                if (oldBitmap != null && oldBitmap != original && oldBitmap != bitmap) {
+                    kotlinx.coroutines.delay(100) // Give Compose time to finish drawing
+                    if (!oldBitmap.isRecycled) {
+                        oldBitmap.recycle()
+                    }
+                }
             }.onFailure { exception ->
                 _processingState.value = ProcessingResult.Error(exception as Exception)
             }

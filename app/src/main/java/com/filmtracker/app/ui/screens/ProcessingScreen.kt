@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.filmtracker.app.ai.ColorGradingSuggestion
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.data.mapper.AdjustmentParamsMapper
 import com.filmtracker.app.ui.screens.components.*
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 fun ProcessingScreen(
     imageUri: String?,
     onSelectImage: () -> Unit = {},
+    aiSuggestion: ColorGradingSuggestion? = null,
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -109,6 +111,31 @@ fun ProcessingScreen(
                 viewModel.setOriginalImage(loadedImage, uri, imageUri)
                 
                 android.util.Log.d("ProcessingScreen", "Image path set for export: $imageUri")
+                
+                // 如果有 AI 建议，应用参数
+                if (aiSuggestion != null) {
+                    android.util.Log.d("ProcessingScreen", "Applying AI suggestion")
+                    // 注意：现在所有参数都使用 Adobe 标准（-100 到 +100 或 -5 到 +5）
+                    // 不需要额外转换，直接使用即可
+                    val aiParams = BasicAdjustmentParams(
+                        globalExposure = aiSuggestion.exposure,  // Adobe 标准：-5.0 到 +5.0 EV
+                        contrast = aiSuggestion.contrast,        // Adobe 标准：-100 到 +100
+                        highlights = aiSuggestion.highlights,    // Adobe 标准：-100 到 +100
+                        shadows = aiSuggestion.shadows,          // Adobe 标准：-100 到 +100
+                        whites = aiSuggestion.whites,            // Adobe 标准：-100 到 +100
+                        blacks = aiSuggestion.blacks,            // Adobe 标准：-100 到 +100
+                        saturation = aiSuggestion.saturation,    // Adobe 标准：-100 到 +100
+                        vibrance = aiSuggestion.vibrance,        // Adobe 标准：-100 到 +100
+                        temperature = aiSuggestion.temperature,  // Adobe 标准：-100 到 +100
+                        tint = aiSuggestion.tint,                // Adobe 标准：-100 到 +100
+                        clarity = aiSuggestion.clarity,          // Adobe 标准：-100 到 +100
+                        sharpening = aiSuggestion.sharpness,     // Adobe 标准：0 到 100
+                        noiseReduction = aiSuggestion.denoise    // Adobe 标准：0 到 100
+                    )
+                    android.util.Log.d("ProcessingScreen", "AI params: exposure=${aiParams.globalExposure}, contrast=${aiParams.contrast}, saturation=${aiParams.saturation}")
+                    val newDomainParams = mapper.toDomain(aiParams)
+                    viewModel.updateParams(newDomainParams)
+                }
             } else {
                 android.util.Log.e("ProcessingScreen", "Failed to load image from URI: $imageUri")
             }

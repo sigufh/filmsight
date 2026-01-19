@@ -108,6 +108,11 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     
+    // Markdown rendering - using Markwon
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    
     // Testing
     testImplementation("junit:junit:4.13.2")
     testImplementation("net.jqwik:jqwik:1.8.2")

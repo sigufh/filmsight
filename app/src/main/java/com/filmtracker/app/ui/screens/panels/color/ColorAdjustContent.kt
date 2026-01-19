@@ -16,7 +16,8 @@ import com.filmtracker.app.ui.screens.components.AdjustmentSlider
 @Composable
 fun ColorAdjustContent(
     params: BasicAdjustmentParams,
-    onParamsChange: (BasicAdjustmentParams) -> Unit
+    onParamsChange: (BasicAdjustmentParams) -> Unit,
+    currentBitmap: android.graphics.Bitmap? = null
 ) {
     var subScreen by remember { mutableStateOf<String?>(null) }
     
@@ -24,7 +25,8 @@ fun ColorAdjustContent(
         "grading" -> ColorGradingScreen(
             params = params,
             onParamsChange = onParamsChange,
-            onBack = { subScreen = null }
+            onBack = { subScreen = null },
+            currentBitmap = currentBitmap
         )
         "mixer" -> ColorMixerScreen(
             params = params,

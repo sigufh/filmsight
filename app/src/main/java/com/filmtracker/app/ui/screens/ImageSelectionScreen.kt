@@ -15,6 +15,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -304,13 +305,27 @@ fun ImageGridItem(
             .clickable(onClick = onClick)
     ) {
         // 显示缩略图
-        if (imageInfo.previewBitmap != null) {
-            Image(
-                bitmap = imageInfo.previewBitmap.asImageBitmap(),
-                contentDescription = imageInfo.fileName,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+        if (imageInfo.previewBitmap != null && !imageInfo.previewBitmap.isRecycled) {
+            val imageBitmap = remember(imageInfo.previewBitmap) {
+                try {
+                    if (!imageInfo.previewBitmap.isRecycled) {
+                        imageInfo.previewBitmap.asImageBitmap()
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            
+            if (imageBitmap != null) {
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = imageInfo.fileName,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         } else {
             // 占位符
             Box(

@@ -31,13 +31,18 @@ object FloatArraySerializer : KSerializer<FloatArray> {
 /**
  * 基础调整参数（独立于胶片模拟）
  * 对应 Adobe Camera RAW / Lightroom 的基础面板
+ * 
+ * 参数范围遵循 Adobe 标准：
+ * - 大部分参数使用 -100 到 +100 的百分比制
+ * - 曝光使用 -5.0 到 +5.0 EV
+ * - 对比度/饱和度使用 -100 到 +100（内部转换为乘数）
  */
 @Serializable
 data class BasicAdjustmentParams(
     // 全局调整
-    var globalExposure: Float = 0.0f,   // 曝光（EV，-5 到 +5）
-    var contrast: Float = 1.0f,         // 对比度（推荐 0.6 到 1.3，1.0 为不变）
-    var saturation: Float = 1.0f,       // 饱和度（0.0 到 2.0，1.0 为不变）
+    var globalExposure: Float = 0.0f,   // 曝光（-5.0 到 +5.0 EV）
+    var contrast: Float = 0.0f,         // 对比度（-100 到 +100，0 为不变）
+    var saturation: Float = 0.0f,       // 饱和度（-100 到 +100，0 为不变）
     
     // 色调调整
     var highlights: Float = 0.0f,       // 高光（-100 到 +100）

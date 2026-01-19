@@ -155,8 +155,13 @@ class ImageProcessor(private val context: Context? = null) {
     
     private fun convertToNativeParams(params: BasicAdjustmentParams): BasicAdjustmentParamsNative {
         val nativeParams = BasicAdjustmentParamsNative.create()
+        
+        // 将 Adobe 标准参数转换为 Native 层需要的乘数
+        val contrastMultiplier = AdobeParameterConverter.contrastToMultiplier(params.contrast)
+        val saturationMultiplier = AdobeParameterConverter.saturationToMultiplier(params.saturation)
+        
         nativeParams.setParams(
-            params.globalExposure, params.contrast, params.saturation,
+            params.globalExposure, contrastMultiplier, saturationMultiplier,
             params.highlights, params.shadows, params.whites, params.blacks,
             params.clarity, params.vibrance,
             params.temperature, params.tint,

@@ -24,6 +24,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 
@@ -76,15 +78,27 @@ fun ImagePreview(
                 modifier = Modifier.align(Alignment.Center),
                 color = Color.White
             )
-        } else if (processedImage != null) {
-            AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(processedImage)
-                    .build(),
-                contentDescription = "处理后的图像",
-                contentScale = ContentScale.Fit,
-                alignment = Alignment.Center,
-                modifier = Modifier
+        } else if (processedImage != null && !processedImage.isRecycled) {
+            // Convert bitmap to ImageBitmap to avoid recycling issues
+            val imageBitmap = remember(processedImage) {
+                try {
+                    if (!processedImage.isRecycled) {
+                        processedImage.asImageBitmap()
+                    } else {
+                        null
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            
+            if (imageBitmap != null) {
+                Image(
+                    bitmap = imageBitmap,
+                    contentDescription = "处理后的图像",
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.Center,
+                    modifier = Modifier
                     .fillMaxSize()
                     .then(
                         if (showCropOverlay) Modifier.padding(48.dp)
@@ -125,9 +139,10 @@ fun ImagePreview(
                             }
                         )
                     }
-            )
+                )
+            }
 
-            if (showCropOverlay) {
+            if (showCropOverlay && imageBitmap != null) {
                 val currentLeft = cropLeft.coerceIn(0f, 1f)
                 val currentTop = cropTop.coerceIn(0f, 1f)
                 val currentRight = cropRight.coerceIn(0f, 1f)

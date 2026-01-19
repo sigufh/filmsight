@@ -19,11 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.filmtracker.app.data.BasicAdjustmentParams
-import com.filmtracker.app.ui.screens.HomeScreen
-import com.filmtracker.app.ui.screens.ImageImportScreen
-import com.filmtracker.app.ui.screens.ImageInfo
-import com.filmtracker.app.ui.screens.ProcessingScreen
+import com.filmtracker.app.ui.screens.*
 import com.filmtracker.app.ui.navigation.FilmWorkflowNavigation
+import com.filmtracker.app.ai.ColorGradingSuggestion
 import com.filmtracker.app.ui.theme.FilmTrackerTheme
 import com.filmtracker.app.util.ImageExporter
 import com.filmtracker.app.util.ImageProcessor
@@ -34,6 +32,10 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.filmtracker.app.ui.viewmodel.AIAssistantViewModel
+import com.filmtracker.app.ui.viewmodel.AIAssistantViewModelFactory
+import com.filmtracker.app.ai.AISettingsManager
 
 class MainActivity : ComponentActivity() {
     
@@ -48,6 +50,8 @@ class MainActivity : ComponentActivity() {
         
         setContent {
             var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+            var aiSuggestedImageUri by remember { mutableStateOf<String?>(null) }
+            var aiSuggestion by remember { mutableStateOf<ColorGradingSuggestion?>(null) }
             
             when (currentScreen) {
                 Screen.Home -> {
@@ -66,6 +70,9 @@ class MainActivity : ComponentActivity() {
                                     "AI 仿色功能即将推出",
                                     Toast.LENGTH_SHORT
                                 ).show()
+                            },
+                            onAIAssistantClick = {
+                                currentScreen = Screen.AIAssistant
                             }
                         )
                     }
@@ -82,8 +89,69 @@ class MainActivity : ComponentActivity() {
                 Screen.ProMode -> {
                     // 专业修图模式（原有界面）
                     renderProMode(
-                        onBack = { currentScreen = Screen.Home }
+                        onBack = { currentScreen = Screen.Home },
+                        initialImageUri = aiSuggestedImageUri,
+                        initialSuggestion = aiSuggestion,
+                        onImageApplied = {
+                            // 清除 AI 建议状态
+                            aiSuggestedImageUri = null
+                            aiSuggestion = null
+                        }
                     )
+                }
+                Screen.AIAssistant -> {
+                    // AI助手
+                    var showSettings by remember { mutableStateOf(false) }
+                    val settingsManager = remember { AISettingsManager(this@MainActivity) }
+                    val aiViewModel: AIAssistantViewModel = viewModel(
+                        factory = AIAssistantViewModelFactory(settingsManager)
+                    )
+                    
+                    FilmTrackerTheme {
+                        if (showSettings) {
+                            AISettingsScreen(
+                                viewModel = aiViewModel,
+                                onBack = { showSettings = false }
+                            )
+                        } else {
+                            AIAssistantScreen(
+                                viewModel = aiViewModel,
+                                onBack = { currentScreen = Screen.Home },
+                                onApplySuggestion = { suggestion ->
+                                    // 获取当前对话中最后一条用户消息的图片
+                                    val messages = aiViewModel.messages.value
+                                    val lastUserMessageWithImage = messages
+                                        .filter { it.isUser && it.imageBitmap != null }
+                                        .lastOrNull()
+                                    
+                                    if (lastUserMessageWithImage != null) {
+                                        // 保存图片到临时文件并获取 URI
+                                        lifecycleScope.launch {
+                                            val uri = saveBitmapToTempFile(lastUserMessageWithImage.imageBitmap!!)
+                                            if (uri != null) {
+                                                aiSuggestedImageUri = uri.toString()
+                                                aiSuggestion = suggestion
+                                                currentScreen = Screen.ProMode
+                                            } else {
+                                                Toast.makeText(
+                                                    this@MainActivity,
+                                                    "无法保存图片",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            "请先上传图片",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                                onSettings = { showSettings = true }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -95,14 +163,28 @@ class MainActivity : ComponentActivity() {
     private enum class Screen {
         Home,           // 首页
         FilmWorkflow,   // 胶卷工作流
-        ProMode         // 专业修图模式
+        ProMode,        // 专业修图模式
+        AIAssistant     // AI助手
     }
     
     @Composable
-    private fun renderProMode(onBack: () -> Unit) {
-        var selectedImageUri by remember { mutableStateOf<String?>(null) }
+    private fun renderProMode(
+        onBack: () -> Unit,
+        initialImageUri: String? = null,
+        initialSuggestion: ColorGradingSuggestion? = null,
+        onImageApplied: () -> Unit = {}
+    ) {
+        var selectedImageUri by remember { mutableStateOf(initialImageUri) }
         var recentImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
-        var showImportScreen by remember { mutableStateOf(true) }
+        var showImportScreen by remember { mutableStateOf(initialImageUri == null) }
+        var appliedSuggestion by remember { mutableStateOf(initialSuggestion) }
+        
+        // 当有初始图片时，标记已应用
+        LaunchedEffect(initialImageUri) {
+            if (initialImageUri != null) {
+                onImageApplied()
+            }
+        }
         
         // 加载最近图片列表
         LaunchedEffect(Unit) {
@@ -172,9 +254,11 @@ class MainActivity : ComponentActivity() {
                     android.util.Log.d("MainActivity", "Showing ProcessingScreen")
                     ProcessingScreen(
                         imageUri = selectedImageUri,
+                        aiSuggestion = appliedSuggestion,
                         onSelectImage = {
                             android.util.Log.d("MainActivity", "Returning to import screen")
                             showImportScreen = true
+                            appliedSuggestion = null // 清除建议
                         }
                     )
                 }
@@ -389,6 +473,23 @@ class MainActivity : ComponentActivity() {
             } else {
                 Toast.makeText(this@MainActivity, "加载图像失败", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+    
+    /**
+     * 将 Bitmap 保存到临时文件并返回 URI
+     */
+    private suspend fun saveBitmapToTempFile(bitmap: Bitmap): Uri? = withContext(Dispatchers.IO) {
+        try {
+            val tempFile = java.io.File(cacheDir, "ai_temp_${System.currentTimeMillis()}.jpg")
+            val outputStream = java.io.FileOutputStream(tempFile)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+            outputStream.flush()
+            outputStream.close()
+            Uri.fromFile(tempFile)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Failed to save bitmap to temp file", e)
+            null
         }
     }
     

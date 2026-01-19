@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,22 +90,36 @@ fun FilmStripFrame(
                         .padding(4.dp)  // 白边宽度
                 ) {
                     // 图片内容
-                    if (bitmap != null) {
-                        Image(
-                            bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "Frame $frameNumber",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(2.dp)),
-                            contentScale = ContentScale.Crop  // 居中裁剪
-                        )
+                    if (bitmap != null && !bitmap.isRecycled) {
+                        val imageBitmap = remember(bitmap) {
+                            try {
+                                if (!bitmap.isRecycled) {
+                                    bitmap.asImageBitmap()
+                                } else {
+                                    null
+                                }
+                            } catch (e: Exception) {
+                                null
+                            }
+                        }
                         
-                        // 反转片色调叠加层（轻微增强饱和度）
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(FilmCaramelOrange.copy(alpha = 0.05f))
-                        )
+                        if (imageBitmap != null) {
+                            Image(
+                                bitmap = imageBitmap,
+                                contentDescription = "Frame $frameNumber",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(2.dp)),
+                                contentScale = ContentScale.Crop  // 居中裁剪
+                            )
+                            
+                            // 反转片色调叠加层（轻微增强饱和度）
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(FilmCaramelOrange.copy(alpha = 0.05f))
+                            )
+                        }
                     } else {
                         // 占位符
                         Box(

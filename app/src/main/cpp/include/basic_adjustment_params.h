@@ -106,12 +106,17 @@ struct ToneCurveParams {
 /**
  * 基础调整参数（独立于胶片模拟）
  * 对应 Adobe Camera RAW / Lightroom 的基础面板
+ * 
+ * 参数范围遵循 Adobe 标准：
+ * - 大部分参数使用 -100 到 +100 的百分比制
+ * - 曝光使用 -5.0 到 +5.0 EV
+ * - 对比度/饱和度使用 -100 到 +100（内部转换为乘数）
  */
 struct BasicAdjustmentParams {
     // 全局调整
-    float globalExposure;   // 曝光（EV，-5 到 +5）
-    float contrast;         // 对比度（0.5 到 2.0，1.0 为不变）
-    float saturation;       // 饱和度（0.0 到 2.0，1.0 为不变）
+    float globalExposure;   // 曝光（-5.0 到 +5.0 EV）
+    float contrast;         // 对比度（-100 到 +100，0 为不变）
+    float saturation;       // 饱和度（-100 到 +100，0 为不变）
     
     // 色调调整
     float highlights;       // 高光（-100 到 +100）
@@ -155,8 +160,8 @@ struct BasicAdjustmentParams {
     
     BasicAdjustmentParams()
         : globalExposure(0.0f),
-          contrast(1.0f),
-          saturation(1.0f),
+          contrast(0.0f),
+          saturation(0.0f),
           highlights(0.0f),
           shadows(0.0f),
           whites(0.0f),

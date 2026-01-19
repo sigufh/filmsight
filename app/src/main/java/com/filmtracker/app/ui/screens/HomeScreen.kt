@@ -37,6 +37,7 @@ fun HomeScreen(
     onFilmModeClick: () -> Unit,
     onProModeClick: () -> Unit,
     onAIColorClick: () -> Unit,
+    onAIAssistantClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -65,53 +66,83 @@ fun HomeScreen(
             
             Spacer(modifier = Modifier.height(48.dp))
             
-            // 功能卡片
+            // 功能卡片 - 田字格布局
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // 数字暗房（胶卷模式）
-                FeatureCard(
-                    title = "数字暗房",
-                    subtitle = "胶卷仿拍 · 反转片质感",
-                    icon = "🎞",
-                    gradient = Brush.linearGradient(
-                        colors = listOf(
-                            FilmCaramelOrange.copy(alpha = 0.9f),
-                            FilmCaramelOrange.copy(alpha = 0.7f)
-                        )
-                    ),
-                    onClick = onFilmModeClick
-                )
+                // 第一行：数字暗房 + 专业修图
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // 数字暗房
+                    FeatureCardCompact(
+                        title = "数字暗房",
+                        subtitle = "胶卷仿拍",
+                        icon = "🎞",
+                        gradient = Brush.linearGradient(
+                            colors = listOf(
+                                FilmCaramelOrange.copy(alpha = 0.9f),
+                                FilmCaramelOrange.copy(alpha = 0.7f)
+                            )
+                        ),
+                        onClick = onFilmModeClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // 专业修图
+                    FeatureCardCompact(
+                        title = "专业修图",
+                        subtitle = "RAW 处理",
+                        icon = "🎨",
+                        gradient = Brush.linearGradient(
+                            colors = listOf(
+                                FilmMilkyBlue.copy(alpha = 0.9f),
+                                FilmMilkyBlue.copy(alpha = 0.7f)
+                            )
+                        ),
+                        onClick = onProModeClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
                 
-                // 专业修图
-                FeatureCard(
-                    title = "专业修图",
-                    subtitle = "RAW 处理 · 完整调色",
-                    icon = "🎨",
-                    gradient = Brush.linearGradient(
-                        colors = listOf(
-                            FilmMilkyBlue.copy(alpha = 0.9f),
-                            FilmMilkyBlue.copy(alpha = 0.7f)
-                        )
-                    ),
-                    onClick = onProModeClick
-                )
-                
-                // AI 仿色（待实现）
-                FeatureCard(
-                    title = "AI 仿色",
-                    subtitle = "智能分析 · 一键调色",
-                    icon = "✨",
-                    gradient = Brush.linearGradient(
-                        colors = listOf(
-                            FilmMintGreen.copy(alpha = 0.9f),
-                            FilmMintGreen.copy(alpha = 0.7f)
-                        )
-                    ),
-                    onClick = onAIColorClick,
-                    comingSoon = true
-                )
+                // 第二行：AI助手 + AI仿色
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    // AI助手
+                    FeatureCardCompact(
+                        title = "AI 助手",
+                        subtitle = "智能对话",
+                        icon = "✨",
+                        gradient = Brush.linearGradient(
+                            colors = listOf(
+                                FilmMintGreen.copy(alpha = 0.9f),
+                                FilmMintGreen.copy(alpha = 0.7f)
+                            )
+                        ),
+                        onClick = onAIAssistantClick,
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // AI仿色
+                    FeatureCardCompact(
+                        title = "AI 仿色",
+                        subtitle = "一键调色",
+                        icon = "🎯",
+                        gradient = Brush.linearGradient(
+                            colors = listOf(
+                                Color(0xFFE8B4D9).copy(alpha = 0.9f),
+                                Color(0xFFE8B4D9).copy(alpha = 0.7f)
+                            )
+                        ),
+                        onClick = onAIColorClick,
+                        comingSoon = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
             
             Spacer(modifier = Modifier.weight(1f))
@@ -170,7 +201,119 @@ private fun BrandHeader() {
 }
 
 /**
- * 功能卡片
+ * 功能卡片 - 紧凑版（田字格布局）
+ */
+@Composable
+private fun FeatureCardCompact(
+    title: String,
+    subtitle: String,
+    icon: String,
+    gradient: Brush,
+    onClick: () -> Unit,
+    comingSoon: Boolean = false,
+    modifier: Modifier = Modifier
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.95f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "card_scale"
+    )
+    
+    Card(
+        modifier = modifier
+            .aspectRatio(1f)
+            .scale(scale)
+            .clickable(
+                enabled = !comingSoon,
+                onClick = {
+                    if (!comingSoon) {
+                        onClick()
+                    }
+                }
+            ),
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 6.dp,
+            pressedElevation = 3.dp
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(gradient)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                // 图标
+                Text(
+                    text = icon,
+                    fontSize = 40.sp
+                )
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // 标题
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = FilmWhite
+                )
+                
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                // 副标题或即将推出标签
+                if (comingSoon) {
+                    Surface(
+                        color = FilmWhite.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "即将推出",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = FilmWhite,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Light,
+                        color = FilmWhite.copy(alpha = 0.9f)
+                    )
+                }
+            }
+            
+            // 装饰性渐变
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.1f)
+                            )
+                        )
+                    )
+            )
+        }
+    }
+}
+
+/**
+ * 功能卡片 - 原版（保留用于其他地方）
  */
 @Composable
 private fun FeatureCard(
