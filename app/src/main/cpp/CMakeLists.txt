@@ -41,6 +41,8 @@ set(IMAGE_PROCESSOR_SOURCES
     dynamic_range_protection.cpp
     adobe_tone_adjustment.cpp
     contrast_adjustment.cpp
+    exposure_adjustment.cpp
+    saturation_adjustment.cpp
     color_temperature.cpp
     color_grading.cpp
     bilateral_filter.cpp

@@ -1,4 +1,7 @@
 #include "include/parallel_processor.h"
+#include "contrast_adjustment.h"
+#include "include/exposure_adjustment.h"
+#include "include/saturation_adjustment.h"
 #include <thread>
 #include <vector>
 #include <cmath>
@@ -80,81 +83,10 @@ void ParallelProcessor::processRowWithSIMD(
     int y
 ) {
     int width = input.width;
-    int x = 0;
     
-    // 准备 NEON 向量
-    float32x4_t exposure_vec = vdupq_n_f32(std::pow(2.0f, params.globalExposure));
-    float32x4_t contrast_vec = vdupq_n_f32(params.contrast);
-    float32x4_t half_vec = vdupq_n_f32(0.5f);
-    float32x4_t zero_vec = vdupq_n_f32(0.0f);
-    
-    // NEON 向量化处理（一次处理 4 个像素）
-    for (; x + 3 < width; x += 4) {
-        int idx = y * width + x;
-        
-        // 加载 4 个像素的 RGB 数据（分离通道）
-        float32x4_t r = vld1q_f32(&input.r[idx]);
-        float32x4_t g = vld1q_f32(&input.g[idx]);
-        float32x4_t b = vld1q_f32(&input.b[idx]);
-        
-        // 应用曝光：color *= pow(2, exposure)
-        r = vmulq_f32(r, exposure_vec);
-        g = vmulq_f32(g, exposure_vec);
-        b = vmulq_f32(b, exposure_vec);
-        
-        // 应用对比度：color = (color - 0.5) * contrast + 0.5
-        r = vsubq_f32(r, half_vec);
-        r = vmulq_f32(r, contrast_vec);
-        r = vaddq_f32(r, half_vec);
-        
-        g = vsubq_f32(g, half_vec);
-        g = vmulq_f32(g, contrast_vec);
-        g = vaddq_f32(g, half_vec);
-        
-        b = vsubq_f32(b, half_vec);
-        b = vmulq_f32(b, contrast_vec);
-        b = vaddq_f32(b, half_vec);
-        
-        // 应用饱和度（如果需要）
-        if (std::abs(params.saturation - 1.0f) > 0.01f) {
-            float32x4_t saturation_vec = vdupq_n_f32(params.saturation);
-            
-            // 计算亮度：0.2126*R + 0.7152*G + 0.0722*B
-            float32x4_t lum_r = vmulq_n_f32(r, 0.2126f);
-            float32x4_t lum_g = vmulq_n_f32(g, 0.7152f);
-            float32x4_t lum_b = vmulq_n_f32(b, 0.0722f);
-            float32x4_t luminance = vaddq_f32(vaddq_f32(lum_r, lum_g), lum_b);
-            
-            // color = luminance + (color - luminance) * saturation
-            r = vaddq_f32(luminance, vmulq_f32(vsubq_f32(r, luminance), saturation_vec));
-            g = vaddq_f32(luminance, vmulq_f32(vsubq_f32(g, luminance), saturation_vec));
-            b = vaddq_f32(luminance, vmulq_f32(vsubq_f32(b, luminance), saturation_vec));
-        }
-        
-        // 应用色温和色调（简化版本）
-        if (std::abs(params.temperature) > 0.01f || std::abs(params.tint) > 0.01f) {
-            float tempFactor = 1.0f + (params.temperature / 100.0f) * 0.3f;
-            float tempFactorB = 1.0f - (params.temperature / 100.0f) * 0.3f;
-            float tintFactor = 1.0f + (params.tint / 100.0f) * 0.2f;
-            
-            r = vmulq_n_f32(r, tempFactor);
-            g = vmulq_n_f32(g, tintFactor);
-            b = vmulq_n_f32(b, tempFactorB);
-        }
-        
-        // Clamp 到 [0, ∞)（保留动态范围，只限制下界）
-        r = vmaxq_f32(r, zero_vec);
-        g = vmaxq_f32(g, zero_vec);
-        b = vmaxq_f32(b, zero_vec);
-        
-        // 存储结果（分离通道）
-        vst1q_f32(&output.r[idx], r);
-        vst1q_f32(&output.g[idx], g);
-        vst1q_f32(&output.b[idx], b);
-    }
-    
-    // 处理剩余像素（标量处理）
-    for (; x < width; x++) {
+    // 对于复杂的调整算法，使用标量处理以保证质量
+    // SIMD 优化会在后续版本中针对新算法进行优化
+    for (int x = 0; x < width; x++) {
         processPixelScalar(input, output, params, x, y);
     }
 }
@@ -184,23 +116,19 @@ void ParallelProcessor::processPixelScalar(
     float g = input.g[idx];
     float b = input.b[idx];
     
-    // 1. 应用曝光
-    float exposureFactor = std::pow(2.0f, params.globalExposure);
-    r *= exposureFactor;
-    g *= exposureFactor;
-    b *= exposureFactor;
+    // 1. 应用曝光（使用改进的算法，带高光保护）
+    if (std::abs(params.globalExposure) > 0.01f) {
+        ExposureAdjustment::applyExposure(r, g, b, params.globalExposure);
+    }
     
-    // 2. 应用对比度
-    r = (r - 0.5f) * params.contrast + 0.5f;
-    g = (g - 0.5f) * params.contrast + 0.5f;
-    b = (b - 0.5f) * params.contrast + 0.5f;
+    // 2. 应用对比度（使用改进的 S 曲线算法）
+    if (std::abs(params.contrast - 1.0f) > 0.01f) {
+        ContrastAdjustment::applyContrast(r, g, b, params.contrast);
+    }
     
-    // 3. 应用饱和度
-    if (std::abs(params.saturation - 1.0f) > 0.01f) {
-        float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
-        r = luminance + (r - luminance) * params.saturation;
-        g = luminance + (g - luminance) * params.saturation;
-        b = luminance + (b - luminance) * params.saturation;
+    // 3. 应用饱和度（使用改进的算法，带肤色保护）
+    if (std::abs(params.saturation) > 0.01f) {
+        SaturationAdjustment::applySaturation(r, g, b, params.saturation);
     }
     
     // 4. 应用色温和色调（简化版本）

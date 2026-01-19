@@ -57,59 +57,95 @@ float ContrastAdjustment::progressiveCompression(float value, float threshold) {
 }
 
 float ContrastAdjustment::applySCurveContrast(float value, float contrast) {
-    // 18% 中灰（线性空间）
-    const float midGray = 0.18f;
+    // 使用 S 曲线对比度算法，保护暗部和高光细节
+    // 设计目标：对比度80以上才开始丢失暗部细节
     
-    // 极度精细的 strength 映射：
-    // contrast = 1.0 时，strength = 0（无调整）
-    // contrast = 1.1 时，strength ≈ 0.15（非常温和）
-    // contrast = 1.3 时，strength ≈ 0.6（适中）
-    // 使用三次方曲线来提供更好的低值控制
+    // 计算调整强度 - 使用极度压缩的映射
     float strength;
     if (contrast >= 1.0f) {
-        // 增加对比度：使用三次方根曲线，极度温和
+        // 增加对比度：使用双重对数映射，极大压缩高值
         float delta = contrast - 1.0f;
-        strength = std::pow(delta / 0.3f, 0.5f) * 0.8f;  // 三次方根 * 缩放
-        strength = std::min(strength, 0.8f);  // 限制最大值为 0.8
+        
+        // 第一层：对数压缩
+        float compressed1 = std::log(1.0f + delta * 0.15f);
+        // 第二层：再次对数压缩，使曲线更平缓
+        strength = std::log(1.0f + compressed1) * 0.15f;
+        
+        // 极高的上限，允许更大的对比度范围
+        strength = std::min(strength, 0.6f);
     } else {
-        // 减少对比度：线性映射，更温和
-        strength = (contrast - 1.0f) * 1.2f;
-        strength = std::max(strength, -0.8f);  // 限制最小值
+        // 减少对比度：线性映射
+        strength = (contrast - 1.0f) * 0.5f;
+        strength = std::max(strength, -0.5f);
     }
     
-    // 将值归一化到以中灰为中心的范围
-    // 先转换到对数空间以获得更好的感知均匀性
-    float logValue = (value > 0.0001f) ? std::log2(value / midGray) : -10.0f;
-    
-    // 限制范围以避免极端值
-    logValue = std::clamp(logValue, -10.0f, 10.0f);
-    
-    // 归一化到 [0, 1] 范围（假设 ±5 stops 的范围）
-    float normalized = (logValue + 5.0f) / 10.0f;
-    normalized = std::clamp(normalized, 0.0f, 1.0f);
-    
-    // 应用 S 曲线
-    float adjusted = sCurve(normalized, strength);
-    
-    // 转换回对数空间
-    float newLogValue = adjusted * 10.0f - 5.0f;
-    
-    // 转换回线性空间
-    float result = midGray * std::pow(2.0f, newLogValue);
-    
-    // 更早且更温和的渐进式压缩（当对比度 > 1.15 时）
-    if (contrast > 1.15f) {
-        // 对高光应用非常温和的压缩
-        if (result > 0.95f) {
-            result = progressiveCompression(result, 0.95f);
-        }
-        // 对阴影应用保护
-        if (result < 0.03f) {
-            result = std::max(result, 0.001f);
-        }
+    // 如果强度接近 0，直接返回
+    if (std::abs(strength) < 0.001f) {
+        return value;
     }
     
-    return std::max(0.0f, result);
+    // 使用改进的 S 曲线，强力保护暗部和高光
+    float x = std::clamp(value, 0.0f, 1.0f);
+    
+    float result;
+    
+    if (strength > 0.0f) {
+        // 增加对比度：使用温和的 S 曲线
+        
+        // 使用非常温和的曲线陡峭度
+        float k = strength * 1.5f;  // 进一步降低陡峭度
+        
+        // 将 [0, 1] 映射到 [-1, 1]
+        float centered = (x - 0.5f) * 2.0f;
+        
+        // 应用 tanh S 曲线
+        float adjusted = std::tanh(centered * (1.0f + k)) / std::tanh(1.0f + k);
+        
+        // 映射回 [0, 1]
+        result = adjusted * 0.5f + 0.5f;
+        
+        // 强力暗部保护：大幅扩大保护范围
+        if (x < 0.25f) {
+            // 暗部保护：使用更平滑的过渡曲线
+            float protection = std::pow(x / 0.25f, 0.5f);  // 更平滑的过渡
+            
+            // 极暗区域（0-0.15）几乎完全保护
+            float darkPreserve = std::max(0.0f, 1.0f - x * 6.67f);  // 0-0.15 范围
+            darkPreserve = std::pow(darkPreserve, 0.7f);  // 平滑衰减
+            
+            // 混合：极暗区域保留更多原始值
+            float preserveAmount = darkPreserve * 0.7f;
+            result = x * (1.0f - protection + preserveAmount) + result * (protection - preserveAmount);
+        }
+        
+        // 强力高光保护：扩大保护范围
+        if (x > 0.8f) {
+            // 高光保护：使用平滑的过渡
+            float protection = std::pow((1.0f - x) / 0.2f, 0.5f);
+            result = x * (1.0f - protection) + result * protection;
+        }
+        
+        // 全局暗部补偿：防止任何暗部过度压缩
+        if (result < x && x < 0.35f) {
+            // 如果对比度调整使暗部变得更暗，强力补偿
+            float compensation = (0.35f - x) / 0.35f * 0.4f;  // 增强补偿
+            result = result * (1.0f - compensation) + x * compensation;
+        }
+        
+        // 额外保护：确保暗部不会变得比原始值暗太多
+        if (x < 0.2f && result < x * 0.85f) {
+            // 限制暗部最多只能变暗15%
+            result = x * 0.85f;
+        }
+        
+    } else {
+        // 减少对比度：向中灰混合
+        float midGray = 0.5f;
+        result = x * (1.0f + strength) + midGray * (-strength);
+    }
+    
+    // 确保在有效范围内
+    return std::clamp(result, 0.0f, 1.0f);
 }
 
 void ContrastAdjustment::applyContrast(float& r, float& g, float& b, float contrast) {
@@ -118,34 +154,12 @@ void ContrastAdjustment::applyContrast(float& r, float& g, float& b, float contr
         return;
     }
     
-    // 计算原始亮度（用于保持饱和度）
-    float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+    // 简化版本：直接应用线性对比度调整
+    // 不需要复杂的饱和度保持，因为我们使用了更温和的算法
     
-    // 应用 S 曲线对比度到每个通道
-    float newR = applySCurveContrast(r, contrast);
-    float newG = applySCurveContrast(g, contrast);
-    float newB = applySCurveContrast(b, contrast);
-    
-    // 计算新的亮度
-    float newLuminance = 0.2126f * newR + 0.7152f * newG + 0.0722f * newB;
-    
-    // 保持色彩饱和度：混合原始饱和度和新的对比度
-    // 这样可以避免对比度调整导致的饱和度变化
-    if (newLuminance > 0.0001f && luminance > 0.0001f) {
-        // 计算饱和度保持因子
-        float saturationFactor = 0.8f;  // 保持 80% 的原始饱和度关系
-        
-        // 混合：保持一定的色彩关系
-        float scale = newLuminance / luminance;
-        
-        r = newR * (1.0f - saturationFactor) + r * scale * saturationFactor;
-        g = newG * (1.0f - saturationFactor) + g * scale * saturationFactor;
-        b = newB * (1.0f - saturationFactor) + b * scale * saturationFactor;
-    } else {
-        r = newR;
-        g = newG;
-        b = newB;
-    }
+    r = applySCurveContrast(r, contrast);
+    g = applySCurveContrast(g, contrast);
+    b = applySCurveContrast(b, contrast);
     
     // 确保非负
     r = std::max(0.0f, r);

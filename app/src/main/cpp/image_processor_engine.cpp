@@ -62,8 +62,11 @@ void ImageProcessorEngine::applyBasicAdjustments(LinearImage& image,
                 }
                 
                 // 3. 饱和度调整
-                if (std::abs(saturation - 1.0f) > 0.01f) {
+                // 确保饱和度参数有效
+                if (std::abs(saturation - 1.0f) > 0.001f) {
                     float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+                    
+                    // 应用饱和度：color = luminance + (color - luminance) * saturation
                     r = luminance + (r - luminance) * saturation;
                     g = luminance + (g - luminance) * saturation;
                     b = luminance + (b - luminance) * saturation;
