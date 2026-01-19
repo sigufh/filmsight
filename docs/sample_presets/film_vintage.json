@@ -1,0 +1,27 @@
+{
+  "name": "胶片复古",
+  "description": "柔和的胶片质感，带有颗粒和暗角",
+  "author": "FilmTracker",
+  "version": "1.0",
+  "parameters": {
+    "exposure": 0.2,
+    "contrast": -15,
+    "highlights": -25,
+    "shadows": 15,
+    "whites": -5,
+    "blacks": 5,
+    "saturation": -15,
+    "vibrance": 5,
+    "clarity": -10,
+    "texture": -5,
+    "dehaze": 0,
+    "temperature": 10,
+    "tint": 8,
+    "vignette": -20,
+    "grain": 40,
+    "sharpening": 20,
+    "noiseReduction": 10
+  },
+  "tags": ["胶片", "复古", "柔和", "颗粒"],
+  "category": "胶片模拟"
+}

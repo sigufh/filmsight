@@ -1,0 +1,48 @@
+{
+  "name": "港风色彩",
+  "nameEn": "Hong Kong Color",
+  "description": "经典港风色调，高饱和度红黄色，提亮肤色，适合街拍和人像",
+  "category": "街拍",
+  "tags": ["港风", "街拍", "高饱和", "复古"],
+  "parameters": {
+    "exposure": -0.78,
+    "contrast": 44,
+    "highlights": 14,
+    "shadows": 90,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "clarity": 0,
+    "texture": 0,
+    "dehaze": 0,
+    "temperature": -57,
+    "tint": 10,
+    "vignette": 0,
+    "grain": 24,
+    "sharpening": 40,
+    "noiseReduction": 0,
+    "hslAdjustments": {
+      "saturation": {
+        "red": 51,
+        "orange": -5,
+        "yellow": 57,
+        "green": 0,
+        "aqua": 0,
+        "blue": -9,
+        "purple": 0,
+        "magenta": 0
+      },
+      "luminance": {
+        "red": 40,
+        "orange": 31,
+        "yellow": 36,
+        "green": 0,
+        "aqua": 51,
+        "blue": 29,
+        "purple": 11,
+        "magenta": 0
+      }
+    }
+  }
+}

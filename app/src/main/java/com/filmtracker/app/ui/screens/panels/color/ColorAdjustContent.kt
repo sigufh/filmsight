@@ -56,8 +56,8 @@ fun ColorAdjustContent(
                 
                 AdjustmentSlider(
                     label = "饱和度",
-                    value = (params.saturation - 1f) * 100f,
-                    onValueChange = { onParamsChange(params.copy(saturation = 1f + it / 100f)) },
+                    value = params.saturation,  // 直接使用 Adobe 标准值 (-100 到 +100)
+                    onValueChange = { onParamsChange(params.copy(saturation = it)) },
                     valueRange = -100f..100f
                 )
                 

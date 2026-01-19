@@ -1,0 +1,26 @@
+{
+  "name": "日系",
+  "nameEn": "Japanese Style",
+  "description": "清新日系风格，降低曝光提升阴影，营造柔和通透的氛围",
+  "category": "日系",
+  "tags": ["日系", "清新", "通透", "柔和"],
+  "parameters": {
+    "exposure": -0.70,
+    "contrast": 36,
+    "highlights": -13,
+    "shadows": 90,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "clarity": 0,
+    "texture": 0,
+    "dehaze": 0,
+    "temperature": 0,
+    "tint": 0,
+    "vignette": 0,
+    "grain": 0,
+    "sharpening": 40,
+    "noiseReduction": 0
+  }
+}

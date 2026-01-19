@@ -1,0 +1,26 @@
+{
+  "name": "星星",
+  "nameEn": "Stars",
+  "description": "星空摄影专用预设，极高对比度和清晰度，冷色调，突出星点",
+  "category": "风光",
+  "tags": ["星空", "夜景", "高对比", "冷色调"],
+  "parameters": {
+    "exposure": 0.53,
+    "contrast": 100,
+    "highlights": 2,
+    "shadows": -58,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 0,
+    "vibrance": 0,
+    "clarity": 76,
+    "texture": 65,
+    "dehaze": 16,
+    "temperature": -26,
+    "tint": -2,
+    "vignette": 0,
+    "grain": 0,
+    "sharpening": 40,
+    "noiseReduction": 0
+  }
+}

@@ -28,7 +28,24 @@ fun CreativeFilterPanel(
     currentParams: BasicAdjustmentParams,
     onApplyPreset: (BasicAdjustmentParams) -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedCategory by remember { mutableStateOf(PresetCategory.CREATIVE) }
+    var allPresets by remember { mutableStateOf<List<Preset>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+    
+    // 加载预设（内置 + Assets）
+    LaunchedEffect(Unit) {
+        isLoading = true
+        val builtInPresets = BuiltInPresets.getAll()
+        val assetPresets = try {
+            com.filmtracker.app.data.AssetPresetLoader(context).loadAllPresets()
+        } catch (e: Exception) {
+            android.util.Log.e("CreativeFilterPanel", "Failed to load asset presets", e)
+            emptyList()
+        }
+        allPresets = builtInPresets + assetPresets
+        isLoading = false
+    }
     
     Column(
         modifier = Modifier
@@ -44,36 +61,47 @@ fun CreativeFilterPanel(
         Spacer(modifier = Modifier.height(16.dp))
         
         // 预设网格
-        val presets = remember(selectedCategory) {
+        val filteredPresets = remember(selectedCategory, allPresets) {
             if (selectedCategory == PresetCategory.CREATIVE) {
-                BuiltInPresets.getAll()
+                allPresets
             } else {
-                BuiltInPresets.getByCategory(selectedCategory)
+                allPresets.filter { it.category == selectedCategory }
             }
         }
         
-        if (presets.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "暂无预设",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodyLarge
-                )
+        when {
+            isLoading -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                }
             }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(presets) { preset ->
-                    PresetCard(
-                        preset = preset,
-                        onClick = { onApplyPreset(preset.params) }
+            filteredPresets.isEmpty() -> {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "暂无预设",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodyLarge
                     )
+                }
+            }
+            else -> {
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filteredPresets) { preset ->
+                        PresetCard(
+                            preset = preset,
+                            onClick = { onApplyPreset(preset.params) }
+                        )
+                    }
                 }
             }
         }
@@ -87,11 +115,11 @@ private fun CategoryTabs(
 ) {
     val categories = listOf(
         PresetCategory.CREATIVE to "全部",
-        PresetCategory.BLACKWHITE to "黑白",
+        PresetCategory.PORTRAIT to "人像",
+        PresetCategory.LANDSCAPE to "风景",
         PresetCategory.VINTAGE to "复古",
         PresetCategory.CINEMATIC to "电影",
-        PresetCategory.PORTRAIT to "人像",
-        PresetCategory.LANDSCAPE to "风景"
+        PresetCategory.BLACKWHITE to "黑白"
     )
     
     ScrollableTabRow(

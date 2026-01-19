@@ -1,0 +1,26 @@
+{
+  "name": "胶片建筑",
+  "nameEn": "Film Architecture",
+  "description": "适合建筑摄影的胶片风格，高对比度配合颗粒感",
+  "category": "建筑",
+  "tags": ["胶片", "建筑", "高对比", "颗粒"],
+  "parameters": {
+    "exposure": -0.15,
+    "contrast": 36,
+    "highlights": -100,
+    "shadows": 90,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "clarity": 0,
+    "texture": 0,
+    "dehaze": 0,
+    "temperature": 10,
+    "tint": 10,
+    "vignette": 0,
+    "grain": 49,
+    "sharpening": 40,
+    "noiseReduction": 0
+  }
+}

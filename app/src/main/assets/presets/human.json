@@ -1,0 +1,26 @@
+{
+  "name": "人像",
+  "nameEn": "Portrait",
+  "description": "通用人像预设，提亮肤色，柔化质感，适合各种人像拍摄",
+  "category": "人像",
+  "tags": ["人像", "柔和", "提亮", "通用"],
+  "parameters": {
+    "exposure": 0.48,
+    "contrast": 35,
+    "highlights": -21,
+    "shadows": 0,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 0,
+    "vibrance": 0,
+    "clarity": -10,
+    "texture": -10,
+    "dehaze": 0,
+    "temperature": 0,
+    "tint": 0,
+    "vignette": 0,
+    "grain": 0,
+    "sharpening": 40,
+    "noiseReduction": 32
+  }
+}

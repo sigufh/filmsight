@@ -12,7 +12,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.ui.screens.components.AdjustmentSlider
-import kotlin.math.pow
 
 @Composable
 fun BrightnessAdjustContent(
@@ -35,26 +34,8 @@ fun BrightnessAdjustContent(
         
         AdjustmentSlider(
             label = "对比度",
-            value = run {
-                val c = params.contrast
-                when {
-                    c >= 1f -> {
-                        val normalized = (c - 1f) / 0.3f
-                        (normalized.toDouble().pow(1.0/3.0).toFloat() * 100f).coerceIn(0f, 100f)
-                    }
-                    else -> ((c - 1f) / 0.4f * 100f).coerceIn(-100f, 0f)
-                }
-            },
-            onValueChange = { sliderValue ->
-                val contrast = when {
-                    sliderValue >= 0 -> {
-                        val normalized = sliderValue / 100f
-                        1f + normalized.toDouble().pow(3.0).toFloat() * 0.3f
-                    }
-                    else -> 1f + sliderValue / 100f * 0.4f
-                }
-                onParamsChange(params.copy(contrast = contrast))
-            },
+            value = params.contrast,  // 直接使用 Adobe 标准值 (-100 到 +100)
+            onValueChange = { onParamsChange(params.copy(contrast = it)) },
             valueRange = -100f..100f
         )
         

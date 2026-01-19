@@ -1,0 +1,48 @@
+{
+  "name": "海边人像",
+  "nameEn": "Seaside Portrait",
+  "description": "适合海边拍摄的人像预设，提亮肤色，增强蓝色，降低黄色饱和度",
+  "category": "人像",
+  "tags": ["海边", "人像", "清新", "蓝色"],
+  "parameters": {
+    "exposure": 0.63,
+    "contrast": 1,
+    "highlights": -75,
+    "shadows": -2,
+    "whites": 0,
+    "blacks": 0,
+    "saturation": 1,
+    "vibrance": 0,
+    "clarity": 0,
+    "texture": 0,
+    "dehaze": 0,
+    "temperature": 17,
+    "tint": 10,
+    "vignette": 0,
+    "grain": 0,
+    "sharpening": 40,
+    "noiseReduction": 0,
+    "hslAdjustments": {
+      "saturation": {
+        "red": 30,
+        "orange": -28,
+        "yellow": -32,
+        "green": 0,
+        "aqua": 0,
+        "blue": 27,
+        "purple": 0,
+        "magenta": 0
+      },
+      "luminance": {
+        "red": 0,
+        "orange": 40,
+        "yellow": 11,
+        "green": 0,
+        "aqua": 0,
+        "blue": 0,
+        "purple": 0,
+        "magenta": 0
+      }
+    }
+  }
+}
