@@ -56,110 +56,38 @@ float ContrastAdjustment::progressiveCompression(float value, float threshold) {
     return threshold + compressed;
 }
 
-float ContrastAdjustment::applySCurveContrast(float value, float contrast) {
-    // 使用 S 曲线对比度算法，保护暗部和高光细节
-    // 设计目标：对比度80以上才开始丢失暗部细节
+float ContrastAdjustment::applySCurveContrast(float value, float contrastMultiplier) {
+    // 简化的对比度算法
+    // contrastMultiplier 参数已经是乘数格式（0.5 到 2.0）
+    // 由 Kotlin 层的 AdobeParameterConverter.contrastToMultiplier() 转换而来
+    // 使用简单但有效的公式，保证数值稳定性
     
-    // 计算调整强度 - 使用极度压缩的映射
-    float strength;
-    if (contrast >= 1.0f) {
-        // 增加对比度：使用双重对数映射，极大压缩高值
-        float delta = contrast - 1.0f;
-        
-        // 第一层：对数压缩
-        float compressed1 = std::log(1.0f + delta * 0.15f);
-        // 第二层：再次对数压缩，使曲线更平缓
-        strength = std::log(1.0f + compressed1) * 0.15f;
-        
-        // 极高的上限，允许更大的对比度范围
-        strength = std::min(strength, 0.6f);
-    } else {
-        // 减少对比度：线性映射
-        strength = (contrast - 1.0f) * 0.5f;
-        strength = std::max(strength, -0.5f);
-    }
-    
-    // 如果强度接近 0，直接返回
-    if (std::abs(strength) < 0.001f) {
+    // 如果乘数接近1.0，不做调整
+    if (std::abs(contrastMultiplier - 1.0f) < 0.001f) {
         return value;
     }
     
-    // 使用改进的 S 曲线，强力保护暗部和高光
-    float x = std::clamp(value, 0.0f, 1.0f);
-    
-    float result;
-    
-    if (strength > 0.0f) {
-        // 增加对比度：使用温和的 S 曲线
-        
-        // 使用非常温和的曲线陡峭度
-        float k = strength * 1.5f;  // 进一步降低陡峭度
-        
-        // 将 [0, 1] 映射到 [-1, 1]
-        float centered = (x - 0.5f) * 2.0f;
-        
-        // 应用 tanh S 曲线
-        float adjusted = std::tanh(centered * (1.0f + k)) / std::tanh(1.0f + k);
-        
-        // 映射回 [0, 1]
-        result = adjusted * 0.5f + 0.5f;
-        
-        // 强力暗部保护：大幅扩大保护范围
-        if (x < 0.25f) {
-            // 暗部保护：使用更平滑的过渡曲线
-            float protection = std::pow(x / 0.25f, 0.5f);  // 更平滑的过渡
-            
-            // 极暗区域（0-0.15）几乎完全保护
-            float darkPreserve = std::max(0.0f, 1.0f - x * 6.67f);  // 0-0.15 范围
-            darkPreserve = std::pow(darkPreserve, 0.7f);  // 平滑衰减
-            
-            // 混合：极暗区域保留更多原始值
-            float preserveAmount = darkPreserve * 0.7f;
-            result = x * (1.0f - protection + preserveAmount) + result * (protection - preserveAmount);
-        }
-        
-        // 强力高光保护：扩大保护范围
-        if (x > 0.8f) {
-            // 高光保护：使用平滑的过渡
-            float protection = std::pow((1.0f - x) / 0.2f, 0.5f);
-            result = x * (1.0f - protection) + result * protection;
-        }
-        
-        // 全局暗部补偿：防止任何暗部过度压缩
-        if (result < x && x < 0.35f) {
-            // 如果对比度调整使暗部变得更暗，强力补偿
-            float compensation = (0.35f - x) / 0.35f * 0.4f;  // 增强补偿
-            result = result * (1.0f - compensation) + x * compensation;
-        }
-        
-        // 额外保护：确保暗部不会变得比原始值暗太多
-        if (x < 0.2f && result < x * 0.85f) {
-            // 限制暗部最多只能变暗15%
-            result = x * 0.85f;
-        }
-        
-    } else {
-        // 减少对比度：向中灰混合
-        float midGray = 0.5f;
-        result = x * (1.0f + strength) + midGray * (-strength);
-    }
+    // 标准对比度公式：(value - 0.5) * multiplier + 0.5
+    // 围绕中灰点（0.5）进行缩放
+    float result = (value - 0.5f) * contrastMultiplier + 0.5f;
     
     // 确保在有效范围内
     return std::clamp(result, 0.0f, 1.0f);
 }
 
-void ContrastAdjustment::applyContrast(float& r, float& g, float& b, float contrast) {
-    // 如果对比度接近 1.0，不做调整
-    if (std::abs(contrast - 1.0f) < 0.01f) {
+void ContrastAdjustment::applyContrast(float& r, float& g, float& b, float contrastMultiplier) {
+    // contrastMultiplier 参数已经是乘数格式（0.5 到 2.0）
+    // 由 Kotlin 层的 AdobeParameterConverter.contrastToMultiplier() 转换而来
+    
+    // 如果乘数接近 1.0，不做调整
+    if (std::abs(contrastMultiplier - 1.0f) < 0.001f) {
         return;
     }
     
-    // 简化版本：直接应用线性对比度调整
-    // 不需要复杂的饱和度保持，因为我们使用了更温和的算法
-    
-    r = applySCurveContrast(r, contrast);
-    g = applySCurveContrast(g, contrast);
-    b = applySCurveContrast(b, contrast);
+    // 应用对比度调整
+    r = applySCurveContrast(r, contrastMultiplier);
+    g = applySCurveContrast(g, contrastMultiplier);
+    b = applySCurveContrast(b, contrastMultiplier);
     
     // 确保非负
     r = std::max(0.0f, r);

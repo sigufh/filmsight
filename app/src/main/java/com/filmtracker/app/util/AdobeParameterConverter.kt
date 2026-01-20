@@ -18,11 +18,29 @@ object AdobeParameterConverter {
      * - -100: 最低对比度（约 0.5）
      * - 0: 不变（1.0）
      * - +100: 最高对比度（约 2.0）
+     * 
+     * 使用非线性映射（x^2.0），使 ±30 范围内保持细腻控制
      */
     fun contrastToMultiplier(adobeContrast: Float): Float {
+        // 归一化到 -1.0 到 1.0
+        val normalized = adobeContrast / 100f
+        
         return when {
-            adobeContrast >= 0 -> 1.0f + (adobeContrast / 100f) * 1.0f  // 0 到 +100 映射到 1.0 到 2.0
-            else -> 1.0f + (adobeContrast / 100f) * 0.5f  // -100 到 0 映射到 0.5 到 1.0
+            normalized >= 0 -> {
+                // 正值：使用平方函数使低值更柔和
+                // 0 → 1.0, +100 → 2.0
+                // 使用 x^2.0 曲线
+                val curved = normalized * normalized
+                1.0f + curved * 1.0f
+            }
+            else -> {
+                // 负值：使用平方函数使低值更柔和
+                // -100 → 0.5, 0 → 1.0
+                // 使用 x^2.0 曲线（保持符号）
+                val absNormalized = -normalized
+                val curved = absNormalized * absNormalized
+                1.0f - curved * 0.5f
+            }
         }
     }
     
@@ -31,8 +49,16 @@ object AdobeParameterConverter {
      */
     fun multiplierToContrast(multiplier: Float): Float {
         return when {
-            multiplier >= 1.0f -> (multiplier - 1.0f) * 100f
-            else -> (multiplier - 1.0f) * 200f
+            multiplier >= 1.0f -> {
+                // 反向平方根
+                val delta = multiplier - 1.0f
+                kotlin.math.sqrt(delta / 1.0f) * 100f
+            }
+            else -> {
+                // 反向平方根
+                val delta = 1.0f - multiplier
+                -kotlin.math.sqrt(delta / 0.5f) * 100f
+            }
         }
     }
     

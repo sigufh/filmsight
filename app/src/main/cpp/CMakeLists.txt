@@ -43,6 +43,8 @@ set(IMAGE_PROCESSOR_SOURCES
     contrast_adjustment.cpp
     exposure_adjustment.cpp
     saturation_adjustment.cpp
+    grain_effect.cpp
+    vignette_effect.cpp
     color_temperature.cpp
     color_grading.cpp
     bilateral_filter.cpp

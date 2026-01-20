@@ -138,6 +138,9 @@ class ColorProcessor : BaseStageProcessor(ProcessingStage.COLOR) {
         // 将 Adobe 标准参数转换为 Native 层需要的乘数
         val saturationMultiplier = com.filmtracker.app.util.AdobeParameterConverter.saturationToMultiplier(params.saturation)
         
+        // 调试日志：输出饱和度转换
+        Log.d(TAG, "Saturation conversion: Adobe=${params.saturation} -> Multiplier=$saturationMultiplier")
+        
         // 设置参数
         nativeParams.setParams(
             0f, 1f, saturationMultiplier,  // 曝光、对比度、饱和度（使用转换后的乘数）

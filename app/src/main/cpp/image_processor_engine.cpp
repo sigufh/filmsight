@@ -1,6 +1,7 @@
 #include "image_processor_engine.h"
 #include "adobe_tone_adjustment.h"
 #include "contrast_adjustment.h"
+#include "saturation_adjustment.h"
 #include "color_temperature.h"
 #include "color_grading.h"
 #include "bilateral_filter.h"
@@ -554,21 +555,58 @@ int ImageProcessorEngine::getHueSegment(float hue) const {
 
 void ImageProcessorEngine::applyColorAdjustments(LinearImage& image, const BasicAdjustmentParams& params) {
     // 检查是否有任何颜色调整
-    if (params.temperature == 0.0f && params.tint == 0.0f &&
-        params.gradingHighlightsTemp == 0.0f && params.gradingHighlightsTint == 0.0f &&
-        params.gradingMidtonesTemp == 0.0f && params.gradingMidtonesTint == 0.0f &&
-        params.gradingShadowsTemp == 0.0f && params.gradingShadowsTint == 0.0f) {
+    bool hasSaturation = std::abs(params.saturation - 1.0f) > 0.001f;
+    bool hasTemperature = std::abs(params.temperature) > 0.01f || std::abs(params.tint) > 0.01f;
+    bool hasGrading = std::abs(params.gradingHighlightsTemp) > 0.01f || 
+                     std::abs(params.gradingHighlightsTint) > 0.01f ||
+                     std::abs(params.gradingMidtonesTemp) > 0.01f || 
+                     std::abs(params.gradingMidtonesTint) > 0.01f ||
+                     std::abs(params.gradingShadowsTemp) > 0.01f || 
+                     std::abs(params.gradingShadowsTint) > 0.01f;
+    
+    if (!hasSaturation && !hasTemperature && !hasGrading) {
         return; // 没有调整，直接返回
     }
     
-    LOGI("applyColorAdjustments: temp=%.2f, tint=%.2f, grading enabled", params.temperature, params.tint);
+    LOGI("applyColorAdjustments: saturation=%.4f, temp=%.2f, tint=%.2f", 
+         params.saturation, params.temperature, params.tint);
     
-    // 1. 首先应用全局色温和色调调整
-    if (std::abs(params.temperature) > 0.01f || std::abs(params.tint) > 0.01f) {
-        const uint32_t pixelCount = image.width * image.height;
-        const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
-        const uint32_t pixelsPerThread = pixelCount / numThreads;
+    const uint32_t pixelCount = image.width * image.height;
+    const uint32_t numThreads = std::min(4u, std::thread::hardware_concurrency());
+    const uint32_t pixelsPerThread = pixelCount / numThreads;
+    
+    // 1. 应用饱和度调整（如果需要）
+    if (hasSaturation) {
+        LOGI("Applying saturation: %.4f", params.saturation);
         
+        std::vector<std::thread> threads;
+        for (uint32_t t = 0; t < numThreads; ++t) {
+            uint32_t start = t * pixelsPerThread;
+            uint32_t end = (t == numThreads - 1) ? pixelCount : (t + 1) * pixelsPerThread;
+            
+            threads.emplace_back([&image, &params, start, end]() {
+                for (uint32_t i = start; i < end; ++i) {
+                    float r = image.r[i];
+                    float g = image.g[i];
+                    float b = image.b[i];
+                    
+                    // 应用饱和度调整
+                    SaturationAdjustment::applySaturation(r, g, b, params.saturation);
+                    
+                    image.r[i] = std::max(0.0f, r);
+                    image.g[i] = std::max(0.0f, g);
+                    image.b[i] = std::max(0.0f, b);
+                }
+            });
+        }
+        
+        for (auto& thread : threads) {
+            thread.join();
+        }
+    }
+    
+    // 2. 应用全局色温和色调调整
+    if (hasTemperature) {
         std::vector<std::thread> threads;
         for (uint32_t t = 0; t < numThreads; ++t) {
             uint32_t start = t * pixelsPerThread;
@@ -595,14 +633,7 @@ void ImageProcessorEngine::applyColorAdjustments(LinearImage& image, const Basic
         }
     }
     
-    // 2. 应用色彩分级（使用高斯权重函数）
-    bool hasGrading = std::abs(params.gradingHighlightsTemp) > 0.01f || 
-                     std::abs(params.gradingHighlightsTint) > 0.01f ||
-                     std::abs(params.gradingMidtonesTemp) > 0.01f || 
-                     std::abs(params.gradingMidtonesTint) > 0.01f ||
-                     std::abs(params.gradingShadowsTemp) > 0.01f || 
-                     std::abs(params.gradingShadowsTint) > 0.01f;
-    
+    // 3. 应用色彩分级（使用高斯权重函数）
     if (hasGrading) {
         // 准备色彩分级参数
         ColorGrading::GradingParams gradingParams;

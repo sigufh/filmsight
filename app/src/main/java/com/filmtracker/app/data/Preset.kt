@@ -43,6 +43,7 @@ enum class PresetCategory {
     PORTRAIT,       // 人像
     LANDSCAPE,      // 风景
     BLACKWHITE,     // 黑白
+    FILM,           // 胶片
     VINTAGE,        // 复古
     CINEMATIC       // 电影
 }
@@ -54,15 +55,21 @@ object BuiltInPresets {
     
     /**
      * 获取所有内置预设
+     * 
+     * 注意：参数范围基于新的平方曲线映射
+     * - ±10: 极微调（变化 < 1%）
+     * - ±20: 轻度调整（变化 < 4%）
+     * - ±30: 中度调整（变化 < 10%）
+     * - ±50: 强度调整（变化 < 25%）
      */
     fun getAll(): List<Preset> = listOf(
-        // 黑白系列
+        // 黑白系列 - 使用 saturation = -100 实现去色
         createPreset(
             name = "经典黑白",
             category = PresetCategory.BLACKWHITE,
             params = BasicAdjustmentParams(
-                saturation = 0f,
-                contrast = 1.15f,
+                saturation = -100f,  // 完全去色
+                contrast = 20f,      // 轻微增加对比度
                 clarity = 15f
             )
         ),
@@ -70,8 +77,8 @@ object BuiltInPresets {
             name = "高对比黑白",
             category = PresetCategory.BLACKWHITE,
             params = BasicAdjustmentParams(
-                saturation = 0f,
-                contrast = 1.35f,
+                saturation = -100f,  // 完全去色
+                contrast = 40f,      // 中等对比度
                 blacks = -20f,
                 whites = 20f,
                 clarity = 25f
@@ -81,51 +88,89 @@ object BuiltInPresets {
             name = "柔和黑白",
             category = PresetCategory.BLACKWHITE,
             params = BasicAdjustmentParams(
-                saturation = 0f,
-                contrast = 0.9f,
+                saturation = -100f,  // 完全去色
+                contrast = -15f,     // 轻微降低对比度
                 shadows = 15f,
                 clarity = -10f
             )
         ),
         
-        // 复古系列
+        // 胶片系列
         createPreset(
             name = "复古胶片",
-            category = PresetCategory.VINTAGE,
+            category = PresetCategory.FILM,
             params = BasicAdjustmentParams(
                 temperature = 15f,
                 tint = -5f,
-                saturation = 0.85f,
-                contrast = 1.1f,
+                saturation = -20f,   // 轻微降低饱和度
+                contrast = 15f,      // 轻微增加对比度
                 highlights = -10f,
                 shadows = 10f,
                 grain = 15f,
-                vignette = -20f
+                vignette = -20f,
+                gradingShadowsTemp = 10f,
+                gradingHighlightsTemp = -5f
             )
         ),
         createPreset(
             name = "褪色记忆",
-            category = PresetCategory.VINTAGE,
+            category = PresetCategory.FILM,
             params = BasicAdjustmentParams(
                 temperature = 10f,
-                saturation = 0.7f,
-                contrast = 0.85f,
+                saturation = -35f,   // 中等降低饱和度
+                contrast = -20f,     // 轻微降低对比度
                 highlights = 15f,
                 blacks = 15f,
                 grain = 20f,
-                vignette = -15f
+                vignette = -15f,
+                gradingShadowsTemp = 15f
             )
         ),
         createPreset(
             name = "宝丽来",
-            category = PresetCategory.VINTAGE,
+            category = PresetCategory.FILM,
             params = BasicAdjustmentParams(
                 temperature = 20f,
                 tint = 10f,
-                saturation = 1.15f,
-                contrast = 1.2f,
+                saturation = 15f,    // 轻微增加饱和度
+                contrast = 25f,      // 中等对比度
                 shadows = 20f,
-                vignette = -25f
+                vignette = -25f,
+                gradingShadowsTemp = 20f,
+                gradingHighlightsTemp = 10f
+            )
+        ),
+        createPreset(
+            name = "柯达胶片",
+            category = PresetCategory.FILM,
+            params = BasicAdjustmentParams(
+                temperature = 12f,
+                tint = 3f,
+                saturation = -10f,
+                contrast = 18f,
+                highlights = -15f,
+                shadows = 12f,
+                grain = 25f,
+                vignette = -18f,
+                gradingShadowsTemp = 8f,
+                gradingMidtonesTemp = 5f
+            )
+        ),
+        createPreset(
+            name = "富士胶片",
+            category = PresetCategory.FILM,
+            params = BasicAdjustmentParams(
+                temperature = -8f,
+                tint = 5f,
+                saturation = 8f,
+                contrast = 22f,
+                highlights = -12f,
+                shadows = 8f,
+                grain = 18f,
+                vignette = -12f,
+                gradingShadowsTemp = -15f,
+                gradingHighlightsTemp = 10f,
+                gradingBlending = 55f
             )
         ),
         
@@ -136,12 +181,14 @@ object BuiltInPresets {
             params = BasicAdjustmentParams(
                 temperature = -15f,
                 tint = -10f,
-                saturation = 0.9f,
-                contrast = 1.15f,
+                saturation = -15f,   // 轻微降低饱和度
+                contrast = 20f,      // 轻微增加对比度
                 shadows = 10f,
                 vignette = -15f,
-                gradingShadowsTemp = -20f,
-                gradingHighlightsTemp = 10f
+                gradingShadowsTemp = -30f,
+                gradingShadowsTint = -15f,
+                gradingHighlightsTemp = 15f,
+                gradingBlending = 60f
             )
         ),
         createPreset(
@@ -150,12 +197,14 @@ object BuiltInPresets {
             params = BasicAdjustmentParams(
                 temperature = 25f,
                 tint = 5f,
-                saturation = 1.05f,
-                contrast = 1.1f,
+                saturation = 5f,     // 轻微增加饱和度
+                contrast = 15f,      // 轻微增加对比度
                 highlights = -10f,
                 vignette = -20f,
-                gradingShadowsTemp = 15f,
-                gradingHighlightsTemp = -5f
+                gradingShadowsTemp = 25f,
+                gradingShadowsTint = 10f,
+                gradingHighlightsTemp = -10f,
+                gradingBlending = 55f
             )
         ),
         createPreset(
@@ -163,13 +212,14 @@ object BuiltInPresets {
             category = PresetCategory.CINEMATIC,
             params = BasicAdjustmentParams(
                 temperature = 10f,
-                saturation = 1.1f,
-                contrast = 1.15f,
+                saturation = 10f,    // 轻微增加饱和度
+                contrast = 20f,      // 轻微增加对比度
                 vignette = -15f,
-                gradingShadowsTemp = -25f,
-                gradingShadowsTint = 10f,
-                gradingHighlightsTemp = 20f,
-                gradingHighlightsTint = -10f
+                gradingShadowsTemp = -35f,
+                gradingShadowsTint = 15f,
+                gradingHighlightsTemp = 30f,
+                gradingHighlightsTint = -15f,
+                gradingBlending = 65f
             )
         ),
         
@@ -181,7 +231,7 @@ object BuiltInPresets {
                 temperature = 5f,
                 tint = 2f,
                 globalExposure = 0.1f,
-                contrast = 1.05f,
+                contrast = 8f,       // 极轻微增加对比度
                 highlights = -5f,
                 shadows = 10f,
                 clarity = -5f,
@@ -195,11 +245,13 @@ object BuiltInPresets {
                 temperature = 8f,
                 tint = 3f,
                 globalExposure = 0.15f,
-                contrast = 0.95f,
+                contrast = -8f,      // 极轻微降低对比度
                 highlights = -10f,
                 shadows = 15f,
                 clarity = -15f,
-                vibrance = 5f
+                vibrance = 5f,
+                gradingHighlightsTemp = 10f,
+                gradingHighlightsTint = 5f
             )
         ),
         createPreset(
@@ -208,11 +260,13 @@ object BuiltInPresets {
             params = BasicAdjustmentParams(
                 temperature = -5f,
                 globalExposure = 0.2f,
-                contrast = 1.1f,
+                contrast = 12f,      // 轻微增加对比度
                 highlights = -10f,
                 shadows = 5f,
                 vibrance = 15f,
-                clarity = 5f
+                clarity = 5f,
+                gradingMidtonesTemp = -10f,
+                gradingBlending = 45f
             )
         ),
         
@@ -221,9 +275,9 @@ object BuiltInPresets {
             name = "鲜艳风景",
             category = PresetCategory.LANDSCAPE,
             params = BasicAdjustmentParams(
-                saturation = 1.2f,
+                saturation = 25f,    // 中等增加饱和度
                 vibrance = 20f,
-                contrast = 1.15f,
+                contrast = 20f,      // 轻微增加对比度
                 clarity = 20f,
                 dehaze = 15f
             )
@@ -232,11 +286,11 @@ object BuiltInPresets {
             name = "戏剧风景",
             category = PresetCategory.LANDSCAPE,
             params = BasicAdjustmentParams(
-                contrast = 1.3f,
+                contrast = 35f,      // 中等对比度
                 highlights = -20f,
                 shadows = 20f,
                 clarity = 30f,
-                saturation = 1.1f,
+                saturation = 15f,    // 轻微增加饱和度
                 dehaze = 25f
             )
         ),
@@ -245,7 +299,7 @@ object BuiltInPresets {
             category = PresetCategory.LANDSCAPE,
             params = BasicAdjustmentParams(
                 globalExposure = 0.15f,
-                contrast = 0.95f,
+                contrast = -8f,      // 极轻微降低对比度
                 highlights = -10f,
                 shadows = 10f,
                 saturation = 1.05f,

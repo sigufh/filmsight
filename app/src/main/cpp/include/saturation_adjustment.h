@@ -17,9 +17,10 @@ public:
      * @param r 红色通道（输入/输出）
      * @param g 绿色通道（输入/输出）
      * @param b 蓝色通道（输入/输出）
-     * @param saturation 饱和度值（-100 到 +100，0为不变）
+     * @param saturationMultiplier 饱和度乘数（0.0 到 2.0，1.0 为不变）
+     *                             由 Kotlin 层的 AdobeParameterConverter.saturationToMultiplier() 转换而来
      */
-    static void applySaturation(float& r, float& g, float& b, float saturation);
+    static void applySaturation(float& r, float& g, float& b, float saturationMultiplier);
     
     /**
      * 应用自然饱和度（Vibrance）

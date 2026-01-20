@@ -14,32 +14,33 @@ public:
     /**
      * S 曲线对比度调整
      * 
-     * 围绕 18% 中灰（0.18）进行调整，使用 S 曲线而非线性缩放。
+     * 围绕中点（0.5）进行调整，使用标准对比度公式。
      * 
      * 算法特点：
-     * - 中灰点保持不变
+     * - 中点保持不变
      * - 增加对比度时，亮部更亮，暗部更暗
      * - 减少对比度时，整体趋向中灰
      * - 保护高光和阴影不被过度裁剪
-     * - 使用三次方曲线映射，提供极度精细的低值控制
      * 
-     * @param value 输入值（线性空间）
-     * @param contrast 对比度参数（推荐范围 0.6 到 1.3，1.0 为不变）
+     * @param value 输入值（线性空间，0.0 到 1.0）
+     * @param contrastMultiplier 对比度乘数（0.5 到 2.0，1.0 为不变）
+     *                           由 Kotlin 层的 AdobeParameterConverter.contrastToMultiplier() 转换而来
      * @return 调整后的值
      */
-    static float applySCurveContrast(float value, float contrast);
+    static float applySCurveContrast(float value, float contrastMultiplier);
     
     /**
      * 应用对比度调整到 RGB 像素
      * 
-     * 在保持色彩饱和度的同时调整对比度。
+     * 标准对比度算法，围绕中点（0.5）进行缩放。
      * 
      * @param r 红色通道（输入/输出）
      * @param g 绿色通道（输入/输出）
      * @param b 蓝色通道（输入/输出）
-     * @param contrast 对比度参数（推荐范围 0.6 到 1.3，1.0 为不变）
+     * @param contrastMultiplier 对比度乘数（0.5 到 2.0，1.0 为不变）
+     *                           由 Kotlin 层的 AdobeParameterConverter.contrastToMultiplier() 转换而来
      */
-    static void applyContrast(float& r, float& g, float& b, float contrast);
+    static void applyContrast(float& r, float& g, float& b, float contrastMultiplier);
 
 private:
     /**

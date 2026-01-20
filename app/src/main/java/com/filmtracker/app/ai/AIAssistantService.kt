@@ -63,7 +63,13 @@ class AIAssistantService(private val config: AIConfig) {
 ### 基础调整
 - **曝光 (Exposure)**: -5.0 到 +5.0 EV（步进 0.1）
 - **对比度 (Contrast)**: -100 到 +100（0 = 不变）
-- **饱和度 (Saturation)**: -100 到 +100（0 = 不变，-100 = 黑白）
+  - 注意：使用平方曲线映射，±30 范围内保持细腻控制
+  - ±10: 极微调（变化 < 1%）
+  - ±20: 轻度调整（变化 < 4%）
+  - ±30: 中度调整（变化 < 10%）
+  - ±50: 强度调整（变化 < 25%）
+- **饱和度 (Saturation)**: -100 到 +100（0 = 不变，-100 = 完全去色）
+  - 注意：当前饱和度参数暂时无法使用，请使用色彩分级实现饱和度调整
 
 ### 色调调整
 - **高光 (Highlights)**: -100 到 +100（负值恢复过曝）
@@ -78,6 +84,20 @@ class AIAssistantService(private val config: AIConfig) {
 ### 颜色
 - **色温 (Temperature)**: -100 到 +100（负值偏冷，正值偏暖）
 - **色调 (Tint)**: -100 到 +100（负值偏绿，正值偏紫）
+
+### 色彩分级（Color Grading）
+用于精细控制不同亮度区域的色彩，也可用于实现饱和度调整：
+
+- **高光色温 (GradingHighlightsTemp)**: -100 到 +100
+- **高光色调 (GradingHighlightsTint)**: -100 到 +100
+- **中间调色温 (GradingMidtonesTemp)**: -100 到 +100
+- **中间调色调 (GradingMidtonesTint)**: -100 到 +100
+- **阴影色温 (GradingShadowsTemp)**: -100 到 +100
+- **阴影色调 (GradingShadowsTint)**: -100 到 +100
+- **混合 (GradingBlending)**: 0 到 100（分级效果强度）
+- **平衡 (GradingBalance)**: -100 到 +100（阴影/高光平衡）
+
+**黑白效果实现**：将 saturation 设为 -100
 
 ### 效果
 - **纹理 (Texture)**: -100 到 +100（增强细节纹理）
@@ -108,7 +128,7 @@ class AIAssistantService(private val config: AIConfig) {
        "shadows": 25,
        "whites": -10,
        "blacks": 5,
-       "saturation": 10,
+       "saturation": -100,
        "vibrance": 20,
        "temperature": 15,
        "tint": 0,
@@ -118,7 +138,15 @@ class AIAssistantService(private val config: AIConfig) {
        "vignette": 0,
        "grain": 0,
        "sharpening": 0,
-       "noiseReduction": 0
+       "noiseReduction": 0,
+       "gradingHighlightsTemp": 0,
+       "gradingHighlightsTint": 0,
+       "gradingMidtonesTemp": 0,
+       "gradingMidtonesTint": 0,
+       "gradingShadowsTemp": 0,
+       "gradingShadowsTint": 0,
+       "gradingBlending": 50,
+       "gradingBalance": 0
      },
      "description": "简短的调整说明"
    }
@@ -126,25 +154,27 @@ class AIAssistantService(private val config: AIConfig) {
    
    注意：
    - JSON 必须放在回复的最后
-   - 只包含需要调整的参数（值为 0 的可以省略）
+   - 只包含需要调整的参数（值为 0 的可以省略，但黑白效果必须包含 saturation: -100）
    - 参数名使用驼峰命名法
    - 数值不带单位符号
+   - 色彩分级参数默认可省略，需要时再添加
 
 3. **参数解释**：
    - 提供参数后，简要说明调整原因
    - 说明预期效果
    - 如有多种方案，可提供对比
 
-4. **常见场景参考**：
-   - 日系清新：曝光 +0.3 到 +0.7，对比度 -10 到 -20，高光 -20，阴影 +30，饱和度 -10，自然饱和度 +20
-   - 电影感：对比度 +20 到 +30，高光 -40，阴影 +20，饱和度 -20，清晰度 +15
-   - 胶片复古：曝光 +0.2，对比度 -15，高光 -25，阴影 +15，颗粒 +30 到 +50
-   - 人像柔和：清晰度 -20 到 -30，对比度 -10，高光 -15，阴影 +20
+4. **常见场景参考**（基于新的平方曲线）：
+   - 日系清新：曝光 +0.3 到 +0.7，对比度 -15，高光 -20，阴影 +30，自然饱和度 +20，gradingMidtonesTemp: -10
+   - 电影感：对比度 +25，高光 -40，阴影 +20，清晰度 +15，gradingShadowsTemp: -30, gradingHighlightsTemp: 20, gradingBlending: 60
+   - 胶片复古：曝光 +0.2，对比度 -20，高光 -25，阴影 +15，颗粒 +30 到 +50，gradingShadowsTemp: 15
+   - 人像柔和：清晰度 -20 到 -30，对比度 -12，高光 -15，阴影 +20，gradingHighlightsTemp: 10
+   - 黑白效果：saturation: -100，对比度 +20 到 +40，清晰度 +15
 
 ${preferences?.let { "\n## 用户偏好\n- 调色风格：${it.colorStyle.displayName}\n- 色彩倾向：${it.colorTendency}\n- 对比度偏好：${it.contrastPreference}\n- 饱和度偏好：${it.saturationPreference}" } ?: ""}
 ${if (knowledge.isNotEmpty()) "\n## 相关知识\n" + knowledge.joinToString("\n") { "- ${it.content}" } else ""}
 
-记住：用户会直接将你建议的数值输入到调色界面，所以必须使用 Adobe 标准范围！""".trimIndent()
+记住：用户会直接将你建议的数值输入到调色界面，所以必须使用 Adobe 标准范围！对比度使用平方曲线，±30 范围内保持细腻。""".trimIndent()
     }
     
     private fun callOpenAI(system: String, msg: String, history: List<ChatMessage>, img: Bitmap?, onChunk: ((String) -> Unit)?): AIResponse {

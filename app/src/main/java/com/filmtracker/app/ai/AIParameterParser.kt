@@ -66,6 +66,16 @@ object AIParameterParser {
                 if (params.has("temperature")) temperature = params.getDouble("temperature").toFloat()
                 if (params.has("tint")) tint = params.getDouble("tint").toFloat()
                 
+                // 色彩分级
+                if (params.has("gradingHighlightsTemp")) gradingHighlightsTemp = params.getDouble("gradingHighlightsTemp").toFloat()
+                if (params.has("gradingHighlightsTint")) gradingHighlightsTint = params.getDouble("gradingHighlightsTint").toFloat()
+                if (params.has("gradingMidtonesTemp")) gradingMidtonesTemp = params.getDouble("gradingMidtonesTemp").toFloat()
+                if (params.has("gradingMidtonesTint")) gradingMidtonesTint = params.getDouble("gradingMidtonesTint").toFloat()
+                if (params.has("gradingShadowsTemp")) gradingShadowsTemp = params.getDouble("gradingShadowsTemp").toFloat()
+                if (params.has("gradingShadowsTint")) gradingShadowsTint = params.getDouble("gradingShadowsTint").toFloat()
+                if (params.has("gradingBlending")) gradingBlending = params.getDouble("gradingBlending").toFloat()
+                if (params.has("gradingBalance")) gradingBalance = params.getDouble("gradingBalance").toFloat()
+                
                 // 效果
                 if (params.has("texture")) texture = params.getDouble("texture").toFloat()
                 if (params.has("dehaze")) dehaze = params.getDouble("dehaze").toFloat()
@@ -101,6 +111,14 @@ object AIParameterParser {
             vibrance = params.vibrance.coerceIn(-100f, 100f),
             temperature = params.temperature.coerceIn(-100f, 100f),
             tint = params.tint.coerceIn(-100f, 100f),
+            gradingHighlightsTemp = params.gradingHighlightsTemp.coerceIn(-100f, 100f),
+            gradingHighlightsTint = params.gradingHighlightsTint.coerceIn(-100f, 100f),
+            gradingMidtonesTemp = params.gradingMidtonesTemp.coerceIn(-100f, 100f),
+            gradingMidtonesTint = params.gradingMidtonesTint.coerceIn(-100f, 100f),
+            gradingShadowsTemp = params.gradingShadowsTemp.coerceIn(-100f, 100f),
+            gradingShadowsTint = params.gradingShadowsTint.coerceIn(-100f, 100f),
+            gradingBlending = params.gradingBlending.coerceIn(0f, 100f),
+            gradingBalance = params.gradingBalance.coerceIn(-100f, 100f),
             texture = params.texture.coerceIn(-100f, 100f),
             dehaze = params.dehaze.coerceIn(-100f, 100f),
             vignette = params.vignette.coerceIn(-100f, 100f),

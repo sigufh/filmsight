@@ -117,9 +117,10 @@ private fun CategoryTabs(
         PresetCategory.CREATIVE to "全部",
         PresetCategory.PORTRAIT to "人像",
         PresetCategory.LANDSCAPE to "风景",
+        PresetCategory.BLACKWHITE to "黑白",
+        PresetCategory.FILM to "胶片",
         PresetCategory.VINTAGE to "复古",
-        PresetCategory.CINEMATIC to "电影",
-        PresetCategory.BLACKWHITE to "黑白"
+        PresetCategory.CINEMATIC to "电影"
     )
     
     ScrollableTabRow(

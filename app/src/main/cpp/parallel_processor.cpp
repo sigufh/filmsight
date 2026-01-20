@@ -2,6 +2,8 @@
 #include "contrast_adjustment.h"
 #include "include/exposure_adjustment.h"
 #include "include/saturation_adjustment.h"
+#include "include/grain_effect.h"
+#include "include/vignette_effect.h"
 #include <thread>
 #include <vector>
 #include <cmath>
@@ -121,17 +123,17 @@ void ParallelProcessor::processPixelScalar(
         ExposureAdjustment::applyExposure(r, g, b, params.globalExposure);
     }
     
-    // 2. 应用对比度（使用改进的 S 曲线算法）
-    if (std::abs(params.contrast - 1.0f) > 0.01f) {
+    // 2. 应用对比度（已转换为乘数：0.5 到 2.0）
+    if (std::abs(params.contrast - 1.0f) > 0.001f) {
         ContrastAdjustment::applyContrast(r, g, b, params.contrast);
     }
     
-    // 3. 应用饱和度（使用改进的算法，带肤色保护）
-    if (std::abs(params.saturation) > 0.01f) {
+    // 3. 应用饱和度（已转换为乘数：0.0 到 2.0）
+    if (std::abs(params.saturation - 1.0f) > 0.001f) {
         SaturationAdjustment::applySaturation(r, g, b, params.saturation);
     }
     
-    // 4. 应用色温和色调（简化版本）
+    // 4. 应用色温和色调（Adobe 标准：-100 到 +100）
     if (std::abs(params.temperature) > 0.01f || std::abs(params.tint) > 0.01f) {
         // 色温调整：影响 R 和 B 通道
         float tempFactor = params.temperature / 100.0f;
@@ -141,6 +143,21 @@ void ParallelProcessor::processPixelScalar(
         // 色调调整：影响 G 通道
         float tintFactor = params.tint / 100.0f;
         g *= (1.0f + tintFactor * 0.2f);
+    }
+    
+    // 5. 应用暗角效果
+    if (std::abs(params.vignette) > 0.01f) {
+        // vignette 范围：-100 到 +100，转换为 -1.0 到 1.0
+        float vignetteAmount = params.vignette / 100.0f;
+        VignetteEffect::applyVignette(r, g, b, vignetteAmount, x, y, 
+                                     input.width, input.height);
+    }
+    
+    // 6. 应用颗粒效果
+    if (params.grain > 0.01f) {
+        // grain 范围：0 到 100，转换为 0.0 到 1.0
+        float grainAmount = params.grain / 100.0f;
+        GrainEffect::applyGrain(r, g, b, grainAmount, x, y);
     }
     
     // Clamp 到 [0, ∞)（保留动态范围，只限制下界）

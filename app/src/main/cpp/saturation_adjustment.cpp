@@ -61,43 +61,23 @@ float SaturationAdjustment::protectOversaturation(float satDelta, float currentS
     return satDelta;
 }
 
-void SaturationAdjustment::applySaturation(float& r, float& g, float& b, float saturation) {
-    // 如果饱和度接近0，不做调整
-    if (std::abs(saturation) < 0.01f) {
+void SaturationAdjustment::applySaturation(float& r, float& g, float& b, float saturationMultiplier) {
+    // saturationMultiplier 参数已经是乘数格式（0.0 到 2.0）
+    // 由 Kotlin 层的 AdobeParameterConverter.saturationToMultiplier() 转换而来
+    // 0.0 = 完全去色，1.0 = 不变，2.0 = 翻倍
+    
+    // 如果乘数接近 1.0，不做调整
+    if (std::abs(saturationMultiplier - 1.0f) < 0.001f) {
         return;
     }
     
     // 计算亮度
     float luminance = 0.2126f * r + 0.7152f * g + 0.0722f * b;
     
-    // 将饱和度从 [-100, 100] 转换为乘数
-    // saturation = 0 时，factor = 1.0（不变）
-    // saturation = 100 时，factor = 2.0（翻倍）
-    // saturation = -100 时，factor = 0.0（完全去饱和）
-    float saturationFactor = 1.0f + saturation / 100.0f;
-    saturationFactor = std::max(0.0f, saturationFactor);
-    
-    // 计算当前饱和度
-    float currentSat = getCurrentSaturation(r, g, b, luminance);
-    
-    // 肤色保护
-    bool isSkin = isSkinTone(r, g, b);
-    if (isSkin && saturation > 0.0f) {
-        // 肤色区域减少饱和度增强
-        saturationFactor = 1.0f + (saturationFactor - 1.0f) * 0.5f;
-    }
-    
-    // 过饱和保护
-    if (saturation > 0.0f) {
-        float satDelta = saturationFactor - 1.0f;
-        satDelta = protectOversaturation(satDelta, currentSat);
-        saturationFactor = 1.0f + satDelta;
-    }
-    
-    // 应用饱和度调整
-    r = luminance + (r - luminance) * saturationFactor;
-    g = luminance + (g - luminance) * saturationFactor;
-    b = luminance + (b - luminance) * saturationFactor;
+    // 标准饱和度公式：color = luminance + (color - luminance) * saturationMultiplier
+    r = luminance + (r - luminance) * saturationMultiplier;
+    g = luminance + (g - luminance) * saturationMultiplier;
+    b = luminance + (b - luminance) * saturationMultiplier;
     
     // 确保非负
     r = std::max(0.0f, r);
