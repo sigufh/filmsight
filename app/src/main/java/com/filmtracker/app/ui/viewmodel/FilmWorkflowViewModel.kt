@@ -97,7 +97,7 @@ class FilmWorkflowViewModel(
     /**
      * 添加图片到胶卷
      * 
-     * 自动应用选定胶卷型号的预设参数
+     * 使用简单方案生成缩略图，不使用AWR机制
      */
     fun addImages(images: List<ImageInfo>) {
         val maxCount = _selectedCount.value
@@ -115,7 +115,7 @@ class FilmWorkflowViewModel(
             limitedImages.map { image ->
                 image.copy(
                     adjustmentParams = filmStockPreset.deepCopy(),
-                    isModified = true  // 标记为已修改（应用了预设）
+                    isModified = false  // 先不标记为已修改
                 )
             }
         } else {
@@ -124,61 +124,99 @@ class FilmWorkflowViewModel(
         
         _filmImages.value = imagesWithPreset
         
-        // 持久化预设参数并生成预览缩略图
+        // 在后台生成缩略图（使用简单的Native处理，不用AWR）
         if (filmStockPreset != null) {
-            viewModelScope.launch {
+            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 imagesWithPreset.forEach { image ->
-                    // 生成应用预设后的缩略图
-                    val thumbnail = generatePresetThumbnail(image.uri, filmStockPreset)
-                    
-                    // 持久化参数（复用 updateImageEdits 方法）
-                    updateImageEdits(
-                        imageUri = image.uri,
-                        params = filmStockPreset.deepCopy(),
-                        processedBitmap = thumbnail
-                    )
+                    try {
+                        // 生成应用预设后的缩略图（简单方案）
+                        val thumbnail = generateSimpleThumbnail(image.uri, filmStockPreset)
+                        
+                        // 更新UI
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            val currentImages = _filmImages.value
+                            val updatedImages = currentImages.map { img ->
+                                if (img.uri == image.uri) {
+                                    img.copy(
+                                        processedBitmap = thumbnail,
+                                        isModified = thumbnail != null
+                                    )
+                                } else {
+                                    img
+                                }
+                            }
+                            _filmImages.value = updatedImages
+                        }
+                        
+                        // 持久化参数
+                        if (thumbnail != null) {
+                            val imagePath = image.uri
+                            val serializableParams = SerializableAdjustmentParams.fromBasicParams(filmStockPreset.deepCopy())
+                            val currentTime = System.currentTimeMillis()
+                            val metadata = ParameterMetadata(
+                                imageUri = image.uri,
+                                imagePath = imagePath,
+                                parameters = serializableParams,
+                                createdAt = currentTime,
+                                modifiedAt = currentTime,
+                                appVersion = "1.0.0"
+                            )
+                            
+                            metadataRepository.saveMetadata(metadata).onFailure { error ->
+                                android.util.Log.e("FilmWorkflowViewModel", "Failed to save metadata", error)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("FilmWorkflowViewModel", "Failed to process image", e)
+                    }
                 }
             }
         }
     }
     
     /**
-     * 生成应用预设后的缩略图
+     * 生成简单缩略图（不使用AWR机制）
      * 
-     * 使用低分辨率快速生成预览效果
+     * 直接使用Native处理器，避免AWR的复杂性
      */
-    private suspend fun generatePresetThumbnail(
+    private suspend fun generateSimpleThumbnail(
         imageUri: String,
         preset: com.filmtracker.app.data.BasicAdjustmentParams
     ): android.graphics.Bitmap? {
         return try {
             val contentUri = Uri.parse(imageUri)
-            val inputStream = context.contentResolver.openInputStream(contentUri)
             
             // 降采样加载（缩略图尺寸）
             val options = BitmapFactory.Options().apply {
-                inSampleSize = 4  // 降采样 4 倍，快速生成
+                inSampleSize = 4  // 降采样 4 倍
                 inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888
-                inMutable = false
+                inMutable = true  // 需要可变位图用于Native处理
             }
             
-            val originalBitmap = BitmapFactory.decodeStream(inputStream, null, options)
-            inputStream?.close()
+            val originalBitmap = context.contentResolver.openInputStream(contentUri)?.use { stream ->
+                BitmapFactory.decodeStream(stream, null, options)
+            }
             
             if (originalBitmap == null) {
                 return null
             }
             
-            // 使用 IncrementalRenderingEngine 应用预设
-            val renderingEngine = com.filmtracker.app.processing.IncrementalRenderingEngine.getInstance()
-            val result = renderingEngine.process(originalBitmap, preset)
+            // 使用简单的Native处理器（不使用AWR）
+            val processor = com.filmtracker.app.data.source.native.NativeImageProcessor()
+            // 禁用增量渲染（避免AWR机制）
+            processor.setIncrementalRendering(false)
+            // 使用预览模式加快速度
+            processor.setPreviewMode(true, 512, 512)
+            val result = processor.process(originalBitmap, preset)
             
             // 释放原始位图
-            originalBitmap.recycle()
+            if (result != originalBitmap) {
+                originalBitmap.recycle()
+            }
             
-            result.output
+            result
         } catch (e: Exception) {
-            android.util.Log.e("FilmWorkflowViewModel", "Failed to generate preset thumbnail", e)
+            android.util.Log.e("FilmWorkflowViewModel", "Failed to generate thumbnail", e)
             null
         }
     }
@@ -188,6 +226,21 @@ class FilmWorkflowViewModel(
      */
     fun removeImage(image: ImageInfo) {
         _filmImages.value = _filmImages.value.filter { it.uri != image.uri }
+    }
+    
+    /**
+     * 更新图片的预览位图（异步加载完成后调用）
+     */
+    fun updateImagePreview(index: Int, bitmap: android.graphics.Bitmap) {
+        val currentImages = _filmImages.value.toMutableList()
+        if (index in currentImages.indices) {
+            currentImages[index] = currentImages[index].copy(
+                previewBitmap = bitmap,
+                width = bitmap.width,
+                height = bitmap.height
+            )
+            _filmImages.value = currentImages
+        }
     }
     
     /**

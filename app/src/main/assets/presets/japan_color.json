@@ -1,26 +1,48 @@
 {
   "name": "日系",
   "nameEn": "Japanese Style",
-  "description": "清新日系风格，降低曝光提升阴影，营造柔和通透的氛围",
+  "description": "清新日系风格，低对比度高阴影，营造柔和通透的氛围",
   "category": "日系",
   "tags": ["日系", "清新", "通透", "柔和"],
   "parameters": {
-    "exposure": -0.70,
-    "contrast": 36,
-    "highlights": -13,
-    "shadows": 90,
-    "whites": 0,
-    "blacks": 0,
-    "saturation": 1,
-    "vibrance": 0,
-    "clarity": 0,
-    "texture": 0,
-    "dehaze": 0,
-    "temperature": 0,
-    "tint": 0,
+    "exposure": 0.15,
+    "contrast": -15,
+    "highlights": -35,
+    "shadows": 75,
+    "whites": -12,
+    "blacks": -18,
+    "saturation": -12,
+    "vibrance": 20,
+    "clarity": -8,
+    "texture": -5,
+    "dehaze": -10,
+    "temperature": 8,
+    "tint": 3,
     "vignette": 0,
-    "grain": 0,
-    "sharpening": 40,
-    "noiseReduction": 0
+    "grain": 8,
+    "sharpening": 30,
+    "noiseReduction": 15,
+    "hslAdjustments": {
+      "saturation": {
+        "red": -5,
+        "orange": 10,
+        "yellow": 15,
+        "green": 20,
+        "aqua": 18,
+        "blue": 12,
+        "purple": -8,
+        "magenta": -10
+      },
+      "luminance": {
+        "red": 8,
+        "orange": 15,
+        "yellow": 20,
+        "green": 10,
+        "aqua": 12,
+        "blue": 5,
+        "purple": 0,
+        "magenta": -5
+      }
+    }
   }
 }

@@ -69,11 +69,7 @@ class MainActivity : ComponentActivity() {
                                 currentScreen = Screen.ProMode
                             },
                             onAIColorClick = {
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "AI 仿色功能即将推出",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                currentScreen = Screen.AIColor
                             },
                             onAIAssistantClick = {
                                 currentScreen = Screen.AIAssistant
@@ -157,6 +153,19 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+                Screen.AIColor -> {
+                    // AI 仿色
+                    FilmTrackerTheme(useVintageTheme = true) {
+                        AIColorScreen(
+                            onBack = { currentScreen = Screen.Home },
+                            onApplySuggestion = { suggestion, imageUri ->
+                                aiSuggestedImageUri = imageUri
+                                aiSuggestion = suggestion
+                                currentScreen = Screen.ProMode
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -168,7 +177,8 @@ class MainActivity : ComponentActivity() {
         Home,           // 首页
         FilmWorkflow,   // 胶卷工作流
         ProMode,        // 专业修图模式
-        AIAssistant     // AI助手
+        AIAssistant,    // AI助手
+        AIColor         // AI 仿色
     }
     
     @Composable

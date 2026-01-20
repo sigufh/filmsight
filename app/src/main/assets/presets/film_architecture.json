@@ -1,26 +1,48 @@
 {
   "name": "胶片建筑",
   "nameEn": "Film Architecture",
-  "description": "适合建筑摄影的胶片风格，高对比度配合颗粒感",
+  "description": "适合建筑摄影的胶片风格，高对比度高清晰度配合颗粒感",
   "category": "建筑",
   "tags": ["胶片", "建筑", "高对比", "颗粒"],
   "parameters": {
-    "exposure": -0.15,
-    "contrast": 36,
-    "highlights": -100,
-    "shadows": 90,
-    "whites": 0,
-    "blacks": 0,
-    "saturation": 1,
-    "vibrance": 0,
-    "clarity": 0,
-    "texture": 0,
-    "dehaze": 0,
-    "temperature": 10,
-    "tint": 10,
-    "vignette": 0,
-    "grain": 49,
-    "sharpening": 40,
-    "noiseReduction": 0
+    "exposure": -0.20,
+    "contrast": 55,
+    "highlights": -85,
+    "shadows": 45,
+    "whites": 15,
+    "blacks": -25,
+    "saturation": -5,
+    "vibrance": 10,
+    "clarity": 25,
+    "texture": 20,
+    "dehaze": 8,
+    "temperature": -5,
+    "tint": 2,
+    "vignette": -8,
+    "grain": 35,
+    "sharpening": 55,
+    "noiseReduction": 10,
+    "hslAdjustments": {
+      "saturation": {
+        "red": 5,
+        "orange": -8,
+        "yellow": 10,
+        "green": 8,
+        "aqua": 15,
+        "blue": 20,
+        "purple": 5,
+        "magenta": 0
+      },
+      "luminance": {
+        "red": -5,
+        "orange": 0,
+        "yellow": 5,
+        "green": 0,
+        "aqua": 8,
+        "blue": 10,
+        "purple": 5,
+        "magenta": 0
+      }
+    }
   }
 }

@@ -28,15 +28,15 @@ import kotlin.random.Random
  * 取景器动画组件
  * 
  * 模拟胶片相机取景器的视觉效果：
- * - 景色掠过动画（慢镜头）
+ * - 景色掠过动画（循环播放）
  * - 轻微胶片颗粒
  * - 边缘暗角
  * - 取景框标记
  * 
  * 动画流程：
  * 1. 显示取景框
- * 2. 播放景色掠过动画（3秒）
- * 3. 显示完成提示
+ * 2. 播放景色掠过动画（循环）
+ * 3. 外部控制停止
  */
 @Composable
 fun ViewfinderAnimation(
@@ -47,12 +47,12 @@ fun ViewfinderAnimation(
     var animationPhase by remember { mutableStateOf(ViewfinderPhase.IDLE) }
     val infiniteTransition = rememberInfiniteTransition(label = "viewfinder")
     
-    // 景色移动动画
+    // 景色移动动画（循环播放）
     val sceneOffset by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 1000f,
+        targetValue = 500f,
         animationSpec = infiniteRepeatable(
-            animation = tween(3000, easing = LinearEasing),
+            animation = tween(1500, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "scene_offset"
@@ -69,15 +69,13 @@ fun ViewfinderAnimation(
         label = "grain_alpha"
     )
     
-    // 控制动画流程
+    // 控制动画流程 - 简化为只有播放和停止
     LaunchedEffect(isPlaying) {
         if (isPlaying) {
             animationPhase = ViewfinderPhase.FOCUSING
-            delay(500)
+            delay(300)
             animationPhase = ViewfinderPhase.ANIMATING
-            delay(3000)
-            animationPhase = ViewfinderPhase.COMPLETE
-            onAnimationComplete()
+            // 不再自动停止，由外部控制
         } else {
             animationPhase = ViewfinderPhase.IDLE
         }
@@ -112,24 +110,24 @@ fun ViewfinderAnimation(
                 )
             }
             ViewfinderPhase.ANIMATING -> {
-                // 动画播放状态
+                // 动画播放状态 - 持续循环直到外部停止
                 ViewfinderScene(
                     offset = sceneOffset,
                     grainAlpha = grainAlpha
                 )
                 ViewfinderFrame()
             }
-            ViewfinderPhase.COMPLETE -> {
-                // 完成状态
-                Text(
-                    text = "已选择 · 点击开拍",
-                    color = FilmMintGreen,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium
-                )
-            }
         }
     }
+}
+
+/**
+ * 取景器动画阶段
+ */
+private enum class ViewfinderPhase {
+    IDLE,       // 空闲
+    FOCUSING,   // 对焦中
+    ANIMATING   // 动画播放（移除 COMPLETE 状态）
 }
 
 /**
@@ -288,11 +286,11 @@ private fun DrawScope.drawSceneStripes(offset: Float) {
 }
 
 /**
- * 绘制胶片颗粒
+ * 绘制胶片颗粒（优化版 - 减少颗粒数量）
  */
 private fun DrawScope.drawFilmGrain(alpha: Float) {
     val random = Random(System.currentTimeMillis() / 100)
-    val grainDensity = 0.02f  // 颗粒密度
+    val grainDensity = 0.005f  // 降低颗粒密度（从0.02改为0.005）
     val numGrains = (size.width * size.height * grainDensity).toInt()
     
     repeat(numGrains) {
@@ -322,14 +320,4 @@ private fun DrawScope.drawVignette() {
     )
     
     drawRect(brush = gradient)
-}
-
-/**
- * 取景器动画阶段
- */
-private enum class ViewfinderPhase {
-    IDLE,       // 空闲
-    FOCUSING,   // 对焦中
-    ANIMATING,  // 动画播放
-    COMPLETE    // 完成
 }

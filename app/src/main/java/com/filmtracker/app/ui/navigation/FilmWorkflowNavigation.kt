@@ -19,6 +19,10 @@ import com.filmtracker.app.ui.screens.ImageInfo
 import com.filmtracker.app.ui.theme.FilmTrackerTheme
 import com.filmtracker.app.ui.viewmodel.FilmWorkflowViewModel
 import com.filmtracker.app.ui.viewmodel.ViewModelFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -82,29 +86,60 @@ fun FilmWorkflowNavigation(
                     onCountSelected = { count, imageUris ->
                         workflowViewModel.selectCount(count)
                         
-                        // 将 URI 转换为 ImageInfo 并加载预览图
+                        // 异步加载图片，先创建占位符
                         val images = imageUris.mapIndexed { index, uri ->
-                            // 加载预览图
-                            val bitmap = try {
-                                val inputStream = navController.context.contentResolver.openInputStream(android.net.Uri.parse(uri))
-                                android.graphics.BitmapFactory.decodeStream(inputStream)?.also {
-                                    inputStream?.close()
-                                }
-                            } catch (e: Exception) {
-                                null
-                            }
-                            
                             ImageInfo(
                                 uri = uri,
                                 fileName = "Frame ${index + 1}",
-                                width = bitmap?.width ?: 0,
-                                height = bitmap?.height ?: 0,
+                                width = 0,
+                                height = 0,
                                 isRaw = false,
-                                previewBitmap = bitmap,
+                                previewBitmap = null,  // 先不加载，后台加载
                                 filePath = uri
                             )
                         }
                         workflowViewModel.addImages(images)
+                        
+                        // 在后台线程加载预览图
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            imageUris.forEachIndexed { index, uri ->
+                                try {
+                                    val bitmap = navController.context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { stream ->
+                                        // 降采样加载以节省内存
+                                        val options = android.graphics.BitmapFactory.Options().apply {
+                                            inJustDecodeBounds = true
+                                        }
+                                        android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                                        
+                                        // 计算采样率
+                                        val targetSize = 1024
+                                        var inSampleSize = 1
+                                        if (options.outHeight > targetSize || options.outWidth > targetSize) {
+                                            val halfHeight = options.outHeight / 2
+                                            val halfWidth = options.outWidth / 2
+                                            while (halfHeight / inSampleSize >= targetSize && halfWidth / inSampleSize >= targetSize) {
+                                                inSampleSize *= 2
+                                            }
+                                        }
+                                        
+                                        // 重新打开流并解码
+                                        navController.context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use { stream2 ->
+                                            val decodeOptions = android.graphics.BitmapFactory.Options().apply {
+                                                this.inSampleSize = inSampleSize
+                                            }
+                                            android.graphics.BitmapFactory.decodeStream(stream2, null, decodeOptions)
+                                        }
+                                    }
+                                    
+                                    // 更新图片信息
+                                    if (bitmap != null) {
+                                        workflowViewModel.updateImagePreview(index, bitmap)
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("FilmWorkflow", "Failed to load preview for image $index", e)
+                                }
+                            }
+                        }
                         
                         navController.navigate("filmGrid")
                     }

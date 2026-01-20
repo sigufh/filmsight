@@ -95,15 +95,96 @@ object BuiltInPresets {
             )
         ),
         
-        // 胶片系列
+        // 胶片系列 - 真实胶卷模拟
+        // 负片系列
+        createPreset(
+            name = "柯达 Portra 400",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakPortra400.getPreset()
+        ),
+        createPreset(
+            name = "柯达 Portra 160",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakPortra160.getPreset()
+        ),
+        createPreset(
+            name = "柯达 Portra 800",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakPortra800.getPreset()
+        ),
+        createPreset(
+            name = "柯达 Gold 200",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakGold200.getPreset()
+        ),
+        createPreset(
+            name = "柯达 Ektar 100",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakEktar100.getPreset()
+        ),
+        createPreset(
+            name = "富士 Pro 400H",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiPro400H.getPreset()
+        ),
+        createPreset(
+            name = "富士 Superia 400",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiSuperia400.getPreset()
+        ),
+        createPreset(
+            name = "富士 C200",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiC200.getPreset()
+        ),
+        createPreset(
+            name = "爱克发 Vista 400",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.AgfaVista400.getPreset()
+        ),
+        // 反转片系列
+        createPreset(
+            name = "柯达 E100",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakE100.getPreset()
+        ),
+        createPreset(
+            name = "富士 Velvia 50",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiVelvia50.getPreset()
+        ),
+        createPreset(
+            name = "富士 Provia 100F",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.FujiProvia100F.getPreset()
+        ),
+        createPreset(
+            name = "爱克发 Chrome",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.AgfaChrome.getPreset()
+        ),
+        // 黑白胶片
+        createPreset(
+            name = "柯达 Tri-X 400",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakTriX400.getPreset()
+        ),
+        // 电影胶片
+        createPreset(
+            name = "柯达 Vision3 500T",
+            category = PresetCategory.FILM,
+            params = com.filmtracker.app.domain.model.FilmStock.KodakVision3.getPreset()
+        ),
+        
+        // 风格化胶片效果
         createPreset(
             name = "复古胶片",
             category = PresetCategory.FILM,
             params = BasicAdjustmentParams(
                 temperature = 15f,
                 tint = -5f,
-                saturation = -20f,   // 轻微降低饱和度
-                contrast = 15f,      // 轻微增加对比度
+                saturation = -20f,
+                contrast = 15f,
                 highlights = -10f,
                 shadows = 10f,
                 grain = 15f,
@@ -117,8 +198,8 @@ object BuiltInPresets {
             category = PresetCategory.FILM,
             params = BasicAdjustmentParams(
                 temperature = 10f,
-                saturation = -35f,   // 中等降低饱和度
-                contrast = -20f,     // 轻微降低对比度
+                saturation = -35f,
+                contrast = -20f,
                 highlights = 15f,
                 blacks = 15f,
                 grain = 20f,
@@ -132,45 +213,12 @@ object BuiltInPresets {
             params = BasicAdjustmentParams(
                 temperature = 20f,
                 tint = 10f,
-                saturation = 15f,    // 轻微增加饱和度
-                contrast = 25f,      // 中等对比度
+                saturation = 15f,
+                contrast = 25f,
                 shadows = 20f,
                 vignette = -25f,
                 gradingShadowsTemp = 20f,
                 gradingHighlightsTemp = 10f
-            )
-        ),
-        createPreset(
-            name = "柯达胶片",
-            category = PresetCategory.FILM,
-            params = BasicAdjustmentParams(
-                temperature = 12f,
-                tint = 3f,
-                saturation = -10f,
-                contrast = 18f,
-                highlights = -15f,
-                shadows = 12f,
-                grain = 25f,
-                vignette = -18f,
-                gradingShadowsTemp = 8f,
-                gradingMidtonesTemp = 5f
-            )
-        ),
-        createPreset(
-            name = "富士胶片",
-            category = PresetCategory.FILM,
-            params = BasicAdjustmentParams(
-                temperature = -8f,
-                tint = 5f,
-                saturation = 8f,
-                contrast = 22f,
-                highlights = -12f,
-                shadows = 8f,
-                grain = 18f,
-                vignette = -12f,
-                gradingShadowsTemp = -15f,
-                gradingHighlightsTemp = 10f,
-                gradingBlending = 55f
             )
         ),
         
@@ -307,37 +355,7 @@ object BuiltInPresets {
             )
         ),
         
-        // 胶片色彩系列（基于真实胶卷特性）
-        createPreset(
-            name = "柯达 Portra 400",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.KodakPortra400.getPreset()
-        ),
-        createPreset(
-            name = "富士 Pro 400H",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.FujiPro400H.getPreset()
-        ),
-        createPreset(
-            name = "柯达 E100",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.KodakE100.getPreset()
-        ),
-        createPreset(
-            name = "富士 Velvia 50",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.FujiVelvia50.getPreset()
-        ),
-        createPreset(
-            name = "爱克发 Chrome",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.AgfaChrome.getPreset()
-        ),
-        createPreset(
-            name = "柯达 Vision3 500T",
-            category = PresetCategory.CREATIVE,
-            params = com.filmtracker.app.domain.model.FilmStock.KodakVision3.getPreset()
-        )
+
     )
     
     /**

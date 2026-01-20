@@ -82,12 +82,10 @@ fun FilmStripFrame(
                     .background(Color.Black)  // 胶片黑边
                     .padding(8.dp)  // 黑边宽度
             ) {
-                // 白色内边框（反转片特征）
+                // 图片内容区域（移除白边）
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(FilmWhite)
-                        .padding(4.dp)  // 白边宽度
                 ) {
                     // 图片内容
                     if (bitmap != null && !bitmap.isRecycled) {

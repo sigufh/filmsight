@@ -1,26 +1,55 @@
 {
   "name": "复古人像",
   "nameEn": "Vintage Portrait",
-  "description": "复古人像风格，降低曝光提升阴影，柔化质感，营造怀旧氛围",
+  "description": "复古人像风格，暖色调配合颗粒感，柔化质感，营造怀旧氛围",
   "category": "人像",
   "tags": ["复古", "人像", "怀旧", "柔和"],
   "parameters": {
-    "exposure": -0.33,
-    "contrast": 36,
-    "highlights": 23,
-    "shadows": 78,
-    "whites": 0,
-    "blacks": 0,
-    "saturation": 1,
-    "vibrance": 0,
-    "clarity": -10,
-    "texture": -20,
-    "dehaze": 0,
-    "temperature": 0,
-    "tint": 0,
-    "vignette": 0,
-    "grain": 0,
-    "sharpening": 40,
-    "noiseReduction": 31
+    "exposure": -0.25,
+    "contrast": 28,
+    "highlights": 15,
+    "shadows": 65,
+    "whites": -8,
+    "blacks": 12,
+    "saturation": -8,
+    "vibrance": 15,
+    "clarity": -15,
+    "texture": -25,
+    "dehaze": -5,
+    "temperature": 18,
+    "tint": 5,
+    "vignette": -15,
+    "grain": 28,
+    "sharpening": 35,
+    "noiseReduction": 40,
+    "splitToning": {
+      "shadowHue": 35,
+      "shadowSaturation": 25,
+      "highlightHue": 45,
+      "highlightSaturation": 15,
+      "balance": 10
+    },
+    "hslAdjustments": {
+      "saturation": {
+        "red": 10,
+        "orange": 15,
+        "yellow": 8,
+        "green": -12,
+        "aqua": -15,
+        "blue": -8,
+        "purple": 5,
+        "magenta": 8
+      },
+      "luminance": {
+        "red": 5,
+        "orange": 20,
+        "yellow": 15,
+        "green": -5,
+        "aqua": -8,
+        "blue": -10,
+        "purple": 0,
+        "magenta": 5
+      }
+    }
   }
 }

@@ -109,16 +109,43 @@ sealed class FilmStock(
         description = "人像经典 温暖肤色"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = 8f,           // 温暖色温
-            tint = 2f,                  // 轻微品红偏移
-            globalExposure = 0.1f,      // 轻微提亮
-            contrast = 1.05f,           // 柔和对比
-            saturation = 0.95f,         // 略微降低饱和度
-            vibrance = 10f,             // 增强自然饱和度
-            highlights = -5f,           // 保护高光
-            shadows = 10f,              // 提亮阴影
-            clarity = -5f,              // 柔化皮肤
-            grain = 8f                  // 轻微胶片颗粒
+            temperature = 8f,
+            tint = 2f,
+            globalExposure = 0.1f,
+            contrast = 1.05f,
+            saturation = 0.95f,
+            vibrance = 10f,
+            highlights = -5f,
+            shadows = 10f,
+            clarity = -5f,
+            grain = 8f,
+            // 色彩分级 - 温暖肤色
+            gradingShadowsTemp = 5f,
+            gradingMidtonesTemp = 8f,
+            gradingHighlightsTemp = 3f,
+            gradingBlending = 60f,
+            // HSL调整 - 优化肤色
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                5f,    // 红色：轻微增强
+                15f,   // 橙色：增强肤色
+                8f,    // 黄色：温暖感
+                -5f,   // 绿色：降低
+                -8f,   // 青色：降低
+                -3f,   // 蓝色：轻微降低
+                0f,    // 紫色
+                5f     // 品红：轻微增强
+            ),
+            hslLuminance = floatArrayOf(
+                8f,    // 红色：提亮
+                20f,   // 橙色：提亮肤色
+                15f,   // 黄色：提亮
+                0f,    // 绿色
+                0f,    // 青色
+                -5f,   // 蓝色：压暗
+                0f,    // 紫色
+                0f     // 品红
+            )
         )
     }
     
@@ -133,16 +160,45 @@ sealed class FilmStock(
         description = "清新通透 柔和色调"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = -5f,          // 冷色调
-            tint = -8f,                 // 绿色偏移（富士特色）
-            globalExposure = 0.15f,     // 明亮通透
-            contrast = 0.95f,           // 低对比度
-            saturation = 0.9f,          // 柔和饱和度
-            vibrance = 15f,             // 自然色彩
-            highlights = -10f,          // 柔和高光
-            shadows = 15f,              // 明亮阴影
-            clarity = -10f,             // 柔和质感
-            grain = 10f                 // 胶片颗粒
+            temperature = -5f,
+            tint = -8f,
+            globalExposure = 0.15f,
+            contrast = 0.95f,
+            saturation = 0.9f,
+            vibrance = 15f,
+            highlights = -10f,
+            shadows = 15f,
+            clarity = -10f,
+            grain = 10f,
+            // 色彩分级 - 冷色调配合绿色偏移
+            gradingShadowsTemp = -8f,
+            gradingShadowsTint = -10f,
+            gradingMidtonesTemp = -5f,
+            gradingMidtonesTint = -8f,
+            gradingHighlightsTemp = -3f,
+            gradingBlending = 55f,
+            // HSL调整 - 富士绿色特性
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                -5f,   // 红色：降低
+                10f,   // 橙色：保持肤色
+                5f,    // 黄色：轻微增强
+                15f,   // 绿色：增强（富士特色）
+                12f,   // 青色：增强
+                8f,    // 蓝色：增强
+                -8f,   // 紫色：降低
+                -10f   // 品红：降低
+            ),
+            hslLuminance = floatArrayOf(
+                5f,    // 红色
+                18f,   // 橙色：提亮肤色
+                12f,   // 黄色
+                8f,    // 绿色：提亮
+                10f,   // 青色：提亮
+                5f,    // 蓝色
+                0f,    // 紫色
+                -5f    // 品红
+            )
         )
     }
     
@@ -157,18 +213,47 @@ sealed class FilmStock(
         description = "反转片经典 高饱和度"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = 0f,           // 中性色温
-            tint = 0f,                  // 中性色调
-            globalExposure = -0.1f,     // 略微压暗（反转片特性）
-            contrast = 1.2f,            // 高对比度
-            saturation = 1.15f,         // 高饱和度
-            vibrance = 20f,             // 鲜艳色彩
-            highlights = -15f,          // 压制高光
-            shadows = -10f,             // 加深阴影
-            whites = 10f,               // 提亮白场
-            blacks = -15f,              // 加深黑场
-            clarity = 15f,              // 清晰锐利
-            grain = 5f                  // 细腻颗粒
+            temperature = 1f,
+            tint = 1f,
+            globalExposure = -0.15f,
+            contrast = 1.25f,
+            saturation = 1.18f,
+            vibrance = 25f,
+            highlights = -20f,
+            shadows = -15f,
+            whites = 15f,
+            blacks = -20f,
+            clarity = 20f,
+            sharpening = 25f,
+            dehaze = 10f,
+            grain = 4f,
+            // 色彩分级 - 中性但鲜艳
+            gradingShadowsTemp = -2f,
+            gradingMidtonesTemp = 0f,
+            gradingHighlightsTemp = 2f,
+            gradingBlending = 70f,
+            // HSL调整 - 全面增强饱和度
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                20f,   // 红色：强力增强
+                18f,   // 橙色：增强
+                22f,   // 黄色：强力增强
+                18f,   // 绿色：增强
+                20f,   // 青色：强力增强
+                25f,   // 蓝色：极致增强
+                15f,   // 紫色：增强
+                18f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                -5f,   // 红色：压暗
+                0f,    // 橙色
+                5f,    // 黄色：提亮
+                0f,    // 绿色
+                5f,    // 青色：提亮
+                -8f,   // 蓝色：压暗（深邃天空）
+                -5f,   // 紫色：压暗
+                0f     // 品红
+            )
         )
     }
     
@@ -183,19 +268,48 @@ sealed class FilmStock(
         description = "风光之王 极致色彩"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = -3f,          // 略微冷色调
-            tint = -5f,                 // 轻微绿色偏移
-            globalExposure = -0.15f,    // 压暗（反转片特性）
-            contrast = 1.3f,            // 极高对比度
-            saturation = 1.3f,          // 极高饱和度
-            vibrance = 30f,             // 极致鲜艳
-            highlights = -20f,          // 强力压制高光
-            shadows = -15f,             // 深邃阴影
-            whites = 15f,               // 明亮白场
-            blacks = -20f,              // 深黑场
-            clarity = 25f,              // 极致清晰
-            dehaze = 20f,               // 去雾增强
-            grain = 3f                  // 极细颗粒
+            temperature = -3f,
+            tint = -5f,
+            globalExposure = -0.15f,
+            contrast = 1.3f,
+            saturation = 1.3f,
+            vibrance = 30f,
+            highlights = -20f,
+            shadows = -15f,
+            whites = 15f,
+            blacks = -20f,
+            clarity = 25f,
+            dehaze = 20f,
+            grain = 3f,
+            // 色彩分级 - 冷色调配合绿色
+            gradingShadowsTemp = -5f,
+            gradingShadowsTint = -8f,
+            gradingMidtonesTemp = -3f,
+            gradingMidtonesTint = -5f,
+            gradingHighlightsTemp = 0f,
+            gradingBlending = 75f,
+            // HSL调整 - 极致饱和度（风光专用）
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                30f,   // 红色：极致增强
+                25f,   // 橙色：强力增强
+                35f,   // 黄色：极致增强
+                40f,   // 绿色：极致增强（风光）
+                35f,   // 青色：极致增强
+                40f,   // 蓝色：极致增强（天空）
+                25f,   // 紫色：强力增强
+                30f    // 品红：极致增强
+            ),
+            hslLuminance = floatArrayOf(
+                -10f,  // 红色：压暗（深邃）
+                0f,    // 橙色
+                10f,   // 黄色：提亮
+                5f,    // 绿色：轻微提亮
+                8f,    // 青色：提亮
+                -15f,  // 蓝色：强力压暗（深邃天空）
+                -10f,  // 紫色：压暗
+                -5f    // 品红：压暗
+            )
         )
     }
     
@@ -210,18 +324,49 @@ sealed class FilmStock(
         description = "欧系风格 中性色调"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = 2f,           // 略微暖色
-            tint = 0f,                  // 中性色调
-            globalExposure = -0.05f,    // 轻微压暗
-            contrast = 1.15f,           // 中等对比度
-            saturation = 1.1f,          // 适度饱和度
-            vibrance = 15f,             // 自然鲜艳
-            highlights = -12f,          // 控制高光
-            shadows = -8f,              // 适度阴影
-            whites = 8f,                // 提亮白场
-            blacks = -12f,              // 加深黑场
-            clarity = 10f,              // 清晰度
-            grain = 6f                  // 中等颗粒
+            temperature = 3f,
+            tint = 2f,
+            globalExposure = -0.12f,
+            contrast = 1.22f,
+            saturation = 1.12f,
+            vibrance = 12f,
+            highlights = -18f,
+            shadows = -12f,
+            whites = 5f,
+            blacks = -18f,
+            clarity = 8f,
+            dehaze = 5f,
+            grain = 8f,
+            vignette = -5f,
+            // 色彩分级 - 欧系暖色调
+            gradingShadowsTemp = 5f,
+            gradingShadowsTint = 3f,
+            gradingMidtonesTemp = 3f,
+            gradingMidtonesTint = 2f,
+            gradingHighlightsTemp = 2f,
+            gradingBlending = 65f,
+            // HSL调整 - 平衡但略微增强
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                15f,   // 红色：增强
+                12f,   // 橙色：增强
+                15f,   // 黄色：增强
+                10f,   // 绿色：适度增强
+                12f,   // 青色：增强
+                18f,   // 蓝色：强力增强
+                10f,   // 紫色：适度增强
+                12f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                -3f,   // 红色：轻微压暗
+                5f,    // 橙色：提亮
+                8f,    // 黄色：提亮
+                0f,    // 绿色
+                3f,    // 青色：轻微提亮
+                -8f,   // 蓝色：压暗
+                -5f,   // 紫色：压暗
+                0f     // 品红
+            )
         )
     }
     
@@ -236,21 +381,539 @@ sealed class FilmStock(
         description = "电影质感 宽容度高"
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
-            temperature = 15f,          // 暖色调（钨丝灯平衡）
-            tint = 5f,                  // 轻微品红
-            globalExposure = 0.05f,     // 轻微提亮
-            contrast = 1.1f,            // 适度对比
-            saturation = 1.05f,         // 略微增强饱和度
-            vibrance = 10f,             // 自然色彩
-            highlights = -15f,          // 保护高光（宽容度）
-            shadows = 20f,              // 提亮阴影（宽容度）
-            whites = -5f,               // 柔和白场
-            blacks = 10f,               // 提亮黑场
-            clarity = 5f,               // 轻微清晰
-            vignette = -15f,            // 电影暗角
-            grain = 12f,                // 电影颗粒
-            gradingShadowsTemp = 10f,   // 阴影暖色
-            gradingHighlightsTemp = -5f // 高光冷色（电影色调分离）
+            temperature = 15f,
+            tint = 5f,
+            globalExposure = 0.05f,
+            contrast = 1.1f,
+            saturation = 1.05f,
+            vibrance = 10f,
+            highlights = -15f,
+            shadows = 20f,
+            whites = -5f,
+            blacks = 10f,
+            clarity = 5f,
+            vignette = -15f,
+            grain = 12f,
+            // 色彩分级 - 电影色调分离（橙蓝）
+            gradingShadowsTemp = 15f,
+            gradingShadowsTint = 5f,
+            gradingMidtonesTemp = 8f,
+            gradingHighlightsTemp = -8f,
+            gradingHighlightsTint = -5f,
+            gradingBlending = 80f,
+            gradingBalance = 10f,
+            // HSL调整 - 电影感色彩
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                10f,   // 红色：增强
+                20f,   // 橙色：强力增强（肤色）
+                15f,   // 黄色：增强
+                -10f,  // 绿色：降低
+                -15f,  // 青色：降低
+                25f,   // 蓝色：强力增强（电影感）
+                5f,    // 紫色：轻微增强
+                10f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                5f,    // 红色：提亮
+                15f,   // 橙色：提亮肤色
+                10f,   // 黄色：提亮
+                -5f,   // 绿色：压暗
+                -8f,   // 青色：压暗
+                -12f,  // 蓝色：压暗（深邃）
+                -5f,   // 紫色：压暗
+                0f     // 品红
+            )
+        )
+    }
+    
+    /**
+     * 柯达 Gold 200（负片）
+     * 特点：经典暖色、怀旧感、日常记录
+     */
+    object KodakGold200 : FilmStock(
+        displayName = "柯达 Gold 200",
+        englishName = "Kodak Gold 200",
+        type = FilmType.NEGATIVE,
+        description = "经典暖色 怀旧日常"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 12f,
+            tint = 3f,
+            globalExposure = 0.2f,
+            contrast = 1.0f,
+            saturation = 1.05f,
+            vibrance = 12f,
+            highlights = -8f,
+            shadows = 12f,
+            clarity = 0f,
+            grain = 15f,
+            vignette = -8f,
+            // 色彩分级 - 经典暖黄色调
+            gradingShadowsTemp = 15f,
+            gradingShadowsTint = 5f,
+            gradingMidtonesTemp = 12f,
+            gradingMidtonesTint = 3f,
+            gradingHighlightsTemp = 10f,
+            gradingBlending = 70f,
+            // HSL调整 - 怀旧暖色
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                15f,   // 红色：增强
+                20f,   // 橙色：强力增强（暖色）
+                25f,   // 黄色：极致增强（金色）
+                -5f,   // 绿色：降低
+                -10f,  // 青色：降低
+                -8f,   // 蓝色：降低
+                5f,    // 紫色：轻微增强
+                10f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                10f,   // 红色：提亮
+                18f,   // 橙色：提亮
+                20f,   // 黄色：强力提亮（金色）
+                -5f,   // 绿色：压暗
+                -8f,   // 青色：压暗
+                -10f,  // 蓝色：压暗
+                0f,    // 紫色
+                5f     // 品红：提亮
+            )
+        )
+    }
+    
+    /**
+     * 柯达 Ektar 100（负片）
+     * 特点：极致锐利、高饱和度、风光利器
+     */
+    object KodakEktar100 : FilmStock(
+        displayName = "柯达 Ektar 100",
+        englishName = "Kodak Ektar 100",
+        type = FilmType.NEGATIVE,
+        description = "极致锐利 高饱和度"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 5f,
+            tint = 0f,
+            globalExposure = 0.0f,
+            contrast = 1.15f,
+            saturation = 1.2f,
+            vibrance = 25f,
+            highlights = -10f,
+            shadows = 5f,
+            whites = 10f,
+            blacks = -10f,
+            clarity = 20f,
+            sharpening = 30f,
+            grain = 5f,
+            // 色彩分级 - 轻微暖色
+            gradingShadowsTemp = 3f,
+            gradingMidtonesTemp = 5f,
+            gradingHighlightsTemp = 2f,
+            gradingBlending = 60f,
+            // HSL调整 - 风光色彩增强
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                25f,   // 红色：强力增强
+                20f,   // 橙色：增强
+                28f,   // 黄色：极致增强
+                30f,   // 绿色：极致增强（风光）
+                25f,   // 青色：强力增强
+                30f,   // 蓝色：极致增强（天空）
+                20f,   // 紫色：增强
+                22f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                -5f,   // 红色：压暗
+                5f,    // 橙色：提亮
+                10f,   // 黄色：提亮
+                5f,    // 绿色：提亮
+                8f,    // 青色：提亮
+                -10f,  // 蓝色：压暗（深邃天空）
+                -5f,   // 紫色：压暗
+                0f     // 品红
+            )
+        )
+    }
+    
+    /**
+     * 富士 Superia 400（负片）
+     * 特点：清新色彩、日系风格、平衡表现
+     */
+    object FujiSuperia400 : FilmStock(
+        displayName = "富士 Superia 400",
+        englishName = "Fujifilm Superia 400",
+        type = FilmType.NEGATIVE,
+        description = "日系清新 平衡表现"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = -4f,
+            tint = -7f,
+            globalExposure = 0.08f,
+            contrast = 1.08f,
+            saturation = 1.05f,
+            vibrance = 20f,
+            highlights = -10f,
+            shadows = 8f,
+            whites = 5f,
+            blacks = -5f,
+            clarity = 8f,
+            sharpening = 15f,
+            grain = 10f,
+            // 色彩分级 - 日系冷色调
+            gradingShadowsTemp = -6f,
+            gradingShadowsTint = -8f,
+            gradingMidtonesTemp = -4f,
+            gradingMidtonesTint = -7f,
+            gradingHighlightsTemp = -2f,
+            gradingBlending = 65f,
+            // HSL调整 - 日系色彩
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                5f,    // 红色：轻微增强
+                12f,   // 橙色：增强
+                10f,   // 黄色：增强
+                18f,   // 绿色：强力增强（日系）
+                15f,   // 青色：增强
+                12f,   // 蓝色：增强
+                -5f,   // 紫色：降低
+                -8f    // 品红：降低
+            ),
+            hslLuminance = floatArrayOf(
+                5f,    // 红色：提亮
+                15f,   // 橙色：提亮
+                12f,   // 黄色：提亮
+                10f,   // 绿色：提亮
+                12f,   // 青色：提亮
+                5f,    // 蓝色：提亮
+                0f,    // 紫色
+                -5f    // 品红：压暗
+            )
+        )
+    }
+    
+    /**
+     * 富士 C200（负片）
+     * 特点：经济实惠、清新通透、入门首选
+     */
+    object FujiC200 : FilmStock(
+        displayName = "富士 C200",
+        englishName = "Fujifilm C200",
+        type = FilmType.NEGATIVE,
+        description = "清新通透 入门首选"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 0f,
+            tint = -3f,
+            globalExposure = 0.2f,
+            contrast = 0.95f,
+            saturation = 0.92f,
+            vibrance = 18f,
+            highlights = -3f,
+            shadows = 20f,
+            whites = -5f,
+            blacks = 8f,
+            clarity = -5f,
+            grain = 22f,
+            dehaze = -8f,
+            // 色彩分级 - 清新通透
+            gradingShadowsTemp = -2f,
+            gradingShadowsTint = -5f,
+            gradingMidtonesTemp = 0f,
+            gradingMidtonesTint = -3f,
+            gradingHighlightsTemp = 2f,
+            gradingBlending = 50f,
+            // HSL调整 - 清新柔和
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                -5f,   // 红色：降低
+                8f,    // 橙色：轻微增强
+                5f,    // 黄色：轻微增强
+                12f,   // 绿色：增强
+                10f,   // 青色：增强
+                8f,    // 蓝色：轻微增强
+                -10f,  // 紫色：降低
+                -12f   // 品红：降低
+            ),
+            hslLuminance = floatArrayOf(
+                10f,   // 红色：提亮
+                18f,   // 橙色：提亮
+                15f,   // 黄色：提亮
+                12f,   // 绿色：提亮
+                15f,   // 青色：提亮
+                10f,   // 蓝色：提亮
+                5f,    // 紫色：提亮
+                0f     // 品红
+            )
+        )
+    }
+    
+    /**
+     * 柯达 Tri-X 400（黑白负片）
+     * 特点：经典黑白、高对比度、街拍经典
+     */
+    object KodakTriX400 : FilmStock(
+        displayName = "柯达 Tri-X 400",
+        englishName = "Kodak Tri-X 400",
+        type = FilmType.NEGATIVE,
+        description = "经典黑白 街拍利器"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 0f,
+            tint = 0f,
+            globalExposure = 0.0f,
+            contrast = 1.25f,
+            saturation = 0.0f,
+            vibrance = 0f,
+            highlights = -15f,
+            shadows = -10f,
+            whites = 15f,
+            blacks = -20f,
+            clarity = 15f,
+            grain = 25f,
+            vignette = -10f,
+            // 色彩分级 - 黑白不需要
+            gradingBlending = 0f,
+            // HSL调整 - 黑白混合器（控制不同颜色转换为灰度的亮度）
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                -100f, // 红色：完全去饱和
+                -100f, // 橙色：完全去饱和
+                -100f, // 黄色：完全去饱和
+                -100f, // 绿色：完全去饱和
+                -100f, // 青色：完全去饱和
+                -100f, // 蓝色：完全去饱和
+                -100f, // 紫色：完全去饱和
+                -100f  // 品红：完全去饱和
+            ),
+            hslLuminance = floatArrayOf(
+                15f,   // 红色：提亮（经典黑白滤镜效果）
+                20f,   // 橙色：提亮（肤色）
+                25f,   // 黄色：提亮
+                -10f,  // 绿色：压暗
+                -15f,  // 青色：压暗
+                -20f,  // 蓝色：强力压暗（天空）
+                -10f,  // 紫色：压暗
+                0f     // 品红
+            )
+        )
+    }
+    
+    /**
+     * 富士 Provia 100F（反转片）
+     * 特点：中性色彩、精准还原、专业标准
+     */
+    object FujiProvia100F : FilmStock(
+        displayName = "富士 Provia 100F",
+        englishName = "Fujifilm Provia 100F",
+        type = FilmType.REVERSAL,
+        description = "中性色彩 精准还原"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = -1f,
+            tint = -2f,
+            globalExposure = -0.08f,
+            contrast = 1.18f,
+            saturation = 1.08f,
+            vibrance = 15f,
+            highlights = -10f,
+            shadows = -5f,
+            whites = 12f,
+            blacks = -10f,
+            clarity = 18f,
+            sharpening = 20f,
+            grain = 2f,
+            // 色彩分级 - 极轻微富士绿
+            gradingShadowsTemp = -1f,
+            gradingShadowsTint = -3f,
+            gradingMidtonesTemp = -1f,
+            gradingMidtonesTint = -2f,
+            gradingHighlightsTemp = 0f,
+            gradingBlending = 50f,
+            // HSL调整 - 精准平衡
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                12f,   // 红色：适度增强
+                10f,   // 橙色：适度增强
+                12f,   // 黄色：适度增强
+                15f,   // 绿色：增强（富士特色）
+                12f,   // 青色：适度增强
+                15f,   // 蓝色：增强
+                10f,   // 紫色：适度增强
+                12f    // 品红：适度增强
+            ),
+            hslLuminance = floatArrayOf(
+                0f,    // 红色：中性
+                5f,    // 橙色：轻微提亮
+                8f,    // 黄色：提亮
+                3f,    // 绿色：轻微提亮
+                5f,    // 青色：轻微提亮
+                -5f,   // 蓝色：轻微压暗
+                -3f,   // 紫色：轻微压暗
+                0f     // 品红：中性
+            )
+        )
+    }
+    
+    /**
+     * 柯达 Portra 160（负片）
+     * 特点：细腻肤色、低颗粒、婚礼首选
+     */
+    object KodakPortra160 : FilmStock(
+        displayName = "柯达 Portra 160",
+        englishName = "Kodak Portra 160",
+        type = FilmType.NEGATIVE,
+        description = "细腻肤色 婚礼首选"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 4f,
+            tint = 0f,
+            globalExposure = 0.25f,
+            contrast = 0.92f,
+            saturation = 0.88f,
+            vibrance = 5f,
+            highlights = -12f,
+            shadows = 18f,
+            whites = 8f,
+            blacks = 5f,
+            clarity = -12f,
+            texture = -8f,
+            grain = 3f,
+            vignette = -3f,
+            // 色彩分级 - 极柔和暖色
+            gradingShadowsTemp = 3f,
+            gradingMidtonesTemp = 4f,
+            gradingHighlightsTemp = 2f,
+            gradingBlending = 55f,
+            // HSL调整 - 极致肤色优化
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                3f,    // 红色：极轻微增强
+                18f,   // 橙色：强力增强（肤色）
+                10f,   // 黄色：增强
+                -8f,   // 绿色：降低
+                -12f,  // 青色：降低
+                -5f,   // 蓝色：降低
+                0f,    // 紫色
+                3f     // 品红：极轻微增强
+            ),
+            hslLuminance = floatArrayOf(
+                10f,   // 红色：提亮
+                25f,   // 橙色：强力提亮（肤色）
+                20f,   // 黄色：提亮
+                0f,    // 绿色
+                0f,    // 青色
+                -8f,   // 蓝色：压暗
+                0f,    // 紫色
+                0f     // 品红
+            )
+        )
+    }
+    
+    /**
+     * 柯达 Portra 800（负片）
+     * 特点：高感光度、暖色调、弱光利器
+     */
+    object KodakPortra800 : FilmStock(
+        displayName = "柯达 Portra 800",
+        englishName = "Kodak Portra 800",
+        type = FilmType.NEGATIVE,
+        description = "高感光度 弱光利器"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 10f,
+            tint = 3f,
+            globalExposure = 0.2f,
+            contrast = 1.0f,
+            saturation = 0.98f,
+            vibrance = 12f,
+            highlights = -10f,
+            shadows = 15f,
+            clarity = -3f,
+            grain = 20f,
+            noiseReduction = -10f,
+            // 色彩分级 - 暖色调
+            gradingShadowsTemp = 12f,
+            gradingShadowsTint = 5f,
+            gradingMidtonesTemp = 10f,
+            gradingMidtonesTint = 3f,
+            gradingHighlightsTemp = 8f,
+            gradingBlending = 65f,
+            // HSL调整 - 高感暖色
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                8f,    // 红色：增强
+                18f,   // 橙色：强力增强（肤色）
+                12f,   // 黄色：增强
+                -8f,   // 绿色：降低
+                -12f,  // 青色：降低
+                -5f,   // 蓝色：降低
+                3f,    // 紫色：轻微增强
+                8f     // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                10f,   // 红色：提亮
+                22f,   // 橙色：强力提亮（肤色）
+                18f,   // 黄色：提亮
+                -3f,   // 绿色：轻微压暗
+                -5f,   // 青色：压暗
+                -8f,   // 蓝色：压暗
+                0f,    // 紫色
+                5f     // 品红：提亮
+            )
+        )
+    }
+    
+    /**
+     * 爱克发 Vista 400（负片）
+     * 特点：复古色调、欧系风格、独特氛围
+     */
+    object AgfaVista400 : FilmStock(
+        displayName = "爱克发 Vista 400",
+        englishName = "Agfa Vista 400",
+        type = FilmType.NEGATIVE,
+        description = "复古色调 欧系风格"
+    ) {
+        override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
+            temperature = 8f,
+            tint = 0f,
+            globalExposure = 0.1f,
+            contrast = 1.1f,
+            saturation = 1.08f,
+            vibrance = 15f,
+            highlights = -10f,
+            shadows = 8f,
+            clarity = 5f,
+            grain = 16f,
+            vignette = -12f,
+            // 色彩分级 - 复古欧系
+            gradingShadowsTemp = 10f,
+            gradingShadowsTint = 3f,
+            gradingMidtonesTemp = 8f,
+            gradingMidtonesTint = 2f,
+            gradingHighlightsTemp = 5f,
+            gradingBlending = 70f,
+            // HSL调整 - 复古色彩
+            enableHSL = true,
+            hslSaturation = floatArrayOf(
+                18f,   // 红色：强力增强
+                15f,   // 橙色：增强
+                20f,   // 黄色：强力增强
+                8f,    // 绿色：轻微增强
+                5f,    // 青色：轻微增强
+                12f,   // 蓝色：增强
+                10f,   // 紫色：增强
+                15f    // 品红：增强
+            ),
+            hslLuminance = floatArrayOf(
+                -5f,   // 红色：压暗（复古）
+                10f,   // 橙色：提亮
+                12f,   // 黄色：提亮
+                -3f,   // 绿色：轻微压暗
+                0f,    // 青色
+                -8f,   // 蓝色：压暗
+                -5f,   // 紫色：压暗
+                0f     // 品红
+            )
         )
     }
     
@@ -260,7 +923,15 @@ sealed class FilmStock(
          */
         fun getNegativeFilms(): List<FilmStock> = listOf(
             KodakPortra400,
-            FujiPro400H
+            KodakPortra160,
+            KodakPortra800,
+            KodakGold200,
+            KodakEktar100,
+            KodakTriX400,
+            FujiPro400H,
+            FujiSuperia400,
+            FujiC200,
+            AgfaVista400
         )
         
         /**
@@ -269,6 +940,7 @@ sealed class FilmStock(
         fun getReversalFilms(): List<FilmStock> = listOf(
             KodakE100,
             FujiVelvia50,
+            FujiProvia100F,
             AgfaChrome
         )
         

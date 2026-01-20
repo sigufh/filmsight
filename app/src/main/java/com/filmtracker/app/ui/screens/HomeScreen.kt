@@ -139,7 +139,6 @@ fun HomeScreen(
                             )
                         ),
                         onClick = onAIColorClick,
-                        comingSoon = true,
                         modifier = Modifier.weight(1f)
                     )
                 }

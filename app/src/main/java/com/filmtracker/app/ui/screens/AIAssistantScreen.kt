@@ -55,19 +55,24 @@ fun AIAssistantScreen(
     var selectedImage by remember { mutableStateOf<Bitmap?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     
-    // 图片选择器
+    // 图片选择器（在后台线程加载）
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             selectedImageUri = it
-            // 加载图片
-            try {
-                val inputStream = context.contentResolver.openInputStream(it)
-                selectedImage = BitmapFactory.decodeStream(inputStream)
-                inputStream?.close()
-            } catch (e: Exception) {
-                android.util.Log.e("AIAssistantScreen", "Failed to load image", e)
+            // 在后台线程加载图片
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                try {
+                    val bitmap = context.contentResolver.openInputStream(it)?.use { stream ->
+                        BitmapFactory.decodeStream(stream)
+                    }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        selectedImage = bitmap
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("AIAssistantScreen", "Failed to load image", e)
+                }
             }
         }
     }

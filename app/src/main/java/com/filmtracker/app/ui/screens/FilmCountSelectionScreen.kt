@@ -25,6 +25,7 @@ import com.filmtracker.app.domain.model.FilmStock
 import com.filmtracker.app.ui.screens.components.AIDialogPanel
 import com.filmtracker.app.ui.screens.components.ViewfinderAnimation
 import com.filmtracker.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 /**
  * 照片选择页（胶卷仿拍流程第二步）
@@ -50,21 +51,132 @@ fun FilmCountSelectionScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     // 张数由画幅决定，取最大值
     val selectedCount = filmFormat.availableCounts.maxOrNull() ?: 36
     var selectedImageUris by remember { mutableStateOf<List<String>>(emptyList()) }
     var isAnimationPlaying by remember { mutableStateOf(false) }
-    var isAnimationComplete by remember { mutableStateOf(false) }
+    var showLimitWarning by remember { mutableStateOf(false) }
+    var originalSelectionCount by remember { mutableStateOf(0) }
+    
+    // 加载状态
+    var isLoadingImages by remember { mutableStateOf(false) }
+    var loadingProgress by remember { mutableStateOf(0f) }
+    var loadedImagesCount by remember { mutableStateOf(0) }
+    var isReadyToNavigate by remember { mutableStateOf(false) }
     
     // 图片选择器
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
     ) { uris ->
         if (uris.isNotEmpty()) {
+            originalSelectionCount = uris.size
+            
             // 限制图片数量
             val limitedUris = uris.take(selectedCount).map { it.toString() }
             selectedImageUris = limitedUris
+            
+            // 如果用户选择的图片超过限制，显示警告
+            if (uris.size > selectedCount) {
+                showLimitWarning = true
+            }
         }
+    }
+    
+    // 预加载图片的函数（在后台线程执行）
+    fun preloadImages() {
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                isLoadingImages = true
+                loadedImagesCount = 0
+                loadingProgress = 0f
+            }
+            
+            try {
+                // 在IO线程加载每张图片
+                selectedImageUris.forEachIndexed { index, uriString ->
+                    val uri = android.net.Uri.parse(uriString)
+                    
+                    // 验证图片可以打开（在IO线程）
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            // 验证图片可以打开
+                            val options = android.graphics.BitmapFactory.Options().apply {
+                                inJustDecodeBounds = true
+                            }
+                            android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("FilmCountSelection", "Failed to validate image: $uriString", e)
+                    }
+                    
+                    // 更新UI（切换到主线程）
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        loadedImagesCount = index + 1
+                        loadingProgress = (index + 1).toFloat() / selectedImageUris.size
+                    }
+                }
+                
+                // 所有图片加载完成（切换到主线程）
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    isLoadingImages = false
+                    isReadyToNavigate = true
+                }
+                
+            } catch (e: Exception) {
+                android.util.Log.e("FilmCountSelection", "Failed to preload images", e)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    isLoadingImages = false
+                    // 即使失败也允许导航
+                    isReadyToNavigate = true
+                }
+            }
+        }
+    }
+    
+    // 监听加载完成，触发导航
+    LaunchedEffect(isReadyToNavigate) {
+        if (isReadyToNavigate) {
+            // 确保动画至少播放了最小时长
+            kotlinx.coroutines.delay(300)
+            onCountSelected(selectedCount, selectedImageUris)
+        }
+    }
+    
+    // 限制警告对话框
+    if (showLimitWarning) {
+        AlertDialog(
+            onDismissRequest = { showLimitWarning = false },
+            title = {
+                Text(
+                    text = "⚠️ 照片数量限制",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "您选择了 $originalSelectionCount 张照片，但 ${filmFormat.displayName} 最多只能拍摄 $selectedCount 张。",
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "已自动保留前 $selectedCount 张照片。",
+                        fontSize = 14.sp,
+                        color = FilmMintGreen,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showLimitWarning = false }
+                ) {
+                    Text("知道了", color = FilmCaramelOrange)
+                }
+            },
+            containerColor = FilmWhite,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
     
     Scaffold(
@@ -122,12 +234,49 @@ fun FilmCountSelectionScreen(
                 fontWeight = FontWeight.Light
             )
             
-            // 提示信息
-            Text(
-                text = "最多可选择 $selectedCount 张照片",
-                fontSize = 14.sp,
-                color = FilmDarkGray
-            )
+            // 提示信息卡片
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = FilmMilkyBlue.copy(alpha = 0.3f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ℹ️",
+                        fontSize = 24.sp
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "照片数量限制",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FilmInkBlack
+                        )
+                        Text(
+                            text = "${filmFormat.displayName} 最多可选择 $selectedCount 张照片",
+                            fontSize = 13.sp,
+                            color = FilmDarkGray
+                        )
+                        if (selectedImageUris.isNotEmpty()) {
+                            Text(
+                                text = "已选择：${selectedImageUris.size}/$selectedCount 张",
+                                fontSize = 12.sp,
+                                color = FilmMintGreen,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -156,50 +305,67 @@ fun FilmCountSelectionScreen(
                 )
             }
             
-            // 已选择图片提示
-            if (selectedImageUris.isNotEmpty()) {
-                Text(
-                    text = "已选择 ${selectedImageUris.size}/${selectedCount} 张照片",
-                    fontSize = 14.sp,
-                    color = FilmMintGreen,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            
             Spacer(modifier = Modifier.height(16.dp))
             
             // 取景器区域（仅在选择照片后显示）
-            if (selectedImageUris.isNotEmpty()) {
+            if (selectedImageUris.isNotEmpty() && !isReadyToNavigate) {
                 ViewfinderAnimation(
                     isPlaying = isAnimationPlaying,
                     onAnimationComplete = {
-                        isAnimationComplete = true
-                        // 动画完成后自动进入下一步
-                        onCountSelected(selectedCount, selectedImageUris)
+                        // 动画完成回调 - 但如果图片还在加载，动画会继续循环
+                        // 实际导航由 isReadyToNavigate 控制
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 32.dp)
                 )
                 
-                // 提示文字
-                if (isAnimationPlaying) {
-                    Text(
-                        text = "取景中...",
-                        fontSize = 16.sp,
-                        color = FilmDarkGray,
-                        fontWeight = FontWeight.Medium
-                    )
+                // 提示文字 - 根据状态显示不同信息
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (isLoadingImages) {
+                        Text(
+                            text = "正在加载照片...",
+                            fontSize = 16.sp,
+                            color = FilmCaramelOrange,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "$loadedImagesCount / ${selectedImageUris.size}",
+                            fontSize = 14.sp,
+                            color = FilmDarkGray
+                        )
+                        // 进度条
+                        LinearProgressIndicator(
+                            progress = loadingProgress,
+                            modifier = Modifier
+                                .width(200.dp)
+                                .padding(top = 8.dp),
+                            color = FilmCaramelOrange,
+                            trackColor = FilmLightGray
+                        )
+                    } else if (isAnimationPlaying) {
+                        Text(
+                            text = "取景中...",
+                            fontSize = 16.sp,
+                            color = FilmDarkGray,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
             // 开始拍摄按钮（仅在选择照片后显示）
-            if (selectedImageUris.isNotEmpty() && !isAnimationPlaying) {
+            if (selectedImageUris.isNotEmpty() && !isAnimationPlaying && !isLoadingImages) {
                 Button(
                     onClick = {
+                        // 同时启动动画和图片加载
                         isAnimationPlaying = true
+                        preloadImages()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
