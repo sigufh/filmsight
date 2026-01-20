@@ -23,6 +23,10 @@ import kotlinx.coroutines.launch
  */
 class AIAssistantViewModel(private val settingsManager: AISettingsManager) : ViewModel() {
     
+    // 为每个图片缓存聊天记录 (imageHash -> messages)
+    private val conversationCache = mutableMapOf<Int, List<ChatMessage>>()
+    private var currentImageHash: Int? = null
+    
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
     
@@ -285,10 +289,50 @@ class AIAssistantViewModel(private val settingsManager: AISettingsManager) : Vie
     }
     
     /**
-     * 清空对话
+     * 切换到指定图片的对话历史
      */
-    fun clearConversation() {
+    fun switchToImage(imageHash: Int?) {
+        // 保存当前图片的对话历史
+        currentImageHash?.let { hash ->
+            conversationCache[hash] = _messages.value
+        }
+        
+        // 切换到新图片
+        currentImageHash = imageHash
+        
+        // 加载新图片的对话历史（如果有）
+        _messages.value = if (imageHash != null) {
+            conversationCache[imageHash] ?: emptyList()
+        } else {
+            emptyList()
+        }
+    }
+    
+    /**
+     * 清空当前图片的对话
+     */
+    fun clearCurrentConversation() {
         _messages.value = emptyList()
         _currentSuggestion.value = null
+        currentImageHash?.let { hash ->
+            conversationCache.remove(hash)
+        }
+    }
+    
+    /**
+     * 清空所有对话缓存
+     */
+    fun clearAllConversations() {
+        conversationCache.clear()
+        _messages.value = emptyList()
+        _currentSuggestion.value = null
+        currentImageHash = null
+    }
+    
+    /**
+     * 清空对话（保留向后兼容）
+     */
+    fun clearConversation() {
+        clearCurrentConversation()
     }
 }

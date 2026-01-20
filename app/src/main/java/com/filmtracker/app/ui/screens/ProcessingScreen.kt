@@ -239,7 +239,15 @@ fun ProcessingScreen(
                             .background(Color(0xFF1C1C1E))
                     ) {
                         when (selectedPrimaryTool) {
-                            PrimaryTool.AI -> AIAssistPanel()
+                            PrimaryTool.AI -> AIAssistPanel(
+                                currentImage = processedImage,
+                                imageIdentifier = imageUri,  // 使用 URI 作为稳定标识符
+                                currentParams = basicParams,
+                                onApplyParams = { newParams ->
+                                    val newDomainParams = mapper.toDomain(newParams)
+                                    viewModel.updateParams(newDomainParams)
+                                }
+                            )
                             PrimaryTool.FILTER -> CreativeFilterPanel(
                                 currentParams = basicParams,
                                 onApplyPreset = { presetParams ->

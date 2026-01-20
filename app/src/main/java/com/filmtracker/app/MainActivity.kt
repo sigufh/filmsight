@@ -42,6 +42,10 @@ class MainActivity : ComponentActivity() {
     private val recentImagesKey = "recent_images"
     private val maxRecentImages = 20
     
+    // Activity 级别的缓存，避免重复加载
+    private var cachedRecentImages: List<ImageInfo>? = null
+    private var isLoadingImages = false
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -175,9 +179,11 @@ class MainActivity : ComponentActivity() {
         onImageApplied: () -> Unit = {}
     ) {
         var selectedImageUri by remember { mutableStateOf(initialImageUri) }
-        var recentImages by remember { mutableStateOf<List<ImageInfo>>(emptyList()) }
         var showImportScreen by remember { mutableStateOf(initialImageUri == null) }
         var appliedSuggestion by remember { mutableStateOf(initialSuggestion) }
+        
+        // 使用缓存的图片列表作为初始值，避免闪烁
+        var recentImages by remember { mutableStateOf(cachedRecentImages ?: emptyList()) }
         
         // 当有初始图片时，标记已应用
         LaunchedEffect(initialImageUri) {
@@ -186,9 +192,15 @@ class MainActivity : ComponentActivity() {
             }
         }
         
-        // 加载最近图片列表
+        // 异步加载图片列表（如果缓存为空或需要刷新）
         LaunchedEffect(Unit) {
-            recentImages = loadRecentImages()
+            if (cachedRecentImages == null && !isLoadingImages) {
+                isLoadingImages = true
+                val loaded = loadRecentImages()
+                cachedRecentImages = loaded
+                recentImages = loaded
+                isLoadingImages = false
+            }
         }
         
         // 重新注册以访问状态
@@ -200,10 +212,14 @@ class MainActivity : ComponentActivity() {
                     val imageInfo = createImageInfo(uri)
                     if (imageInfo != null) {
                         // 添加到最近列表
-                        recentImages = (listOf(imageInfo) + recentImages)
+                        val updatedList = (listOf(imageInfo) + recentImages)
                             .distinctBy { it.uri }
                             .take(maxRecentImages)
-                        saveRecentImages(recentImages)
+                        recentImages = updatedList
+                        
+                        // 同时更新缓存
+                        cachedRecentImages = updatedList
+                        saveRecentImages(updatedList)
                         
                         // 选择这张图片
                         selectedImageUri = imageInfo.uri
@@ -243,9 +259,13 @@ class MainActivity : ComponentActivity() {
                         },
                         onDeleteImage = { imageInfo ->
                             android.util.Log.d("MainActivity", "Deleting image: ${imageInfo.fileName}")
-                            recentImages = recentImages.filter { it.uri != imageInfo.uri }
+                            val updatedList = recentImages.filter { it.uri != imageInfo.uri }
+                            recentImages = updatedList
+                            
+                            // 同时更新缓存
+                            cachedRecentImages = updatedList
                             lifecycleScope.launch {
-                                saveRecentImages(recentImages)
+                                saveRecentImages(updatedList)
                             }
                         },
                         onBack = onBack  // 添加返回回调
@@ -397,11 +417,26 @@ class MainActivity : ComponentActivity() {
     private suspend fun loadRecentImages(): List<ImageInfo> = withContext(Dispatchers.IO) {
         try {
             val prefs = getSharedPreferences("filmsight", Context.MODE_PRIVATE)
-            val json = prefs.getString(recentImagesKey, null) ?: return@withContext emptyList()
+            val uriListJson = prefs.getString(recentImagesKey, null) ?: return@withContext emptyList()
             
-            // 简单的 JSON 解析（实际项目中应使用 Gson 或 Kotlinx.serialization）
-            // 这里暂时返回空列表，后续可以实现持久化
-            emptyList()
+            // 解析保存的 URI 列表
+            val uriList = uriListJson.split("|").filter { it.isNotBlank() }
+            
+            // 为每个 URI 重新创建 ImageInfo
+            val imageInfoList = mutableListOf<ImageInfo>()
+            for (uriString in uriList) {
+                try {
+                    val uri = Uri.parse(uriString)
+                    val imageInfo = createImageInfo(uri)
+                    if (imageInfo != null) {
+                        imageInfoList.add(imageInfo)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MainActivity", "Error loading image: $uriString", e)
+                }
+            }
+            
+            imageInfoList
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error loading recent images", e)
             emptyList()
@@ -411,9 +446,10 @@ class MainActivity : ComponentActivity() {
     private suspend fun saveRecentImages(images: List<ImageInfo>) = withContext(Dispatchers.IO) {
         try {
             val prefs = getSharedPreferences("filmsight", Context.MODE_PRIVATE)
-            // 简单的持久化（实际项目中应使用 Gson 或 Kotlinx.serialization）
-            // 这里暂时不实现，后续可以添加
-            prefs.edit().apply()
+            // 只保存 URI 列表，用 | 分隔
+            val uriListJson = images.joinToString("|") { it.uri }
+            prefs.edit().putString(recentImagesKey, uriListJson).apply()
+            android.util.Log.d("MainActivity", "Saved ${images.size} recent images")
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error saving recent images", e)
         }

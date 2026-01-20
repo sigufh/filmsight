@@ -28,8 +28,8 @@ fun MarkdownText(
     style: TextStyle = LocalTextStyle.current
 ) {
     val context = LocalContext.current
-    // 使用明确的深色，而不是主题颜色
-    val textColor = Color(0xFF2C2C2C).toArgb() // 深灰色，接近黑色
+    // 使用传入的样式颜色，如果没有则使用深灰色作为默认值
+    val textColor = (style.color.takeIf { it != Color.Unspecified } ?: Color(0xFF2C2C2C)).toArgb()
     
     // 过滤掉包含 "parameters" 的 JSON 代码块
     val filteredMarkdown = remember(markdown) {
