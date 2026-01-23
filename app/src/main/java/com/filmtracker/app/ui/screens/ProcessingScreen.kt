@@ -80,6 +80,19 @@ fun ProcessingScreen(
     var showExportDialog by remember { mutableStateOf(false) }
     var showExportResultDialog by remember { mutableStateOf(false) }
     
+    // 裁剪模式状态
+    var isCropMode by remember { mutableStateOf(false) }
+    
+    // 监听工具切换
+    LaunchedEffect(selectedPrimaryTool) {
+        if (selectedPrimaryTool == PrimaryTool.CROP) {
+            isCropMode = true
+        } else if (isCropMode) {
+            // 退出裁剪模式时才应用裁剪
+            isCropMode = false
+        }
+    }
+    
     // 预设管理器
     val presetManager = remember { com.filmtracker.app.data.PresetManager(context) }
     var userPresets by remember { mutableStateOf<List<com.filmtracker.app.data.Preset>>(emptyList()) }
@@ -143,7 +156,13 @@ fun ProcessingScreen(
         }
     }
     
-    val panelHeight = 350.dp
+    // 根据不同工具设置不同的面板高度
+    val panelHeight = when (selectedPrimaryTool) {
+        PrimaryTool.CROP -> 150.dp  // 裁剪面板更小
+        PrimaryTool.COLOR -> 350.dp // 调色面板保持原样
+        PrimaryTool.AI -> 350.dp    // AI面板保持原样
+        else -> 300.dp              // 其他面板
+    }
     
     Scaffold(
         topBar = {
@@ -198,30 +217,32 @@ fun ProcessingScreen(
                             70.dp // 只有一级菜单高度
                         }
                     ),
-                cropEnabled = basicParams.cropEnabled,
-                cropLeft = basicParams.cropLeft,
-                cropTop = basicParams.cropTop,
-                cropRight = basicParams.cropRight,
-                cropBottom = basicParams.cropBottom,
+                cropEnabled = false,  // 裁剪模式下始终不实际裁剪
+                cropLeft = 0f,
+                cropTop = 0f,
+                cropRight = 1f,
+                cropBottom = 1f,
                 onCropChange = { l, t, r, b ->
-                    val newParams = basicParams.copy(
-                        cropEnabled = true,
-                        cropLeft = l,
-                        cropTop = t,
-                        cropRight = r,
-                        cropBottom = b
-                    )
-                    val newDomainParams = mapper.toDomain(newParams)
-                    viewModel.updateParams(newDomainParams)
+                    // 退出裁剪模式时应用
+                    if (!isCropMode) {
+                        val newParams = basicParams.copy(
+                            cropLeft = l,
+                            cropTop = t,
+                            cropRight = r,
+                            cropBottom = b,
+                            cropEnabled = true
+                        )
+                        val newDomainParams = mapper.toDomain(newParams)
+                        viewModel.updateParams(newDomainParams)
+                    }
                 },
                 rotation = basicParams.rotation,
                 onRotationChange = { rot ->
-                    val newParams = basicParams.copy(rotation = rot)
+                    val newParams = basicParams.copy(rotation = rot, cropEnabled = false)
                     val newDomainParams = mapper.toDomain(newParams)
                     viewModel.updateParams(newDomainParams)
                 },
-                showRotationDial = (selectedPrimaryTool == PrimaryTool.CROP),
-                showCropOverlay = (selectedPrimaryTool == PrimaryTool.CROP)  // 只在裁剪工具时显示裁剪框
+                showCropOverlay = isCropMode
             )
             
             // 底部面板和工具栏
@@ -259,7 +280,12 @@ fun ProcessingScreen(
                                 previewBitmap = processedImage,
                                 params = basicParams,
                                 onParamsChange = { newParams ->
-                                    val newDomainParams = mapper.toDomain(newParams)
+                                    // 只更新旋转，不更新裁剪
+                                    val paramsToUpdate = basicParams.copy(
+                                        rotation = newParams.rotation,
+                                        cropEnabled = false
+                                    )
+                                    val newDomainParams = mapper.toDomain(paramsToUpdate)
                                     viewModel.updateParams(newDomainParams)
                                 }
                             )

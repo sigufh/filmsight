@@ -617,99 +617,135 @@ private fun ProLoadingIndicator() {
 
 @Composable
 fun CropRotatePanel(
-    previewBitmap: android.graphics.Bitmap?,
+    @Suppress("UNUSED_PARAMETER") previewBitmap: android.graphics.Bitmap?,
     params: BasicAdjustmentParams,
     onParamsChange: (BasicAdjustmentParams) -> Unit
 ) {
-    val aspectOptions = listOf(
-        "自由" to null,
-        "1:1" to 1f / 1f,
-        "3:2" to 3f / 2f,
-        "4:3" to 4f / 3f,
-        "16:9" to 16f / 9f
-    )
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        // 旋转
+        // 旋转滑条
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "旋转", color = Color.White, style = MaterialTheme.typography.bodyMedium)
-            Text(text = formatAngle(params.rotation), color = Color.LightGray, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = "旋转", 
+                color = Color.White, 
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = formatAngle(params.rotation), 
+                color = Color.LightGray, 
+                style = MaterialTheme.typography.bodySmall
+            )
         }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
         Slider(
             value = params.rotation.coerceIn(-180f, 180f),
             onValueChange = { v ->
                 val snapped = snapRotation(normalizeRotation(v))
-                onParamsChange(params.copy(rotation = snapped))
+                onParamsChange(params.copy(
+                    rotation = snapped,
+                    cropEnabled = false  // 裁剪模式下不实际裁剪
+                ))
             },
-            valueRange = -180f..180f
+            valueRange = -180f..180f,
+            modifier = Modifier.fillMaxWidth()
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { onParamsChange(params.copy(rotation = normalizeRotation(params.rotation - 90f))) }) {
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // 快捷旋转按钮
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Button(
+                onClick = { 
+                    onParamsChange(params.copy(
+                        rotation = normalizeRotation(params.rotation - 90f),
+                        cropEnabled = false  // 裁剪模式下不实际裁剪
+                    )) 
+                },
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(text = "-90°")
             }
-            Button(onClick = { onParamsChange(params.copy(rotation = 0f)) }) {
-                Text(text = "重置旋转")
+            Button(
+                onClick = { 
+                    onParamsChange(params.copy(
+                        rotation = 0f,
+                        cropEnabled = false  // 裁剪模式下不实际裁剪
+                    )) 
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(text = "重置")
             }
-            Button(onClick = { onParamsChange(params.copy(rotation = normalizeRotation(params.rotation + 90f))) }) {
+            Button(
+                onClick = { 
+                    onParamsChange(params.copy(
+                        rotation = normalizeRotation(params.rotation + 90f),
+                        cropEnabled = false  // 裁剪模式下不实际裁剪
+                    )) 
+                },
+                modifier = Modifier.weight(1f)
+            ) {
                 Text(text = "+90°")
             }
         }
-
+        
         Spacer(modifier = Modifier.height(16.dp))
-
-        // 裁剪
+        
+        // 裁剪开关和重置
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(text = "裁剪", color = Color.White, style = MaterialTheme.typography.bodyMedium)
-            FilterChip(
-                selected = params.cropEnabled,
-                onClick = { onParamsChange(params.copy(cropEnabled = !params.cropEnabled)) },
-                label = { Text(text = if (params.cropEnabled) "开启" else "关闭") }
-            )
-            TextButton(onClick = {
-                // 重置裁剪
-                onParamsChange(
-                    params.copy(
-                        cropEnabled = false,
-                        cropLeft = 0f, cropTop = 0f, cropRight = 1f, cropBottom = 1f
-                    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "裁剪", 
+                    color = Color.White, 
+                    style = MaterialTheme.typography.bodyMedium
                 )
-            }) { Text("重置裁剪") }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 常用比例
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(5),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(aspectOptions) { (label, ratio) ->
-                ElevatedButton(onClick = {
-                    if (ratio == null) {
-                        onParamsChange(
-                            params.copy(
-                                cropEnabled = true,
-                                cropLeft = 0f, cropTop = 0f, cropRight = 1f, cropBottom = 1f
-                            )
-                        )
-                    } else {
-                        val updated = computeCenteredCrop(previewBitmap, ratio, params)
-                        onParamsChange(updated)
+                FilterChip(
+                    selected = params.cropEnabled,
+                    onClick = { 
+                        // 注意：这里只是UI状态，不会实际裁剪
+                        // 实际裁剪会在退出裁剪模式时应用
+                        onParamsChange(params.copy(cropEnabled = false)) 
+                    },
+                    label = { 
+                        Text(text = "预览中") 
                     }
-                }) {
-                    Text(label)
+                )
+            }
+            
+            TextButton(
+                onClick = {
+                    // 重置裁剪为自由裁剪（全图）
+                    onParamsChange(
+                        params.copy(
+                            cropEnabled = false,
+                            cropLeft = 0f, 
+                            cropTop = 0f, 
+                            cropRight = 1f, 
+                            cropBottom = 1f
+                        )
+                    )
                 }
+            ) { 
+                Text("重置裁剪") 
             }
         }
     }
@@ -730,38 +766,6 @@ private fun snapRotation(deg: Float, threshold: Float = 2f): Float {
 
 private fun formatAngle(deg: Float): String {
     return String.format("%.1f°", deg)
-}
-
-private fun computeCenteredCrop(
-    previewBitmap: android.graphics.Bitmap?,
-    targetRatio: Float,
-    params: BasicAdjustmentParams
-): BasicAdjustmentParams {
-    val w = previewBitmap?.width ?: return params
-    val h = previewBitmap.height
-    if (w <= 0 || h <= 0) return params
-    val imageRatio = w.toFloat() / h.toFloat()
-    return if (imageRatio > targetRatio) {
-        val widthNorm = targetRatio / imageRatio
-        val left = (1f - widthNorm) / 2f
-        params.copy(
-            cropEnabled = true,
-            cropLeft = left,
-            cropTop = 0f,
-            cropRight = 1f - left,
-            cropBottom = 1f
-        )
-    } else {
-        val heightNorm = imageRatio / targetRatio
-        val top = (1f - heightNorm) / 2f
-        params.copy(
-            cropEnabled = true,
-            cropLeft = 0f,
-            cropTop = top,
-            cropRight = 1f,
-            cropBottom = 1f - top
-        )
-    }
 }
 
 @Composable
