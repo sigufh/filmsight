@@ -49,11 +49,12 @@ fun AISettingsScreen(
     
     // 当提供商改变时更新默认模型（仅当模型为空或为默认值时）
     LaunchedEffect(selectedProvider) {
-        if (modelName.isEmpty() || modelName in listOf("gpt-4o", "claude-3-5-sonnet-20241022", "qwen-plus", "qwen-turbo", "qwen-max", "qwen3-vl-30b-a3b-instruct")) {
+        if (modelName.isEmpty() || modelName in listOf("gpt-4o", "claude-3-5-sonnet-20241022", "qwen-plus", "qwen-turbo", "qwen-max", "qwen3-vl-30b-a3b-instruct", "glm-4v-flash", "glm-4.6v-flash")) {
             modelName = when (selectedProvider) {
                 AIProvider.OPENAI -> "gpt-4o"
                 AIProvider.CLAUDE -> "claude-3-5-sonnet-20241022"
                 AIProvider.QWEN -> "qwen3-vl-30b-a3b-instruct"
+                AIProvider.GLM -> "glm-4.6v-flash"
             }
         }
     }
@@ -134,6 +135,7 @@ fun AISettingsScreen(
                                 AIProvider.OPENAI -> "例如: gpt-4o"
                                 AIProvider.CLAUDE -> "例如: claude-3-5-sonnet-20241022"
                                 AIProvider.QWEN -> "例如: qwen3-vl-30b-a3b-instruct"
+                                AIProvider.GLM -> "例如: glm-4.6v-flash"
                             },
                             color = FilmDarkGray
                         )

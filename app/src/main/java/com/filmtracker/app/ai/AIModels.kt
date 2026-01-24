@@ -15,7 +15,7 @@ data class AIConfig(
  * AI提供商
  */
 enum class AIProvider {
-    OPENAI, CLAUDE, QWEN
+    OPENAI, CLAUDE, QWEN, GLM
 }
 
 /**

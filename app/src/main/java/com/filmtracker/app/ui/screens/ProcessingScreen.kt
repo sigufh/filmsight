@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
  * - 顶部栏：返回按钮、图像信息、导出、更多菜单
  * - 图片预览区：支持缩放、平移、双击复位
  * - 二级菜单和内容区：显示当前一级工具的子功能
- * - 一级菜单：AI协助、创意滤镜、裁剪旋转、调色、蒙版、修补消除
+ * - 一级菜单：AI协助、创意滤镜、裁剪旋转、调色、景深、抠图
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,6 +82,14 @@ fun ProcessingScreen(
     
     // 裁剪模式状态
     var isCropMode by remember { mutableStateOf(false) }
+    
+    // 抠图蒙版状态
+    var segmentationMask by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var showMaskOverlay by remember { mutableStateOf(false) }
+    
+    // 景深图状态
+    var depthMap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var showDepthMaskOverlay by remember { mutableStateOf(false) }
     
     // 监听工具切换
     LaunchedEffect(selectedPrimaryTool) {
@@ -242,7 +250,17 @@ fun ProcessingScreen(
                     val newDomainParams = mapper.toDomain(newParams)
                     viewModel.updateParams(newDomainParams)
                 },
-                showCropOverlay = isCropMode
+                showCropOverlay = isCropMode,
+                segmentationMask = when (selectedPrimaryTool) {
+                    PrimaryTool.CUTOUT -> segmentationMask
+                    PrimaryTool.DEPTH -> depthMap
+                    else -> null
+                },
+                showMaskOverlay = when (selectedPrimaryTool) {
+                    PrimaryTool.CUTOUT -> showMaskOverlay
+                    PrimaryTool.DEPTH -> showDepthMaskOverlay
+                    else -> false
+                }
             )
             
             // 底部面板和工具栏
@@ -298,8 +316,110 @@ fun ProcessingScreen(
                                 selectedSecondaryTool = selectedSecondaryTool,
                                 onSecondaryToolSelected = { selectedSecondaryTool = it }
                             )
-                            PrimaryTool.MASK -> MaskPanel()
-                            PrimaryTool.HEAL -> HealPanel()
+                            PrimaryTool.DEPTH -> DepthOfFieldPanel(
+                                currentImage = processedImage,
+                                depthMap = depthMap,
+                                showMaskOverlay = showDepthMaskOverlay,
+                                onDepthMapGenerated = { map ->
+                                    depthMap = map
+                                    showDepthMaskOverlay = true
+                                },
+                                onShowMaskOverlayChange = { show ->
+                                    showDepthMaskOverlay = show
+                                    if (!show) {
+                                        depthMap = null
+                                    }
+                                },
+                                onApplyEffect = { blurAmount, focusX, focusY, focusRadius ->
+                                    // 应用景深效果
+                                    val currentBitmap = processedImage
+                                    val currentDepthMap = depthMap
+                                    if (currentBitmap != null && currentDepthMap != null) {
+                                        coroutineScope.launch {
+                                            try {
+                                                android.util.Log.d("ProcessingScreen", "Applying depth of field: blur=$blurAmount, focus=($focusX, $focusY), radius=$focusRadius")
+                                                
+                                                val depthEstimator = com.filmtracker.app.processing.DepthEstimator(context)
+                                                
+                                                // 应用景深效果
+                                                val resultImage = depthEstimator.applyDepthOfField(
+                                                    currentBitmap,
+                                                    currentDepthMap,
+                                                    blurAmount,
+                                                    focusX,
+                                                    focusY,
+                                                    focusRadius
+                                                )
+                                                
+                                                // 更新图像
+                                                viewModel.setOriginalImage(
+                                                    resultImage,
+                                                    android.net.Uri.parse(imageUri),
+                                                    imageUri ?: ""
+                                                )
+                                                
+                                                // 清除深度图状态
+                                                depthMap = null
+                                                showDepthMaskOverlay = false
+                                                
+                                                android.util.Log.d("ProcessingScreen", "Depth of field applied successfully")
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("ProcessingScreen", "Failed to apply depth of field", e)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                            PrimaryTool.CUTOUT -> CutoutPanel(
+                                currentImage = processedImage,
+                                segmentationMask = segmentationMask,
+                                showMaskOverlay = showMaskOverlay,
+                                onMaskGenerated = { mask ->
+                                    segmentationMask = mask
+                                    showMaskOverlay = true
+                                },
+                                onShowMaskOverlayChange = { show ->
+                                    showMaskOverlay = show
+                                    if (!show) {
+                                        segmentationMask = null
+                                    }
+                                },
+                                onApplyCutout = { mask ->
+                                    // 应用抠图蒙版
+                                    val currentBitmap = processedImage
+                                    if (currentBitmap != null) {
+                                        coroutineScope.launch {
+                                            try {
+                                                android.util.Log.d("ProcessingScreen", "Applying cutout mask")
+                                                
+                                                val segmenter = com.filmtracker.app.processing.SubjectSegmenter(context)
+                                                
+                                                // 应用抠图（透明背景）
+                                                val resultImage = segmenter.applyCutout(
+                                                    currentBitmap,
+                                                    mask,
+                                                    backgroundColor = null  // 透明背景
+                                                )
+                                                
+                                                // 更新图像
+                                                viewModel.setOriginalImage(
+                                                    resultImage,
+                                                    android.net.Uri.parse(imageUri),
+                                                    imageUri ?: ""
+                                                )
+                                                
+                                                // 清除蒙版状态
+                                                segmentationMask = null
+                                                showMaskOverlay = false
+                                                
+                                                android.util.Log.d("ProcessingScreen", "Cutout applied successfully")
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("ProcessingScreen", "Failed to apply cutout", e)
+                                            }
+                                        }
+                                    }
+                                }
+                            )
                             null -> {} // 不应该到达这里，因为外层已经检查了 null
                         }
                     }

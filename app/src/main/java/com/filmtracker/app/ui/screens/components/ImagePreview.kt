@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.filmtracker.app.ui.components.MaskOverlay
 
 @Composable
 fun ImagePreview(
@@ -42,7 +43,9 @@ fun ImagePreview(
     onCropChange: ((Float, Float, Float, Float) -> Unit)? = null,
     rotation: Float = 0f,
     onRotationChange: ((Float) -> Unit)? = null,
-    showCropOverlay: Boolean = false
+    showCropOverlay: Boolean = false,
+    segmentationMask: Bitmap? = null,
+    showMaskOverlay: Boolean = false
 ) {
     val context = LocalContext.current
     var scale by remember { mutableStateOf(1f) }
@@ -163,6 +166,31 @@ fun ImagePreview(
                             }
                         )
                     }
+                )
+            }
+            
+            // 显示蒙版覆盖层（绿色区域）
+            if (showMaskOverlay && segmentationMask != null && imageBitmap != null) {
+                MaskOverlay(
+                    mask = segmentationMask,
+                    imageSize = Size(processedImage.width.toFloat(), processedImage.height.toFloat()),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (showCropOverlay) {
+                                Modifier.padding(32.dp)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .graphicsLayer(
+                            scaleX = scale,
+                            scaleY = scale,
+                            translationX = offsetX,
+                            translationY = offsetY
+                        ),
+                    overlayColor = Color(0x8000FF00), // 半透明绿色
+                    showBoundingBox = true
                 )
             }
 

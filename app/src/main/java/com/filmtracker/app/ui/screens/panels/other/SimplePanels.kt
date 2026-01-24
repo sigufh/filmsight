@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -815,3 +817,712 @@ fun HealPanel() {
         )
     }
 }
+
+/**
+ * 景深模拟面板
+ * 使用 AI 视觉模型自动识别主体并生成精确轮廓
+ */
+@Composable
+fun DepthOfFieldPanel(
+    currentImage: android.graphics.Bitmap?,
+    depthMap: android.graphics.Bitmap?,
+    showMaskOverlay: Boolean,
+    onDepthMapGenerated: (depthMap: android.graphics.Bitmap) -> Unit,
+    onShowMaskOverlayChange: (Boolean) -> Unit,
+    onApplyEffect: (blurAmount: Float, focusX: Float, focusY: Float, focusRadius: Float) -> Unit
+) {
+    var blurAmount by remember { mutableStateOf(50f) }
+    var isProcessing by remember { mutableStateOf(false) }
+    var useCloudAI by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    
+    // 存储原始深度图和 AI 识别的焦点位置
+    var rawDepthMap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var aiFocusX by remember { mutableStateOf(0.5f) }
+    var aiFocusY by remember { mutableStateOf(0.5f) }
+    var aiFocusDepth by remember { mutableStateOf(100) }
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    // 防抖：延迟应用效果，避免滑块拖动时频繁计算
+    var applyJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    
+    fun scheduleApplyEffect() {
+        if (rawDepthMap == null) return
+        
+        // 取消之前的任务
+        applyJob?.cancel()
+        
+        // 延迟 300ms 后应用效果
+        applyJob = scope.launch {
+            kotlinx.coroutines.delay(300)
+            android.util.Log.d("DepthOfFieldPanel", "Applying effect: blur=$blurAmount, AI focus=($aiFocusX, $aiFocusY)")
+            // 使用 AI 识别的焦点位置，固定范围为 0.3
+            onApplyEffect(blurAmount, aiFocusX, aiFocusY, 0.3f)
+        }
+    }
+    
+    // 生成深度图
+    fun generateDepthMap() {
+        if (currentImage == null) return
+        
+        isProcessing = true
+        errorMessage = null
+        
+        scope.launch {
+            try {
+                if (useCloudAI) {
+                    // 使用云端 AI 分析深度和主体位置
+                    val settingsManager = com.filmtracker.app.ai.AISettingsManager(context)
+                    val aiConfig = settingsManager.getAPIConfig()
+                    
+                    if (aiConfig != null) {
+                        val cloudEstimator = com.filmtracker.app.processing.CloudVisionDepthEstimator(context, aiConfig)
+                        
+                        // 1. AI 分析深度和主体位置
+                        val analysis = cloudEstimator.analyzeDepth(currentImage)
+                        
+                        // 2. 获取 AI 建议的焦点位置
+                        val (suggestedX, suggestedY) = cloudEstimator.getSuggestedFocus(analysis)
+                        aiFocusX = suggestedX
+                        aiFocusY = suggestedY
+                        aiFocusDepth = cloudEstimator.getFocusDepth(analysis, aiFocusX, aiFocusY)
+                        
+                        android.util.Log.d("DepthOfFieldPanel", "AI detected focus: ($aiFocusX, $aiFocusY), depth=$aiFocusDepth")
+                        
+                        // 3. 生成深度图
+                        val generatedDepthMap = cloudEstimator.generateDepthMap(
+                            analysis,
+                            currentImage.width,
+                            currentImage.height
+                        )
+                        rawDepthMap = generatedDepthMap
+                        
+                        // 4. 从深度图提取精确的主体蒙版（使用 AI 返回的深度值）
+                        val depthEstimator = com.filmtracker.app.processing.DepthEstimator(context)
+                        val subjectMask = depthEstimator.extractSubjectMaskByDepth(
+                            generatedDepthMap,
+                            aiFocusDepth,  // 使用 AI 返回的深度值
+                            aiFocusX,
+                            aiFocusY
+                        )
+                        
+                        // 5. 传递主体蒙版
+                        onDepthMapGenerated(subjectMask)
+                        
+                        android.util.Log.d("DepthOfFieldPanel", "Cloud AI depth analysis completed successfully")
+                    } else {
+                        errorMessage = "请先配置 AI API"
+                        android.util.Log.w("DepthOfFieldPanel", "AI config not found")
+                    }
+                } else {
+                    // 使用本地算法
+                    val depthEstimator = com.filmtracker.app.processing.DepthEstimator(context)
+                    val generatedDepthMap = depthEstimator.estimate(currentImage, useCloud = false)
+                    rawDepthMap = generatedDepthMap
+                    
+                    // 使用默认焦点位置（图像中心）
+                    aiFocusX = 0.5f
+                    aiFocusY = 0.5f
+                    
+                    val subjectMask = depthEstimator.extractSubjectMask(
+                        generatedDepthMap,
+                        aiFocusX,
+                        aiFocusY,
+                        0.3f
+                    )
+                    
+                    onDepthMapGenerated(subjectMask)
+                    android.util.Log.d("DepthOfFieldPanel", "Local depth estimation completed")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DepthOfFieldPanel", "Failed to estimate depth", e)
+                errorMessage = "深度分析失败: ${e.message}"
+            } finally {
+                isProcessing = false
+            }
+        }
+    }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // 标题和模式选择
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "景深模拟",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FilterChip(
+                    selected = useCloudAI,
+                    onClick = { useCloudAI = true },
+                    label = { Text("云端 AI", fontSize = 11.sp) },
+                    modifier = Modifier.height(32.dp)
+                )
+                FilterChip(
+                    selected = !useCloudAI,
+                    onClick = { useCloudAI = false },
+                    label = { Text("本地", fontSize = 11.sp) },
+                    modifier = Modifier.height(32.dp)
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // 错误提示
+        if (errorMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0x33FF5252)
+                )
+            ) {
+                Text(
+                    text = errorMessage!!,
+                    color = Color(0xFFFF5252),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        
+        if (isProcessing) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CircularProgressIndicator(color = FilmTrackerPrimary)
+                    Text(
+                        text = "正在分析图像深度...",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        } else {
+            // 模糊强度
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "模糊强度",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "${blurAmount.toInt()}",
+                    color = Color.LightGray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            
+            Slider(
+                value = blurAmount,
+                onValueChange = { 
+                    blurAmount = it
+                    scheduleApplyEffect()
+                },
+                valueRange = 0f..100f,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = FilmTrackerPrimary,
+                    activeTrackColor = FilmTrackerPrimary
+                )
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // 生成深度图按钮或控制按钮
+            if (depthMap == null) {
+                Button(
+                    onClick = { generateDepthMap() },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FilmTrackerAccent
+                    ),
+                    enabled = currentImage != null && !isProcessing
+                ) {
+                    Text("分析深度", color = Color.White)
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "💡 ${if (useCloudAI) "使用 AI 自动识别主体并生成精确轮廓" else "使用本地算法生成深度图"}",
+                    color = Color.Gray,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp
+                )
+            } else {
+                // 显示主体范围开关
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "显示主体范围",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Switch(
+                        checked = showMaskOverlay,
+                        onCheckedChange = onShowMaskOverlayChange,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = FilmTrackerPrimary,
+                            checkedTrackColor = FilmTrackerPrimary.copy(alpha = 0.5f)
+                        )
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
+                
+                // 应用按钮
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { 
+                            // 清除深度图和蒙版，重新分析
+                            rawDepthMap = null
+                            onShowMaskOverlayChange(false)
+                            errorMessage = null
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("重新分析")
+                    }
+                    
+                    Button(
+                        onClick = {
+                            // 使用 AI 识别的焦点位置
+                            onApplyEffect(blurAmount, aiFocusX, aiFocusY, 0.3f)
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FilmTrackerPrimary
+                        )
+                    ) {
+                        Text("应用效果", color = FilmTrackerDark)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Text(
+                    text = "✓ AI 已自动识别主体，${if (showMaskOverlay) "绿色区域为精确识别的主体轮廓" else "调整模糊强度查看效果"}",
+                    color = FilmTrackerPrimary,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+/**
+ * 抠图面板
+ * 使用 AI 视觉模型实现智能抠图
+ */
+@Composable
+fun CutoutPanel(
+    currentImage: android.graphics.Bitmap?,
+    segmentationMask: android.graphics.Bitmap?,
+    showMaskOverlay: Boolean,
+    onMaskGenerated: (mask: android.graphics.Bitmap) -> Unit,
+    onShowMaskOverlayChange: (Boolean) -> Unit,
+    onApplyCutout: (mask: android.graphics.Bitmap) -> Unit
+) {
+    var isProcessing by remember { mutableStateOf(false) }
+    var selectedPoints by remember { mutableStateOf<List<Pair<Float, Float>>>(emptyList()) }
+    var cutoutMode by remember { mutableStateOf(CutoutMode.AUTO) }
+    var useCloudAI by remember { mutableStateOf(true) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var featherRadius by remember { mutableStateOf(5) } // 新增：羽化半径
+    
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // 标题和 AI 模式选择
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "智能抠图",
+                color = Color.White,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                FilterChip(
+                    selected = useCloudAI,
+                    onClick = { useCloudAI = true },
+                    label = { Text("云端 AI", fontSize = 11.sp) },
+                    modifier = Modifier.height(32.dp)
+                )
+                FilterChip(
+                    selected = !useCloudAI,
+                    onClick = { useCloudAI = false },
+                    label = { Text("本地", fontSize = 11.sp) },
+                    modifier = Modifier.height(32.dp)
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        // 错误提示
+        if (errorMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0x33FF5252)
+                )
+            ) {
+                Text(
+                    text = errorMessage!!,
+                    color = Color(0xFFFF5252),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+        
+        // 模式选择
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            FilterChip(
+                selected = cutoutMode == CutoutMode.AUTO,
+                onClick = { cutoutMode = CutoutMode.AUTO },
+                label = { Text("自动识别", fontSize = 12.sp) },
+                modifier = Modifier.weight(1f)
+            )
+            FilterChip(
+                selected = cutoutMode == CutoutMode.MANUAL,
+                onClick = { cutoutMode = CutoutMode.MANUAL },
+                label = { Text("手动选择", fontSize = 12.sp) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        when (cutoutMode) {
+            CutoutMode.AUTO -> {
+                // 自动识别模式
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "自动识别主体",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    Button(
+                        onClick = {
+                            if (currentImage != null) {
+                                isProcessing = true
+                                errorMessage = null
+                                scope.launch {
+                                    try {
+                                        val segmenter = com.filmtracker.app.processing.SubjectSegmenter(context)
+                                        val mask = segmenter.segmentAuto(currentImage, useCloud = useCloudAI)
+                                        onMaskGenerated(mask)
+                                        android.util.Log.d("CutoutPanel", "Auto segmentation completed")
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("CutoutPanel", "Failed to segment", e)
+                                        errorMessage = "识别失败: ${e.message}"
+                                    } finally {
+                                        isProcessing = false
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FilmTrackerPrimary
+                        ),
+                        enabled = currentImage != null && !isProcessing
+                    ) {
+                        if (isProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = FilmTrackerDark,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = if (isProcessing) "识别中..." else "开始识别",
+                            color = FilmTrackerDark
+                        )
+                    }
+                    
+                    Text(
+                        text = "💡 自动识别图片中的主要物体并抠图",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            
+            CutoutMode.MANUAL -> {
+                // 手动选择模式
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "点击选择物体",
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    
+                    // 显示已选择的点数
+                    if (selectedPoints.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "已选择 ${selectedPoints.size} 个点",
+                                color = Color.LightGray,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            TextButton(
+                                onClick = { selectedPoints = emptyList() }
+                            ) {
+                                Text("清除", color = FilmTrackerAccent)
+                            }
+                        }
+                    }
+                    
+                    Button(
+                        onClick = {
+                            if (currentImage != null && selectedPoints.isNotEmpty()) {
+                                isProcessing = true
+                                errorMessage = null
+                                scope.launch {
+                                    try {
+                                        val segmenter = com.filmtracker.app.processing.SubjectSegmenter(context)
+                                        val mask = segmenter.segmentWithPoints(
+                                            currentImage, 
+                                            selectedPoints,
+                                            useCloud = useCloudAI
+                                        )
+                                        onMaskGenerated(mask)
+                                        android.util.Log.d("CutoutPanel", "Point-based segmentation completed")
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("CutoutPanel", "Failed to segment", e)
+                                        errorMessage = "分割失败: ${e.message}"
+                                    } finally {
+                                        isProcessing = false
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = FilmTrackerPrimary
+                        ),
+                        enabled = currentImage != null && selectedPoints.isNotEmpty() && !isProcessing
+                    ) {
+                        if (isProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = FilmTrackerDark,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text(
+                            text = if (isProcessing) "处理中..." else "生成抠图",
+                            color = FilmTrackerDark
+                        )
+                    }
+                    
+                    Text(
+                        text = "💡 ${if (useCloudAI) "使用 AI 识别点击位置的物体" else "使用本地算法生成蒙版"}",
+                        color = Color.Gray,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        // 如果有分割结果，显示应用按钮
+        if (segmentationMask != null) {
+            Divider(color = Color.Gray.copy(alpha = 0.3f))
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            Text(
+                text = "抠图完成",
+                color = FilmTrackerPrimary,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // 显示蒙版开关
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "显示选区范围",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Switch(
+                    checked = showMaskOverlay,
+                    onCheckedChange = onShowMaskOverlayChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = FilmTrackerPrimary,
+                        checkedTrackColor = FilmTrackerPrimary.copy(alpha = 0.5f)
+                    )
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            // 边缘羽化
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "边缘羽化",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "$featherRadius px",
+                    color = Color.LightGray,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            
+            Slider(
+                value = featherRadius.toFloat(),
+                onValueChange = { featherRadius = it.toInt() },
+                valueRange = 0f..20f,
+                modifier = Modifier.fillMaxWidth(),
+                colors = SliderDefaults.colors(
+                    thumbColor = FilmTrackerPrimary,
+                    activeTrackColor = FilmTrackerPrimary
+                )
+            )
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "💡 ${if (showMaskOverlay) "绿色区域为选中的主体" else "增加羽化值可使边缘更柔和"}",
+                color = Color.Gray,
+                style = MaterialTheme.typography.bodySmall,
+                fontSize = 11.sp
+            )
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        // 清除蒙版，重新开始
+                        onShowMaskOverlayChange(false)
+                        selectedPoints = emptyList()
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text("重新抠图")
+                }
+                
+                Button(
+                    onClick = {
+                        segmentationMask?.let { mask ->
+                            // 应用边缘优化
+                            scope.launch {
+                                try {
+                                    val segmenter = com.filmtracker.app.processing.SubjectSegmenter(context)
+                                    val refinedMask = if (featherRadius > 0) {
+                                        segmenter.refineMask(mask, featherRadius)
+                                    } else {
+                                        mask
+                                    }
+                                    onApplyCutout(refinedMask)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("CutoutPanel", "Failed to refine mask", e)
+                                    onApplyCutout(mask) // 降级使用原蒙版
+                                }
+                            }
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FilmTrackerPrimary
+                    )
+                ) {
+                    Text("应用抠图", color = FilmTrackerDark)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 抠图模式
+ */
+private enum class CutoutMode {
+    AUTO,    // 自动识别
+    MANUAL   // 手动选择
+}
+

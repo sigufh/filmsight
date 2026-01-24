@@ -9,6 +9,6 @@ enum class PrimaryTool(val label: String, val icon: ImageVector) {
     FILTER("创意滤镜", Icons.Default.Face),
     CROP("裁剪", Icons.Default.Create),
     COLOR("调色", Icons.Default.Settings),
-    MASK("蒙版", Icons.Default.Edit),
-    HEAL("修补", Icons.Default.Build)
+    DEPTH("景深", Icons.Default.Edit),
+    CUTOUT("抠图", Icons.Default.Build)
 }

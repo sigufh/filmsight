@@ -35,6 +35,7 @@ class AIAssistantService(private val config: AIConfig) {
                 AIProvider.OPENAI -> callOpenAI(systemPrompt, message, conversationHistory, imageBitmap, onChunk)
                 AIProvider.CLAUDE -> callClaude(systemPrompt, message, conversationHistory, imageBitmap, onChunk)
                 AIProvider.QWEN -> callQwen(systemPrompt, message, conversationHistory, imageBitmap, onChunk)
+                AIProvider.GLM -> callGLM(systemPrompt, message, conversationHistory, imageBitmap, onChunk)
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error calling AI", e)
@@ -69,7 +70,8 @@ class AIAssistantService(private val config: AIConfig) {
   - ±30: 中度调整（变化 < 10%）
   - ±50: 强度调整（变化 < 25%）
 - **饱和度 (Saturation)**: -100 到 +100（0 = 不变，-100 = 完全去色）
-  - 注意：当前饱和度参数暂时无法使用，请使用色彩分级实现饱和度调整
+  - 正常调色时保持 0 或根据需要调整
+  - 仅在需要黑白效果时设为 -100
 
 ### 色调调整
 - **高光 (Highlights)**: -100 到 +100（负值恢复过曝）
@@ -128,7 +130,6 @@ class AIAssistantService(private val config: AIConfig) {
        "shadows": 25,
        "whites": -10,
        "blacks": 5,
-       "saturation": -100,
        "vibrance": 20,
        "temperature": 15,
        "tint": 0,
@@ -154,7 +155,8 @@ class AIAssistantService(private val config: AIConfig) {
    
    注意：
    - JSON 必须放在回复的最后
-   - 只包含需要调整的参数（值为 0 的可以省略，但黑白效果必须包含 saturation: -100）
+   - 只包含需要调整的参数（值为 0 的可以省略）
+   - 饱和度默认为 0，只在需要黑白效果时设为 -100
    - 参数名使用驼峰命名法
    - 数值不带单位符号
    - 色彩分级参数默认可省略，需要时再添加
@@ -164,7 +166,13 @@ class AIAssistantService(private val config: AIConfig) {
    - 说明预期效果
    - 如有多种方案，可提供对比
 
-4. **常见场景参考**（基于新的平方曲线）：
+4. **饱和度使用规则**：
+   - 默认情况下，不要调整饱和度（保持为 0 或省略该参数）
+   - 需要增强色彩时，优先使用 vibrance（自然饱和度）
+   - 只有在用户明确要求黑白效果时，才将 saturation 设为 -100
+   - 需要降低饱和度时，可以使用 -10 到 -30 的范围
+
+5. **常见场景参考**（基于新的平方曲线）：
    - 日系清新：曝光 +0.3 到 +0.7，对比度 -15，高光 -20，阴影 +30，自然饱和度 +20，gradingMidtonesTemp: -10
    - 电影感：对比度 +25，高光 -40，阴影 +20，清晰度 +15，gradingShadowsTemp: -30, gradingHighlightsTemp: 20, gradingBlending: 60
    - 胶片复古：曝光 +0.2，对比度 -20，高光 -25，阴影 +15，颗粒 +30 到 +50，gradingShadowsTemp: 15
@@ -392,6 +400,61 @@ ${if (knowledge.isNotEmpty()) "\n## 相关知识\n" + knowledge.joinToString("\n
         return AIResponse(content, parseSuggestions(content))
     }
     
+    private fun handleGLMStreamResponse(inputStream: java.io.InputStream, onChunk: (String) -> Unit): AIResponse {
+        val fullContent = StringBuilder()
+        val fullReasoning = StringBuilder()
+        var usedReasoning = false
+        
+        BufferedReader(InputStreamReader(inputStream)).use { reader ->
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                val data = line ?: continue
+                if (data.startsWith("data: ")) {
+                    val jsonStr = data.substring(6).trim()
+                    if (jsonStr == "[DONE]") break
+                    
+                    try {
+                        val json = JSONObject(jsonStr)
+                        val delta = json.getJSONArray("choices")
+                            .getJSONObject(0)
+                            .getJSONObject("delta")
+                        
+                        // GLM 可能返回 content 或 reasoning_content
+                        if (delta.has("content")) {
+                            val chunk = delta.getString("content")
+                            fullContent.append(chunk)
+                            onChunk(chunk)
+                        } else if (delta.has("reasoning_content")) {
+                            val chunk = delta.getString("reasoning_content")
+                            fullReasoning.append(chunk)
+                            usedReasoning = true
+                            // 也发送推理内容
+                            onChunk(chunk)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error parsing GLM stream chunk", e)
+                    }
+                }
+            }
+        }
+        
+        // 优先使用 content，如果为空则使用 reasoning_content
+        val content = if (fullContent.isNotEmpty()) {
+            fullContent.toString()
+        } else {
+            if (fullReasoning.isNotEmpty()) {
+                Log.w(TAG, "⚠️ Using reasoning_content as fallback in stream (content was empty)")
+            }
+            fullReasoning.toString()
+        }
+        
+        if (usedReasoning && fullContent.isEmpty()) {
+            Log.d(TAG, "Stream used reasoning_content exclusively, length: ${content.length}")
+        }
+        
+        return AIResponse(content, parseSuggestions(content))
+    }
+    
     private fun callQwen(system: String, msg: String, history: List<ChatMessage>, img: Bitmap?, onChunk: ((String) -> Unit)?): AIResponse {
         // 通义千问使用不同的 API 端点
         val url = URL("https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions")
@@ -428,9 +491,11 @@ ${if (knowledge.isNotEmpty()) "\n## 相关知识\n" + knowledge.joinToString("\n
         val body = JSONObject()
             .put("model", config.model)
             .put("messages", messages)
+            .put("temperature", config.temperature)
+            .put("max_tokens", config.maxTokens)
             .put("stream", onChunk != null)
         
-        Log.d(TAG, "Qwen request (image: ${img != null})")
+        Log.d(TAG, "Qwen request (image: ${img != null}, max_tokens: ${config.maxTokens})")
         
         OutputStreamWriter(conn.outputStream).use {
             it.write(body.toString())
@@ -447,12 +512,22 @@ ${if (knowledge.isNotEmpty()) "\n## 相关知识\n" + knowledge.joinToString("\n
                 Log.d(TAG, "Qwen response: $response")
                 
                 val jsonResponse = JSONObject(response)
-                // 通义千问兼容模式使用 OpenAI 格式的响应
-                val content = jsonResponse
+                val choiceObj = jsonResponse
                     .getJSONArray("choices")
                     .getJSONObject(0)
+                
+                // 检查是否被截断
+                val finishReason = choiceObj.optString("finish_reason", "")
+                if (finishReason == "length") {
+                    Log.w(TAG, "⚠️ Qwen response truncated (finish_reason=length), consider increasing max_tokens")
+                }
+                
+                // 通义千问兼容模式使用 OpenAI 格式的响应
+                val content = choiceObj
                     .getJSONObject("message")
                     .getString("content")
+                
+                Log.d(TAG, "Qwen content length: ${content.length}, finish_reason: $finishReason")
                 
                 return AIResponse(content, parseSuggestions(content))
             }
@@ -466,6 +541,151 @@ ${if (knowledge.isNotEmpty()) "\n## 相关知识\n" + knowledge.joinToString("\n
         }
         Log.e(TAG, "Qwen API Error: ${conn.responseCode}, Response: $errorResponse")
         throw Exception("Qwen API Error: ${conn.responseCode}\n详情: $errorResponse")
+    }
+    
+    private fun callGLM(system: String, msg: String, history: List<ChatMessage>, img: Bitmap?, onChunk: ((String) -> Unit)?): AIResponse {
+        // 智谱 GLM-4V API
+        val url = URL("https://open.bigmodel.cn/api/paas/v4/chat/completions")
+        val conn = url.openConnection() as HttpURLConnection
+        
+        try {
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Authorization", "Bearer ${config.apiKey}")
+            conn.connectTimeout = 30000  // 30 秒连接超时
+            conn.readTimeout = 60000     // 60 秒读取超时
+            conn.doOutput = true
+            
+            val messages = JSONArray().apply {
+                // GLM 支持 system role
+                put(JSONObject().put("role", "system").put("content", system))
+                
+                history.forEach {
+                    put(JSONObject()
+                        .put("role", if (it.isUser) "user" else "assistant")
+                        .put("content", it.content))
+                }
+                
+                // 添加用户消息（可能包含图片）
+                if (img != null) {
+                    val base64Image = bitmapToBase64(img)
+                    val content = JSONArray().apply {
+                        put(JSONObject().put("type", "text").put("text", msg))
+                        put(JSONObject()
+                            .put("type", "image_url")
+                            .put("image_url", JSONObject()
+                                .put("url", "data:image/jpeg;base64,$base64Image")))
+                    }
+                    put(JSONObject().put("role", "user").put("content", content))
+                } else {
+                    put(JSONObject().put("role", "user").put("content", msg))
+                }
+            }
+            
+            val body = JSONObject()
+                .put("model", config.model)
+                .put("messages", messages)
+                .put("temperature", config.temperature)
+                .put("max_tokens", config.maxTokens)
+                .put("stream", onChunk != null)
+            
+            Log.d(TAG, "GLM request (image: ${img != null}, model: ${config.model})")
+            Log.d(TAG, "GLM request body: ${body.toString().take(500)}...")  // 记录请求体（截断）
+            
+            OutputStreamWriter(conn.outputStream).use {
+                it.write(body.toString())
+                it.flush()
+            }
+            
+            val responseCode = conn.responseCode
+            Log.d(TAG, "GLM response code: $responseCode")
+            
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                if (onChunk != null) {
+                    // 流式响应（GLM 专用处理）
+                    return handleGLMStreamResponse(conn.inputStream, onChunk)
+                } else {
+                    // 非流式响应
+                    val response = BufferedReader(InputStreamReader(conn.inputStream)).readText()
+                    Log.d(TAG, "GLM response length: ${response.length} chars")
+                    Log.d(TAG, "GLM response preview: ${response.take(200)}...")
+                    
+                    if (response.isEmpty()) {
+                        Log.e(TAG, "❌ GLM returned empty response!")
+                        throw Exception("GLM 返回空响应")
+                    }
+                    
+                    val jsonResponse = JSONObject(response)
+                    val choiceObj = jsonResponse
+                        .getJSONArray("choices")
+                        .getJSONObject(0)
+                    
+                    val messageObj = choiceObj.getJSONObject("message")
+                    val finishReason = choiceObj.optString("finish_reason", "")
+                    
+                    // GLM 标准响应使用 content 字段
+                    // 但在某些情况下（如被截断时）可能使用 reasoning_content
+                    var content = messageObj.optString("content", "")
+                    var usedReasoning = false
+                    
+                    if (content.isEmpty()) {
+                        // 回退到 reasoning_content
+                        content = messageObj.optString("reasoning_content", "")
+                        if (content.isNotEmpty()) {
+                            usedReasoning = true
+                            Log.w(TAG, "⚠️ GLM using reasoning_content as fallback (content was empty)")
+                            Log.d(TAG, "reasoning_content preview: ${content.take(200)}...")
+                        }
+                    }
+                    
+                    if (content.isEmpty()) {
+                        Log.e(TAG, "❌ Both content and reasoning_content are empty!")
+                        Log.e(TAG, "Full message object: $messageObj")
+                        throw Exception("GLM 返回空内容")
+                    }
+                    
+                    // 如果 finish_reason 是 "length"，说明被截断了
+                    if (finishReason == "length") {
+                        Log.w(TAG, "⚠️ GLM response truncated (finish_reason=length), consider increasing max_tokens")
+                    }
+                    
+                    Log.d(TAG, "GLM content length: ${content.length}, finish_reason: $finishReason, used_reasoning: $usedReasoning")
+                    
+                    return AIResponse(content, parseSuggestions(content))
+                }
+            }
+            
+            // 读取错误响应
+            val errorResponse = try {
+                val errorStream = conn.errorStream
+                if (errorStream != null) {
+                    BufferedReader(InputStreamReader(errorStream)).readText()
+                } else {
+                    "无错误流"
+                }
+            } catch (e: Exception) {
+                "无法读取错误详情: ${e.message}"
+            }
+            
+            Log.e(TAG, "GLM API Error: $responseCode")
+            Log.e(TAG, "Error response: $errorResponse")
+            throw Exception("GLM API Error: $responseCode\n详情: $errorResponse")
+            
+        } catch (e: javax.net.ssl.SSLHandshakeException) {
+            Log.e(TAG, "GLM SSL handshake failed. 可能原因：", e)
+            Log.e(TAG, "1. 网络连接问题")
+            Log.e(TAG, "2. 设备时间不正确")
+            Log.e(TAG, "3. 证书问题")
+            throw Exception("GLM 连接失败：SSL 握手错误。请检查网络连接和设备时间设置。")
+        } catch (e: java.net.SocketTimeoutException) {
+            Log.e(TAG, "GLM request timeout", e)
+            throw Exception("GLM 请求超时，请检查网络连接")
+        } catch (e: java.io.IOException) {
+            Log.e(TAG, "GLM network error", e)
+            throw Exception("GLM 网络错误：${e.message}")
+        } finally {
+            conn.disconnect()
+        }
     }
     
     suspend fun analyzeImage(
