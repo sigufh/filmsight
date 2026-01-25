@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FilmTracker"
+rootProject.name = "FilmSight"
 include(":app")

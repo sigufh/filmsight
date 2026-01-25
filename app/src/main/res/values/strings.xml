@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">FilmTracker</string>
+    <string name="app_name">FilmSight</string>
     <string name="select_raw">选择 RAW 图像</string>
     <string name="processing">处理中…</string>
     <string name="export">导出</string>
