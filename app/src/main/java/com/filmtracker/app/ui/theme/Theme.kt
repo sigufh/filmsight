@@ -3,7 +3,9 @@ package com.filmtracker.app.ui.theme
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -13,49 +15,108 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 
-// 原有深色主题（专业修图模式）
-private val DarkColorScheme = darkColorScheme(
-    primary = FilmTrackerPrimary,
-    secondary = FilmTrackerSecondary,
-    surface = FilmTrackerSurface,
-    background = FilmTrackerDark,
-    onPrimary = FilmTrackerDark,
-    onSecondary = FilmTrackerOnDark,
-    onSurface = FilmTrackerOnSurface,
-    onBackground = FilmTrackerOnDark
+// M3 Shape tokens
+val FilmTrackerShapes = Shapes(
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(28.dp)
 )
 
-// 胶卷仿拍 Ins 风格主题（新增）
+// 原有深色主题（专业修图模式）- Complete M3 color roles
+private val DarkColorScheme = darkColorScheme(
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkPrimaryContainer,
+    onPrimaryContainer = DarkOnPrimaryContainer,
+    secondary = DarkSecondary,
+    onSecondary = DarkOnSecondary,
+    secondaryContainer = DarkSecondaryContainer,
+    onSecondaryContainer = DarkOnSecondaryContainer,
+    tertiary = DarkTertiary,
+    onTertiary = DarkOnTertiary,
+    tertiaryContainer = DarkTertiaryContainer,
+    onTertiaryContainer = DarkOnTertiaryContainer,
+    error = DarkError,
+    onError = DarkOnError,
+    errorContainer = DarkErrorContainer,
+    onErrorContainer = DarkOnErrorContainer,
+    background = DarkBackground,
+    onBackground = DarkOnBackground,
+    surface = DarkSurface,
+    onSurface = DarkOnSurface,
+    surfaceVariant = DarkSurfaceVariant,
+    onSurfaceVariant = DarkOnSurfaceVariant,
+    outline = DarkOutline,
+    outlineVariant = DarkOutlineVariant,
+    scrim = DarkScrim,
+    inverseSurface = DarkInverseSurface,
+    inverseOnSurface = DarkInverseOnSurface,
+    inversePrimary = DarkInversePrimary,
+    surfaceTint = DarkSurfaceTint
+)
+
+// 胶卷仿拍 Ins 风格主题 - Complete M3 color roles
 private val FilmVintageColorScheme = lightColorScheme(
-    primary = FilmCaramelOrange,           // 焦糖橘（主按钮、选中状态）
-    secondary = FilmMintGreen,             // 薄荷绿（辅助按钮、强调）
-    tertiary = FilmMilkyBlue,              // 奶灰蓝（功能区背景）
-    background = FilmWarmBeige,            // 暖调米白（主背景）
-    surface = FilmWhite,                   // 纯白（卡片、面板）
-    surfaceVariant = FilmMilkyBlue,        // 奶灰蓝（次要面板）
-    onPrimary = FilmWhite,                 // 主色上的文字（白色）
-    onSecondary = FilmWhite,               // 辅助色上的文字（白色）
-    onTertiary = FilmInkBlack,             // 第三色上的文字（墨黑）
-    onBackground = FilmInkBlack,           // 背景上的文字（墨黑）
-    onSurface = FilmInkBlack,              // 表面上的文字（墨黑）
-    onSurfaceVariant = FilmDarkGray,       // 次要表面上的文字（深灰）
-    outline = FilmLightGray,               // 边框、分隔线（浅灰）
-    outlineVariant = FilmSprocketGray      // 次要边框（胶片齿孔色）
+    primary = FilmCaramelOrange,
+    onPrimary = FilmWhite,
+    primaryContainer = VintagePrimaryContainer,
+    onPrimaryContainer = VintageOnPrimaryContainer,
+    secondary = FilmMintGreen,
+    onSecondary = FilmWhite,
+    secondaryContainer = VintageSecondaryContainer,
+    onSecondaryContainer = VintageOnSecondaryContainer,
+    tertiary = FilmMilkyBlue,
+    onTertiary = FilmInkBlack,
+    tertiaryContainer = VintageTertiaryContainer,
+    onTertiaryContainer = VintageOnTertiaryContainer,
+    error = VintageError,
+    onError = VintageOnError,
+    errorContainer = VintageErrorContainer,
+    onErrorContainer = VintageOnErrorContainer,
+    background = FilmWarmBeige,
+    onBackground = FilmInkBlack,
+    surface = FilmWhite,
+    onSurface = FilmInkBlack,
+    surfaceVariant = FilmMilkyBlue,
+    onSurfaceVariant = FilmDarkGray,
+    outline = FilmLightGray,
+    outlineVariant = FilmSprocketGray,
+    scrim = VintageScrim,
+    inverseSurface = VintageInverseSurface,
+    inverseOnSurface = VintageInverseOnSurface,
+    inversePrimary = VintageInversePrimary,
+    surfaceTint = VintageSurfaceTint
 )
 
 @Composable
 fun FilmTrackerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    useVintageTheme: Boolean = false,  // 新增：是否使用胶卷仿拍主题
+    useVintageTheme: Boolean = false,
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+
     val colorScheme = when {
-        useVintageTheme -> FilmVintageColorScheme  // 胶卷仿拍 Ins 风格
-        else -> DarkColorScheme                     // 专业修图深色主题
+        // Dynamic color for Android 12+ (API 31+)
+        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+            if (useVintageTheme) {
+                dynamicLightColorScheme(context)
+            } else {
+                dynamicDarkColorScheme(context)
+            }
+        }
+        // Vintage theme (light)
+        useVintageTheme -> FilmVintageColorScheme
+        // Professional dark theme (default)
+        else -> DarkColorScheme
     }
-    
+
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -68,6 +129,7 @@ fun FilmTrackerTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = FilmTrackerShapes,
         content = content
     )
 }

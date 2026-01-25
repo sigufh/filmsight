@@ -9,7 +9,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,15 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
 import com.filmtracker.app.domain.model.FilmType
 import com.filmtracker.app.ui.screens.components.AIDialogPanel
-import com.filmtracker.app.ui.theme.*
+import com.filmtracker.app.ui.theme.CornerRadius
+import com.filmtracker.app.ui.theme.Spacing
 
 /**
  * 画幅选择页（胶卷仿拍流程第一步）
@@ -55,54 +53,45 @@ fun FilmFormatSelectionScreen(
     
     Scaffold(
         topBar = {
-            // 磨砂玻璃效果导航栏
             TopAppBar(
                 title = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
-                        // 品牌 logo（简约胶片图标）
-                        Text(
-                            text = "🎞",
-                            fontSize = 24.sp
-                        )
                         Text(
                             text = "FilmSight",
-                            fontWeight = FontWeight.Light,
-                            fontSize = 20.sp
+                            style = MaterialTheme.typography.titleLarge
                         )
                     }
                 },
                 navigationIcon = {
-                    // 返回按钮（如果提供了 onBack 回调）
                     if (onBack != null) {
                         IconButton(onClick = onBack) {
                             Icon(
-                                imageVector = Icons.Default.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "返回",
-                                tint = FilmInkBlack
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
                 },
                 actions = {
-                    // 帮助按钮
                     IconButton(onClick = { /* TODO: 显示帮助 */ }) {
                         Icon(
                             imageVector = Icons.Default.Help,
                             contentDescription = "帮助",
-                            tint = MaterialTheme.colorScheme.onSurface
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = FilmWhiteGlass,
-                    titleContentColor = FilmInkBlack
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = FilmWarmBeige
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = modifier
@@ -116,26 +105,25 @@ fun FilmFormatSelectionScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(24.dp),
+                    .padding(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
+                Spacer(modifier = Modifier.height(Spacing.md))
+
                 // 标题
                 Text(
                     text = "选择画幅",
                     style = MaterialTheme.typography.headlineMedium,
-                    color = FilmInkBlack,
-                    fontWeight = FontWeight.Light
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 
                 // 135 和 120 画幅选择（左右排列）
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // 135 胶卷卡片
                     FilmFormatCompactCard(
@@ -165,7 +153,7 @@ fun FilmFormatSelectionScreen(
                 if (show120Expansion) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
                         FilmFormat.get120Formats().forEach { format ->
                             Film120SubFormatOption(
@@ -185,8 +173,8 @@ fun FilmFormatSelectionScreen(
                     onExpandedChange = { showFilmStockDropdown = it }
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
                 // 下一步按钮
                 Button(
                     onClick = {
@@ -197,33 +185,32 @@ fun FilmFormatSelectionScreen(
                     enabled = selectedFormat != null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
+                        .height(Spacing.xxl + Spacing.sm),
+                    shape = RoundedCornerShape(CornerRadius.xl),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmCaramelOrange,
-                        contentColor = FilmWhite,
-                        disabledContainerColor = FilmLightGray,
-                        disabledContentColor = FilmDarkGray
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Text(
                         text = "下一步 · 选择张数",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 
                 // AI 助手对话框（屏幕下半部分）
                 AIDialogPanel(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp),
+                        .height(Spacing.xxl * 6),
                     showQuickActions = false
                 )
-                
-                Spacer(modifier = Modifier.height(16.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.md))
             }
         }
     }
@@ -239,56 +226,71 @@ private fun FilmFormatCompactCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    displayText: String? = null  // 可选的自定义显示文字
+    displayText: String? = null
 ) {
     val scale by animateFloatAsState(
         targetValue = if (isSelected) 1.02f else 1f,
         label = "card_scale"
     )
-    
-    Card(
+
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    ElevatedCard(
         modifier = modifier
-            .height(100.dp)
-            .scale(scale)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) FilmCaramelOrange else FilmWhite
+            .height(Spacing.xxl * 2 + Spacing.xs)
+            .scale(scale),
+        onClick = onClick,
+        shape = RoundedCornerShape(CornerRadius.md),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = containerColor
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 6.dp else 2.dp
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = if (isSelected) Spacing.sm else Spacing.xs
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(Spacing.md),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 Text(
-                    text = displayText ?: format.displayName,  // 使用自定义文字或默认名称
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isSelected) FilmWhite else FilmInkBlack
+                    text = displayText ?: format.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = contentColor
                 )
                 subtitle?.let {
                     Text(
                         text = it,
-                        fontSize = 11.sp,
-                        color = if (isSelected) FilmWhite.copy(alpha = 0.9f) else FilmDarkGray
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isSelected) {
+                            contentColor.copy(alpha = 0.8f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
                     )
                 }
-                
-                // 选中指示器
+
                 if (isSelected) {
-                    Text(
-                        text = "✓",
-                        fontSize = 20.sp,
-                        color = FilmWhite
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "已选中",
+                        tint = contentColor,
+                        modifier = Modifier.size(Spacing.lg)
                     )
                 }
             }
@@ -311,50 +313,66 @@ private fun FilmFormatCard(
         targetValue = if (isSelected) 1.02f else 1f,
         label = "card_scale"
     )
-    
-    Card(
+
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
-            .height(140.dp)
-            .scale(scale)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) FilmCaramelOrange else FilmWhite
+            .height(Spacing.xxl * 3)
+            .scale(scale),
+        onClick = onClick,
+        shape = RoundedCornerShape(CornerRadius.lg),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = containerColor
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isSelected) 8.dp else 2.dp
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = if (isSelected) Spacing.sm else Spacing.xs
         )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(Spacing.lg)
         ) {
             Column(
                 modifier = Modifier.align(Alignment.CenterStart),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 Text(
                     text = format.displayName,
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isSelected) FilmWhite else FilmInkBlack
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = contentColor
                 )
                 Text(
                     text = subtitle ?: format.description,
-                    fontSize = 14.sp,
-                    color = if (isSelected) FilmWhite.copy(alpha = 0.9f) else FilmDarkGray
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isSelected) {
+                        contentColor.copy(alpha = 0.8f)
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
-            
-            // 选中指示器
+
             if (isSelected) {
-                Text(
-                    text = "✓",
-                    fontSize = 32.sp,
-                    color = FilmWhite,
-                    modifier = Modifier.align(Alignment.CenterEnd)
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "已选中",
+                    tint = contentColor,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(Spacing.xl)
                 )
             }
         }
@@ -371,37 +389,51 @@ private fun Film120SubFormatOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) FilmCaramelOrange else FilmWhite)
+            .clip(RoundedCornerShape(CornerRadius.sm))
+            .background(containerColor)
             .clickable(onClick = onClick)
-            .padding(12.dp),
+            .padding(Spacing.md),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
             Text(
                 text = format.displayName,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (isSelected) FilmWhite else FilmInkBlack
+                style = MaterialTheme.typography.bodyLarge,
+                color = contentColor
             )
             Text(
                 text = format.description,
-                fontSize = 11.sp,
-                color = if (isSelected) FilmWhite.copy(alpha = 0.9f) else FilmDarkGray
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isSelected) {
+                    contentColor.copy(alpha = 0.8f)
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
-        
-        // 单选按钮
+
         RadioButton(
             selected = isSelected,
             onClick = onClick,
             colors = RadioButtonDefaults.colors(
-                selectedColor = FilmWhite,
-                unselectedColor = FilmDarkGray
+                selectedColor = MaterialTheme.colorScheme.primary,
+                unselectedColor = MaterialTheme.colorScheme.onSurfaceVariant
             )
         )
     }
@@ -420,20 +452,16 @@ private fun FilmStockSelector(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Text(
             text = "胶卷型号（可选）",
-            fontSize = 14.sp,
-            color = FilmDarkGray,
-            fontWeight = FontWeight.Medium
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
-        // 使用 HorizontalPager 实现左右滑动
+
         val filmStocks = FilmStock.getAllFilms()
-        val selectedIndex = filmStocks.indexOf(selectedFilmStock).takeIf { it >= 0 } ?: -1
-        
-        // 滑动选择器
+
         FilmStockCarousel(
             filmStocks = filmStocks,
             selectedFilmStock = selectedFilmStock,
@@ -455,15 +483,13 @@ private fun FilmStockCarousel(
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
-        // 横向滚动的胶卷图标
-        androidx.compose.foundation.lazy.LazyRow(
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 24.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+            contentPadding = PaddingValues(horizontal = Spacing.lg)
         ) {
-            // 所有胶卷型号
             items(filmStocks.size) { index ->
                 FilmStockIcon(
                     filmStock = filmStocks[index],
@@ -472,74 +498,14 @@ private fun FilmStockCarousel(
                 )
             }
         }
-        
-        // 显示当前选中的胶卷信息
+
         if (selectedFilmStock != null) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = FilmWhite
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = selectedFilmStock.displayName,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = FilmInkBlack
-                        )
-                        
-                        // 类型标签
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = when (selectedFilmStock.type) {
-                                FilmType.NEGATIVE -> Color(0xFFFFB74D)
-                                FilmType.REVERSAL -> Color(0xFF64B5F6)
-                                FilmType.CINEMA -> Color(0xFFBA68C8)
-                            }
-                        ) {
-                            Text(
-                                text = selectedFilmStock.type.displayName,
-                                fontSize = 11.sp,
-                                color = FilmWhite,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                    
-                    Text(
-                        text = selectedFilmStock.englishName,
-                        fontSize = 12.sp,
-                        color = FilmDarkGray
-                    )
-                    
-                    Text(
-                        text = selectedFilmStock.description,
-                        fontSize = 13.sp,
-                        color = FilmDarkGray.copy(alpha = 0.8f)
-                    )
-                }
-            }
+            FilmStockInfoCard(selectedFilmStock = selectedFilmStock)
         } else {
-            // 未选择时的提示
             Text(
                 text = "← 左右滑动选择胶卷型号",
-                fontSize = 13.sp,
-                color = FilmDarkGray.copy(alpha = 0.6f)
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
             )
         }
     }
@@ -559,49 +525,58 @@ private fun FilmStockIcon(
         targetValue = if (isSelected) 1.1f else 1f,
         label = "icon_scale"
     )
-    
+
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primaryContainer
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Column(
         modifier = modifier
-            .width(100.dp)
+            .width(Spacing.xxl * 2 + Spacing.xs)
             .scale(scale),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
-        // 胶卷图标
-        Card(
-            modifier = Modifier
-                .size(80.dp)
-                .clickable(onClick = onClick),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isSelected) FilmCaramelOrange else FilmWhite
+        ElevatedCard(
+            modifier = Modifier.size(Spacing.xxl + Spacing.xl),
+            onClick = onClick,
+            shape = RoundedCornerShape(CornerRadius.md),
+            colors = CardDefaults.elevatedCardColors(
+                containerColor = containerColor
             ),
-            elevation = CardDefaults.cardElevation(
-                defaultElevation = if (isSelected) 6.dp else 2.dp
+            elevation = CardDefaults.elevatedCardElevation(
+                defaultElevation = if (isSelected) Spacing.sm else Spacing.xs
             )
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // 胶卷图标（根据类型显示不同的 emoji）
-                Text(
-                    text = when (filmStock.type) {
-                        FilmType.NEGATIVE -> "📷"
-                        FilmType.REVERSAL -> "🎞"
-                        FilmType.CINEMA -> "🎬"
-                    },
-                    fontSize = 36.sp
+                Icon(
+                    imageVector = filmStock.icon,
+                    contentDescription = filmStock.displayName,
+                    modifier = Modifier.size(Spacing.xl),
+                    tint = contentColor
                 )
             }
         }
-        
-        // 胶卷名称（简短版）
+
         Text(
             text = filmStock.displayName.take(6),
-            fontSize = 11.sp,
-            color = if (isSelected) FilmCaramelOrange else FilmDarkGray,
-            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isSelected) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             maxLines = 1
         )
     }
@@ -618,10 +593,80 @@ private fun FilmSprocketBackground() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        FilmWarmBeige,
-                        FilmWarmBeige.copy(alpha = 0.95f)
+                        MaterialTheme.colorScheme.background,
+                        MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
                     )
                 )
             )
     )
+}
+
+/**
+ * 胶卷信息卡片
+ */
+@Composable
+private fun FilmStockInfoCard(
+    selectedFilmStock: FilmStock,
+    modifier: Modifier = Modifier
+) {
+    OutlinedCard(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = Spacing.lg),
+        shape = RoundedCornerShape(CornerRadius.md),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.xs)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = selectedFilmStock.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+
+                Surface(
+                    shape = RoundedCornerShape(CornerRadius.xs),
+                    color = when (selectedFilmStock.type) {
+                        FilmType.NEGATIVE -> MaterialTheme.colorScheme.tertiaryContainer
+                        FilmType.REVERSAL -> MaterialTheme.colorScheme.secondaryContainer
+                        FilmType.CINEMA -> MaterialTheme.colorScheme.primaryContainer
+                    }
+                ) {
+                    Text(
+                        text = selectedFilmStock.type.displayName,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = when (selectedFilmStock.type) {
+                            FilmType.NEGATIVE -> MaterialTheme.colorScheme.onTertiaryContainer
+                            FilmType.REVERSAL -> MaterialTheme.colorScheme.onSecondaryContainer
+                            FilmType.CINEMA -> MaterialTheme.colorScheme.onPrimaryContainer
+                        },
+                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
+                    )
+                }
+            }
+
+            Text(
+                text = selectedFilmStock.englishName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Text(
+                text = selectedFilmStock.description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+        }
+    }
 }

@@ -27,35 +27,46 @@ if(NOT libraw_POPULATED)
     message(STATUS "LibRaw source directory: ${libraw_SOURCE_DIR}")
 endif()
 
-# Source files
+# Source files organized by module
 set(RAW_PROCESSOR_SOURCES
-    raw_processor.cpp
-    raw_decoder.cpp
-    bayer_demosaic.cpp
+    raw/raw_processor.cpp
+    raw/raw_decoder.cpp
+    raw/bayer_demosaic.cpp
 )
 
-set(IMAGE_PROCESSOR_SOURCES
-    image_processor_engine.cpp
-    parallel_processor.cpp
-    error_diffusion_dithering.cpp
-    dynamic_range_protection.cpp
-    adobe_tone_adjustment.cpp
-    contrast_adjustment.cpp
-    exposure_adjustment.cpp
-    saturation_adjustment.cpp
-    grain_effect.cpp
-    vignette_effect.cpp
-    color_temperature.cpp
-    color_grading.cpp
-    bilateral_filter.cpp
-    fast_bilateral_filter.cpp
-    bilateral_filter_optimizer.cpp
-    image_hash_cache.cpp
-    vulkan_bilateral_filter.cpp
+set(CORE_SOURCES
+    core/image_processor_engine.cpp
+    core/parallel_processor.cpp
+    core/image_hash_cache.cpp
+    core/image_converter.cpp
 )
 
-set(IMAGE_CONVERTER_SOURCES
-    image_converter.cpp
+set(TONE_SOURCES
+    tone/exposure_adjustment.cpp
+    tone/contrast_adjustment.cpp
+    tone/adobe_tone_adjustment.cpp
+    # tone/tone_curve.cpp  # Temporarily disabled - missing film_engine.h
+    tone/dynamic_range_protection.cpp
+)
+
+set(COLOR_SOURCES
+    color/color_temperature.cpp
+    color/color_grading.cpp
+    color/saturation_adjustment.cpp
+    # color/hsl_adjust.cpp  # Temporarily disabled - missing film_engine.h
+)
+
+set(EFFECTS_SOURCES
+    effects/grain_effect.cpp
+    effects/vignette_effect.cpp
+    effects/error_diffusion_dithering.cpp
+)
+
+set(FILTERS_SOURCES
+    filters/bilateral_filter.cpp
+    filters/fast_bilateral_filter.cpp
+    filters/bilateral_filter_optimizer.cpp
+    filters/vulkan_bilateral_filter.cpp
 )
 
 set(JNI_SOURCES
@@ -71,7 +82,12 @@ set(JNI_SOURCES
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/core
+    ${CMAKE_CURRENT_SOURCE_DIR}/raw
+    ${CMAKE_CURRENT_SOURCE_DIR}/tone
+    ${CMAKE_CURRENT_SOURCE_DIR}/color
+    ${CMAKE_CURRENT_SOURCE_DIR}/effects
+    ${CMAKE_CURRENT_SOURCE_DIR}/filters
     ${libraw_SOURCE_DIR}
 )
 
@@ -113,8 +129,11 @@ endif()
 # Create shared library
 add_library(filmtracker SHARED
     ${RAW_PROCESSOR_SOURCES}
-    ${IMAGE_PROCESSOR_SOURCES}
-    ${IMAGE_CONVERTER_SOURCES}
+    ${CORE_SOURCES}
+    ${TONE_SOURCES}
+    ${COLOR_SOURCES}
+    ${EFFECTS_SOURCES}
+    ${FILTERS_SOURCES}
     ${JNI_SOURCES}
 )
 

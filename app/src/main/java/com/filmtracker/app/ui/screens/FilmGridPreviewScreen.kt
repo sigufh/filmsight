@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
@@ -20,9 +21,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
 import com.filmtracker.app.processing.ExportRenderingPipeline
@@ -94,23 +93,22 @@ fun FilmGridPreviewScreen(
                     Column {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                         ) {
                             Text(
                                 text = "🎞",
-                                fontSize = 20.sp
+                                style = MaterialTheme.typography.titleLarge
                             )
                             Text(
                                 text = filmFormat.displayName,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.titleMedium
                             )
                         }
                         filmStock?.let {
                             Text(
                                 text = "${it.displayName} · ${images.size} 张",
-                                fontSize = 12.sp,
-                                color = FilmDarkGray
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -120,7 +118,7 @@ fun FilmGridPreviewScreen(
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "返回",
-                            tint = FilmInkBlack
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
@@ -130,7 +128,7 @@ fun FilmGridPreviewScreen(
                         Icon(
                             imageVector = Icons.Default.FileDownload,
                             contentDescription = "批量导出",
-                            tint = FilmCaramelOrange
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                     // 添加更多图片按钮
@@ -138,18 +136,21 @@ fun FilmGridPreviewScreen(
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "添加图片",
-                            tint = FilmCaramelOrange
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = FilmWhiteGlass,
-                    titleContentColor = FilmInkBlack
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = FilmWarmBeige
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
+        val backgroundColor = MaterialTheme.colorScheme.background
+        val surfaceVariant = MaterialTheme.colorScheme.surfaceVariant
+
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -162,9 +163,9 @@ fun FilmGridPreviewScreen(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                FilmWarmBeige,
-                                FilmWarmBeige.copy(alpha = 0.95f),
-                                Color(0xFFE5DFD0)
+                                backgroundColor,
+                                backgroundColor.copy(alpha = 0.95f),
+                                surfaceVariant
                             )
                         )
                     )
@@ -174,17 +175,16 @@ fun FilmGridPreviewScreen(
                 modifier = Modifier.fillMaxSize(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Spacer(modifier = Modifier.height(32.dp))
-                
+                Spacer(modifier = Modifier.height(Spacing.xl))
+
                 // 标题提示
                 Text(
                     text = "点击图片进入调色",
-                    fontSize = 16.sp,
-                    color = FilmDarkGray,
-                    fontWeight = FontWeight.Light
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                
-                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
                 
                 // 胶卷滚动区域（全屏宽度）
                 Box(
@@ -242,17 +242,17 @@ fun FilmGridPreviewScreen(
                             if (index < images.size - 1) {
                                 Box(
                                     modifier = Modifier
-                                        .width(8.dp)
+                                        .width(Spacing.sm)
                                         .height(260.dp)
-                                        .background(Color.Black)
+                                        .background(MaterialTheme.colorScheme.scrim)
                                 )
                             }
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.xl))
+
                 // 滚动提示
                 if (images.size > 2) {
                     Row(
@@ -261,14 +261,13 @@ fun FilmGridPreviewScreen(
                     ) {
                         Text(
                             text = "← 左右滑动浏览 →",
-                            fontSize = 14.sp,
-                            color = FilmDarkGray.copy(alpha = 0.6f),
-                            fontWeight = FontWeight.Light
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.lg))
                 
                 // 胶卷信息卡片
                 FilmInfoCard(
@@ -278,25 +277,25 @@ fun FilmGridPreviewScreen(
                 )
                 
                 Spacer(modifier = Modifier.weight(1f))
-                
+
                 // 底部操作按钮
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // 批量导出按钮
                     OutlinedButton(
                         onClick = { showExportConfigDialog = true },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = FilmCaramelOrange
+                            contentColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
                         Text("批量导出")
                     }
-                    
+
                     // 开始调色按钮
                     Button(
                         onClick = {
@@ -306,7 +305,7 @@ fun FilmGridPreviewScreen(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmCaramelOrange
+                            containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
                         Text("开始调色")
@@ -347,33 +346,34 @@ private fun FilmInfoCard(
     imageCount: Int,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        color = FilmWhite.copy(alpha = 0.9f),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-        tonalElevation = 2.dp
+            .padding(horizontal = Spacing.lg),
+        shape = RoundedCornerShape(CornerRadius.lg),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(Spacing.md + Spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Text(
                 text = "胶卷信息",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium,
-                color = FilmInkBlack
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            
-            Divider(color = FilmLightGray)
-            
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
             // 画幅信息
             InfoRow(
                 label = "画幅",
                 value = filmFormat.displayName
             )
-            
+
             // 胶卷型号
             filmStock?.let {
                 InfoRow(
@@ -385,13 +385,13 @@ private fun FilmInfoCard(
                     value = it.type.displayName
                 )
             }
-            
+
             // 张数
             InfoRow(
                 label = "张数",
                 value = "$imageCount / ${filmFormat.availableCounts.maxOrNull() ?: 0}"
             )
-            
+
             // 比例
             InfoRow(
                 label = "比例",
@@ -423,14 +423,13 @@ private fun InfoRow(
     ) {
         Text(
             text = label,
-            fontSize = 14.sp,
-            color = FilmDarkGray
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Text(
             text = value,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = FilmInkBlack
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }

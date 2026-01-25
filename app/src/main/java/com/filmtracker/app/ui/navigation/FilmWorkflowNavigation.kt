@@ -90,7 +90,7 @@ fun FilmWorkflowNavigation(
                         val images = imageUris.mapIndexed { index, uri ->
                             ImageInfo(
                                 uri = uri,
-                                fileName = "Frame ${index + 1}",
+                                fileName = "帧 ${index + 1}",
                                 width = 0,
                                 height = 0,
                                 isRaw = false,

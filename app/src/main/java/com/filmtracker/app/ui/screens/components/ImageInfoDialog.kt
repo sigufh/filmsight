@@ -10,8 +10,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.exifinterface.media.ExifInterface
+import com.filmtracker.app.ui.theme.ComponentSize
+import com.filmtracker.app.ui.theme.Spacing
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -40,52 +41,57 @@ fun ImageInfoDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("图像信息") },
+        title = {
+            Text(
+                text = "图像信息",
+                style = MaterialTheme.typography.headlineSmall
+            )
+        },
         text = {
             if (imageData != null) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 500.dp)
+                        .heightIn(max = ComponentSize.panelMaxHeight + ComponentSize.cardMinHeight)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // 基本信息
                     InfoSection(
                         title = "基本信息",
                         items = imageData.basicInfo
                     )
-                    
+
                     // 相机信息
                     if (imageData.cameraInfo.isNotEmpty()) {
-                        Divider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         InfoSection(
                             title = "相机信息",
                             items = imageData.cameraInfo
                         )
                     }
-                    
+
                     // 拍摄参数
                     if (imageData.shootingParams.isNotEmpty()) {
-                        Divider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         InfoSection(
                             title = "拍摄参数",
                             items = imageData.shootingParams
                         )
                     }
-                    
+
                     // 位置信息
                     if (imageData.locationInfo.isNotEmpty()) {
-                        Divider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         InfoSection(
                             title = "位置信息",
                             items = imageData.locationInfo
                         )
                     }
-                    
+
                     // 其他 EXIF 信息
                     if (imageData.otherExif.isNotEmpty()) {
-                        Divider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         InfoSection(
                             title = "其他信息",
                             items = imageData.otherExif
@@ -93,7 +99,11 @@ fun ImageInfoDialog(
                     }
                 }
             } else {
-                Text("无法获取图像信息")
+                Text(
+                    text = "无法获取图像信息",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {
@@ -111,7 +121,7 @@ private fun InfoSection(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         Text(
             text = title,
@@ -119,7 +129,7 @@ private fun InfoSection(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         items.forEach { (key, value) ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -131,11 +141,12 @@ private fun InfoSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 Text(
                     text = value,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
             }

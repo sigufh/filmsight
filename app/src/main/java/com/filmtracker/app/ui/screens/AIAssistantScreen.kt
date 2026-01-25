@@ -21,13 +21,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.filmtracker.app.ai.ChatMessage
 import com.filmtracker.app.ai.ColorGradingSuggestion
 import com.filmtracker.app.ui.theme.*
@@ -35,8 +32,8 @@ import com.filmtracker.app.ui.components.MarkdownText
 import kotlinx.coroutines.launch
 
 /**
- * AI助手全屏对话界面
- * 设计风格：Ins风格轻复古，焦糖橘主色调，胶片压纹质感
+ * AI Assistant full-screen chat interface
+ * Design style: Ins-style light retro, caramel orange primary color, film texture
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,14 +51,14 @@ fun AIAssistantScreen(
     var inputText by remember { mutableStateOf("") }
     var selectedImage by remember { mutableStateOf<Bitmap?>(null) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    
-    // 图片选择器（在后台线程加载）
+
+    // Image picker (load in background thread)
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
         uri?.let {
             selectedImageUri = it
-            // 在后台线程加载图片
+            // Load image in background thread
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 try {
                     val bitmap = context.contentResolver.openInputStream(it)?.use { stream ->
@@ -76,36 +73,56 @@ fun AIAssistantScreen(
             }
         }
     }
-    
+
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("✨", fontSize = 24.sp)
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "AI",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(Spacing.sm))
                         Column {
-                            Text("AI调色助手", fontSize = 18.sp, fontWeight = FontWeight.Medium, color = FilmInkBlack)
-                            Text("专业摄影后期顾问", fontSize = 12.sp, color = FilmDarkGray)
+                            Text(
+                                "AI 助手",
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                "专业修图顾问",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "返回", tint = FilmInkBlack)
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = "返回",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 actions = {
                     IconButton(onClick = onSettings) {
-                        Icon(Icons.Default.Settings, "设置", tint = FilmInkBlack)
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "设置",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = FilmWhiteGlass,
-                    titleContentColor = FilmInkBlack
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
@@ -115,7 +132,7 @@ fun AIAssistantScreen(
                 onTextChange = { inputText = it },
                 selectedImage = selectedImage,
                 onImageSelect = { imagePickerLauncher.launch("image/*") },
-                onImageRemove = { 
+                onImageRemove = {
                     selectedImage = null
                     selectedImageUri = null
                 },
@@ -130,7 +147,7 @@ fun AIAssistantScreen(
                         inputText = ""
                         selectedImage = null
                         selectedImageUri = null
-                        
+
                         scope.launch {
                             listState.animateScrollToItem(messages.size)
                         }
@@ -140,14 +157,14 @@ fun AIAssistantScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         },
-        containerColor = FilmWarmBeige
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Box(
             modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // 背景胶片齿孔纹理
+            // Background film sprocket texture
             FilmSprocketBackground()
             if (messages.isEmpty()) {
                 WelcomeScreen()
@@ -155,8 +172,8 @@ fun AIAssistantScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(Spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     items(messages) { message ->
                         ChatBubble(
@@ -166,7 +183,7 @@ fun AIAssistantScreen(
                             }
                         )
                     }
-                    
+
                     if (isLoading) {
                         item {
                             LoadingIndicator()
@@ -179,95 +196,97 @@ fun AIAssistantScreen(
 }
 
 /**
- * 欢迎界面 - Ins风格轻复古
+ * Welcome screen - Ins-style light retro
  */
 @Composable
 private fun WelcomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(Spacing.xl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text("✨", fontSize = 64.sp)
-        Spacer(modifier = Modifier.height(16.dp))
         Text(
-            "AI调色助手",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = FilmInkBlack
+            "AI",
+            style = MaterialTheme.typography.displayLarge,
+            color = MaterialTheme.colorScheme.primary
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
+        Text(
+            "AI 调色助手",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(Spacing.sm))
         Text(
             "上传照片，获取专业调色建议",
-            fontSize = 14.sp,
-            color = FilmDarkGray
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        // 配置提示卡片
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
+        // Configuration hint card
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(CornerRadius.lg),
             colors = CardDefaults.cardColors(
-                containerColor = FilmCaramelOrange.copy(alpha = 0.15f)
+                containerColor = MaterialTheme.colorScheme.primaryContainer
             )
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(Spacing.md),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    "💡 首次使用提示",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = FilmInkBlack
+                    "首次使用设置",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 Text(
-                    "请先点击右上角设置按钮，配置 AI API 密钥和模型信息",
-                    fontSize = 14.sp,
-                    color = FilmDarkGray,
+                    "请点击右上角设置按钮，配置 AI API 密钥和模型信息",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
                     textAlign = TextAlign.Center
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(24.dp))
-        
+
+        Spacer(modifier = Modifier.height(Spacing.lg))
+
         QuickActionGrid()
     }
 }
 
 /**
- * 快捷操作网格
+ * Quick action grid
  */
 @Composable
 private fun QuickActionGrid() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             QuickActionCard(
-                icon = "🎨",
+                icon = Icons.Default.PhotoCamera,
                 title = "分析照片",
                 modifier = Modifier.weight(1f)
             )
             QuickActionCard(
-                icon = "🎞",
+                icon = Icons.Default.Movie,
                 title = "胶片风格",
                 modifier = Modifier.weight(1f)
             )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
             QuickActionCard(
-                icon = "👤",
-                title = "人像调色",
+                icon = Icons.Default.Person,
+                title = "人像",
                 modifier = Modifier.weight(1f)
             )
             QuickActionCard(
-                icon = "🌄",
-                title = "风光调色",
+                icon = Icons.Default.Landscape,
+                title = "风景",
                 modifier = Modifier.weight(1f)
             )
         }
@@ -275,43 +294,47 @@ private fun QuickActionGrid() {
 }
 
 /**
- * 快捷操作卡片 - 焦糖橘主色调
+ * Quick action card - M3 compliant
  */
 @Composable
 private fun QuickActionCard(
-    icon: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.height(100.dp),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.height(ComponentSize.cardMinHeight),
+        shape = RoundedCornerShape(CornerRadius.lg),
         colors = CardDefaults.cardColors(
-            containerColor = FilmCaramelOrange.copy(alpha = 0.15f)
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
+                .padding(Spacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(icon, fontSize = 32.sp)
-            Spacer(modifier = Modifier.height(8.dp))
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                modifier = Modifier.size(IconSize.lg),
+                tint = MaterialTheme.colorScheme.onSecondaryContainer
+            )
+            Spacer(modifier = Modifier.height(Spacing.sm))
             Text(
-                title, 
-                fontSize = 12.sp, 
-                fontWeight = FontWeight.Medium,
-                color = FilmInkBlack
+                title,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer
             )
         }
     }
 }
 
 /**
- * 聊天气泡 - 胶片质感 + Markdown 支持 + 图片显示 + 应用参数按钮
+ * Chat bubble - Film texture + Markdown support + Image display + Apply parameters button
  */
 @Composable
 private fun ChatBubble(
@@ -324,28 +347,33 @@ private fun ChatBubble(
     ) {
         if (!message.isUser) {
             Surface(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(IconSize.lg),
                 shape = CircleShape,
-                color = FilmCaramelOrange.copy(alpha = 0.2f)
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("✨", fontSize = 16.sp)
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = "AI",
+                        modifier = Modifier.size(IconSize.sm),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
         }
-        
+
         Column(modifier = Modifier.widthIn(max = 280.dp)) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = if (message.isUser) 
-                    FilmMilkyBlue.copy(alpha = 0.3f) 
-                else 
-                    FilmWhiteGlass,
+                shape = RoundedCornerShape(CornerRadius.lg),
+                color = if (message.isUser)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 2.dp
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    // 显示图片（如果有）
+                Column(modifier = Modifier.padding(Spacing.md)) {
+                    // Display image (if any)
                     message.imageBitmap?.let { bitmap ->
                         Image(
                             bitmap = bitmap.asImageBitmap(),
@@ -353,78 +381,86 @@ private fun ChatBubble(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 200.dp)
-                                .clip(RoundedCornerShape(8.dp)),
+                                .clip(RoundedCornerShape(Spacing.sm)),
                             contentScale = ContentScale.Crop
                         )
-                        if (message.content.isNotBlank() && message.content != "[图片]") {
-                            Spacer(modifier = Modifier.height(8.dp))
+                        if (message.content.isNotBlank() && message.content != "[Image]") {
+                            Spacer(modifier = Modifier.height(Spacing.sm))
                         }
                     }
-                    
-                    // 显示文字内容
-                    if (message.content.isNotBlank() && message.content != "[图片]") {
+
+                    // Display text content
+                    if (message.content.isNotBlank() && message.content != "[Image]") {
                         if (message.isUser) {
-                            // 用户消息使用普通文本
+                            // User message uses plain text
                             Text(
                                 text = message.content,
-                                fontSize = 14.sp,
-                                color = FilmInkBlack
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         } else {
-                            // AI 消息使用 Markdown 渲染
+                            // AI message uses Markdown rendering
                             if (message.content.isNotEmpty()) {
                                 MarkdownText(
                                     markdown = message.content,
-                                    style = androidx.compose.ui.text.TextStyle(
-                                        fontSize = 14.sp,
-                                        color = FilmInkBlack
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 )
                             } else {
-                                // 空消息显示光标
+                                // Empty message shows cursor
                                 Text(
-                                    text = "▋",
-                                    fontSize = 14.sp,
-                                    color = FilmCaramelOrange
+                                    text = "|",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
                             }
                         }
                     }
                 }
             }
-            
-            // AI 消息底部显示"应用参数"按钮
+
+            // AI message bottom shows "Apply Parameters" button
             if (!message.isUser && message.suggestion != null && onApplySuggestion != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 Button(
                     onClick = { onApplySuggestion(message.suggestion) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmCaramelOrange
+                        containerColor = MaterialTheme.colorScheme.primary
                     ),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(CornerRadius.md)
                 ) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = FilmWhite
+                        modifier = Modifier.size(IconSize.sm),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("应用到调色界面", color = FilmWhite, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.width(Spacing.xs))
+                    Text(
+                        "应用到编辑器",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }
-        
+
         if (message.isUser) {
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(Spacing.sm))
             Surface(
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(IconSize.lg),
                 shape = CircleShape,
-                color = FilmMilkyBlue.copy(alpha = 0.3f)
+                color = MaterialTheme.colorScheme.tertiaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Default.Person, null, tint = FilmInkBlack)
+                    Icon(
+                        Icons.Default.Person,
+                        contentDescription = "用户",
+                        modifier = Modifier.size(IconSize.sm),
+                        tint = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
                 }
             }
         }
@@ -432,7 +468,7 @@ private fun ChatBubble(
 }
 
 /**
- * 输入栏 - 磨砂玻璃效果
+ * Input bar - Frosted glass effect
  */
 @Composable
 private fun ChatInputBar(
@@ -447,88 +483,102 @@ private fun ChatInputBar(
 ) {
     Surface(
         modifier = modifier,
-        color = FilmWhiteGlass,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 8.dp
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // 图片预览
+        Column(modifier = Modifier.padding(Spacing.md)) {
+            // Image preview
             selectedImage?.let { bitmap ->
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 8.dp),
-                    shape = RoundedCornerShape(12.dp)
+                        .padding(bottom = Spacing.sm),
+                    shape = RoundedCornerShape(CornerRadius.md),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 ) {
                     Box {
-                        androidx.compose.foundation.Image(
+                        Image(
                             bitmap = bitmap.asImageBitmap(),
-                            contentDescription = "选中的图片",
+                            contentDescription = "已选图片",
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(120.dp),
-                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            contentScale = ContentScale.Crop
                         )
                         IconButton(
                             onClick = onImageRemove,
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .padding(4.dp)
+                                .padding(Spacing.xs)
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.5f)
+                                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.5f)
                             ) {
                                 Icon(
                                     Icons.Default.Close,
-                                    "移除图片",
-                                    tint = Color.White,
-                                    modifier = Modifier.padding(4.dp)
+                                    contentDescription = "移除图片",
+                                    tint = MaterialTheme.colorScheme.onPrimary,
+                                    modifier = Modifier.padding(Spacing.xs)
                                 )
                             }
                         }
                     }
                 }
             }
-            
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // 图片选择按钮
+                // Image selection button
                 IconButton(onClick = onImageSelect) {
                     Icon(
                         Icons.Default.Add,
-                        "添加图片",
-                        tint = FilmCaramelOrange
+                        contentDescription = "添加图片",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                
+
                 OutlinedTextField(
                     value = text,
                     onValueChange = onTextChange,
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("描述你的照片或提出问题...", color = FilmDarkGray) },
-                    shape = RoundedCornerShape(24.dp),
+                    placeholder = {
+                        Text(
+                            "描述你的照片或提问...",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    textStyle = MaterialTheme.typography.bodyMedium,
+                    shape = RoundedCornerShape(CornerRadius.xl),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = FilmCaramelOrange,
-                        unfocusedBorderColor = FilmLightGray,
-                        focusedTextColor = FilmInkBlack,
-                        unfocusedTextColor = FilmInkBlack
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
                     )
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(Spacing.sm))
                 FloatingActionButton(
                     onClick = onSend,
-                    containerColor = FilmCaramelOrange,
-                    modifier = Modifier.size(48.dp)
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(IconSize.xl)
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = FilmWhite
+                            modifier = Modifier.size(IconSize.md),
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
-                        Icon(Icons.Default.Send, "发送", tint = FilmWhite)
+                        Icon(
+                            Icons.Default.Send,
+                            contentDescription = "发送",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
             }
@@ -537,7 +587,7 @@ private fun ChatInputBar(
 }
 
 /**
- * 加载指示器 - 胶片质感
+ * Loading indicator - Film texture
  */
 @Composable
 private fun LoadingIndicator() {
@@ -546,30 +596,35 @@ private fun LoadingIndicator() {
         horizontalArrangement = Arrangement.Start
     ) {
         Surface(
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(IconSize.lg),
             shape = CircleShape,
-            color = FilmCaramelOrange.copy(alpha = 0.2f)
+            color = MaterialTheme.colorScheme.primaryContainer
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Text("✨", fontSize = 16.sp)
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = "AI",
+                    modifier = Modifier.size(IconSize.sm),
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                )
             }
         }
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(Spacing.sm))
         Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = FilmWhiteGlass,
+            shape = RoundedCornerShape(CornerRadius.lg),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             shadowElevation = 2.dp
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.padding(Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 repeat(3) {
                     Box(
                         modifier = Modifier
-                            .size(8.dp)
+                            .size(Spacing.sm)
                             .clip(CircleShape)
-                            .background(FilmCaramelOrange.copy(alpha = 0.5f))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))
                     )
                 }
             }
@@ -578,13 +633,13 @@ private fun LoadingIndicator() {
 }
 
 /**
- * 胶片齿孔背景纹理
+ * Film sprocket background texture
  */
 @Composable
 private fun FilmSprocketBackground() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(FilmSprocketGray)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
     )
 }

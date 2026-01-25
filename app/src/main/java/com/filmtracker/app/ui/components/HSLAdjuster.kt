@@ -10,11 +10,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
+import com.filmtracker.app.ui.theme.CornerRadius
+import com.filmtracker.app.ui.theme.Spacing
 
 /**
- * HSL 调整器组件
- * 支持 8 个色相段的独立调整：红、橙、黄、绿、青、蓝、紫、品红
+ * HSL Adjuster Component
+ * Supports independent adjustment of 8 hue segments: Red, Orange, Yellow, Green, Cyan, Blue, Purple, Magenta
  */
 @Composable
 fun HSLAdjuster(
@@ -31,7 +32,7 @@ fun HSLAdjuster(
             .fillMaxWidth()
             .verticalScroll(rememberScrollState())
     ) {
-        // 色相段列表
+        // Hue segment list
         HSLHueSegment.values().forEachIndexed { index, segment ->
             HSLSegmentCard(
                 segment = segment,
@@ -43,16 +44,16 @@ fun HSLAdjuster(
                 onLuminanceChange = { onLuminanceChange(index, it) },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                    .padding(vertical = Spacing.xs)
             )
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        // 重置所有按钮
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
+
+        // Reset all button
         TextButton(
             onClick = {
-                // 重置所有 HSL 参数
+                // Reset all HSL parameters
                 HSLHueSegment.values().forEachIndexed { index, _ ->
                     onHueShiftChange(index, 0f)
                     onSaturationChange(index, 0f)
@@ -61,13 +62,16 @@ fun HSLAdjuster(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("重置所有")
+            Text(
+                text = "重置所有",
+                style = MaterialTheme.typography.labelLarge
+            )
         }
     }
 }
 
 /**
- * 单个色相段的调整卡片
+ * Single hue segment adjustment card
  */
 @Composable
 fun HSLSegmentCard(
@@ -82,7 +86,7 @@ fun HSLSegmentCard(
 ) {
     Card(
         modifier = modifier,
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(CornerRadius.sm),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         )
@@ -90,9 +94,9 @@ fun HSLSegmentCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(Spacing.md)
         ) {
-            // 色相段标题（带颜色指示）
+            // Hue segment title (with color indicator)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -100,27 +104,28 @@ fun HSLSegmentCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    // 颜色指示器
+                    // Color indicator
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(Spacing.lg)
                             .background(
                                 color = segment.color,
-                                shape = RoundedCornerShape(4.dp)
+                                shape = RoundedCornerShape(CornerRadius.xs)
                             )
                     )
                     Text(
                         text = segment.label,
-                        style = MaterialTheme.typography.titleSmall
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // 色相偏移滑块
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
+
+            // Hue shift slider
             ParameterSlider(
                 label = "色相",
                 value = hueShift,
@@ -129,8 +134,8 @@ fun HSLSegmentCard(
                 steps = 36,
                 modifier = Modifier.fillMaxWidth()
             )
-            
-            // 饱和度滑块
+
+            // Saturation slider
             ParameterSlider(
                 label = "饱和度",
                 value = saturation,
@@ -139,8 +144,8 @@ fun HSLSegmentCard(
                 steps = 20,
                 modifier = Modifier.fillMaxWidth()
             )
-            
-            // 亮度滑块
+
+            // Luminance slider
             ParameterSlider(
                 label = "亮度",
                 value = luminance,
@@ -154,7 +159,9 @@ fun HSLSegmentCard(
 }
 
 /**
- * HSL 色相段枚举
+ * HSL Hue Segment Enum
+ * Note: These colors are semantic and represent actual hue values,
+ * so they remain fixed regardless of theme
  */
 enum class HSLHueSegment(
     val label: String,

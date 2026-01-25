@@ -1,5 +1,5 @@
 #include "jni_common.h"
-#include "../include/image_converter.h"
+#include "../core/image_converter.h"
 #include <android/bitmap.h>
 #include <vector>
 

@@ -14,11 +14,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.filmtracker.app.ui.theme.CornerRadius
+import com.filmtracker.app.ui.theme.Spacing
 import com.filmtracker.app.util.HistogramInfo
 
 /**
- * 直方图显示组件
+ * Histogram channel colors - these are semantic colors for RGB channels
+ * that need to remain fixed regardless of theme
+ */
+private object HistogramColors {
+    val red = Color(0xFFFF5555)
+    val green = Color(0xFF55FF55)
+    val blue = Color(0xFF5555FF)
+}
+
+/**
+ * Histogram display component
  */
 @Composable
 fun HistogramView(
@@ -26,14 +37,19 @@ fun HistogramView(
     modifier: Modifier = Modifier,
     showChannels: Boolean = true
 ) {
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerHighest
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val onSurfaceVariantColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val surfaceContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = Color(0xFF1C1C1E),
-                shape = RoundedCornerShape(12.dp)
+                color = surfaceColor,
+                shape = RoundedCornerShape(CornerRadius.md)
             )
-            .padding(12.dp)
+            .padding(Spacing.md)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -42,88 +58,86 @@ fun HistogramView(
         ) {
             Text(
                 text = "直方图",
-                color = Color.White,
-                fontSize = 14.sp,
+                color = onSurfaceColor,
                 style = MaterialTheme.typography.titleSmall
             )
-            
+
             if (showChannels) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ChannelIndicator("R", Color(0xFFFF5555))
-                    ChannelIndicator("G", Color(0xFF55FF55))
-                    ChannelIndicator("B", Color(0xFF5555FF))
-                    ChannelIndicator("L", Color.White)
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    ChannelIndicator("R", HistogramColors.red)
+                    ChannelIndicator("G", HistogramColors.green)
+                    ChannelIndicator("B", HistogramColors.blue)
+                    ChannelIndicator("L", onSurfaceColor)
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
+
         if (histogramInfo != null) {
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color(0xFF0A0A0A), RoundedCornerShape(8.dp))
+                    .height(ComponentSize.histogramHeight)
+                    .background(surfaceContainerColor, RoundedCornerShape(CornerRadius.sm))
             ) {
                 val width = size.width
                 val height = size.height
-                
-                // 绘制网格线
-                drawGrid(width, height)
-                
-                // 绘制各个通道的直方图
+
+                // Draw grid lines
+                drawGrid(width, height, onSurfaceVariantColor)
+
+                // Draw histogram channels
                 if (showChannels) {
                     drawHistogramChannel(
                         histogramInfo.redHistogram,
-                        Color(0xFFFF5555).copy(alpha = 0.5f),
+                        HistogramColors.red.copy(alpha = 0.5f),
                         width,
                         height
                     )
                     drawHistogramChannel(
                         histogramInfo.greenHistogram,
-                        Color(0xFF55FF55).copy(alpha = 0.5f),
+                        HistogramColors.green.copy(alpha = 0.5f),
                         width,
                         height
                     )
                     drawHistogramChannel(
                         histogramInfo.blueHistogram,
-                        Color(0xFF5555FF).copy(alpha = 0.5f),
+                        HistogramColors.blue.copy(alpha = 0.5f),
                         width,
                         height
                     )
                 }
-                
-                // 绘制亮度直方图（最上层）
+
+                // Draw luminance histogram (top layer)
                 drawHistogramChannel(
                     histogramInfo.luminanceHistogram,
-                    Color.White.copy(alpha = 0.7f),
+                    onSurfaceColor.copy(alpha = 0.7f),
                     width,
                     height
                 )
             }
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            // 显示分析信息
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
+
+            // Display analysis info
             Text(
                 text = histogramInfo.analyze(),
-                color = Color.Gray,
-                fontSize = 11.sp,
-                lineHeight = 14.sp
+                color = onSurfaceVariantColor,
+                style = MaterialTheme.typography.labelSmall
             )
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color(0xFF0A0A0A), RoundedCornerShape(8.dp)),
+                    .height(ComponentSize.histogramHeight)
+                    .background(surfaceContainerColor, RoundedCornerShape(CornerRadius.sm)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "无直方图数据",
-                    color = Color.Gray,
-                    fontSize = 12.sp
+                    color = onSurfaceVariantColor,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -131,12 +145,19 @@ fun HistogramView(
 }
 
 /**
- * 绘制网格线
+ * Component size constants specific to HistogramView
  */
-private fun DrawScope.drawGrid(width: Float, height: Float) {
-    val gridColor = Color.Gray.copy(alpha = 0.1f)
-    
-    // 垂直网格线（4等分）
+private object ComponentSize {
+    val histogramHeight = 120.dp
+}
+
+/**
+ * Draw grid lines
+ */
+private fun DrawScope.drawGrid(width: Float, height: Float, gridBaseColor: Color) {
+    val gridColor = gridBaseColor.copy(alpha = 0.1f)
+
+    // Vertical grid lines (4 divisions)
     for (i in 1..3) {
         val x = width * i / 4
         drawLine(
@@ -146,8 +167,8 @@ private fun DrawScope.drawGrid(width: Float, height: Float) {
             strokeWidth = 1f
         )
     }
-    
-    // 水平网格线（3等分）
+
+    // Horizontal grid lines (3 divisions)
     for (i in 1..2) {
         val y = height * i / 3
         drawLine(
@@ -160,7 +181,7 @@ private fun DrawScope.drawGrid(width: Float, height: Float) {
 }
 
 /**
- * 绘制单个通道的直方图
+ * Draw a single channel histogram
  */
 private fun DrawScope.drawHistogramChannel(
     histogram: IntArray,
@@ -169,35 +190,35 @@ private fun DrawScope.drawHistogramChannel(
     height: Float
 ) {
     if (histogram.isEmpty()) return
-    
-    // 找到最大值用于归一化
+
+    // Find max value for normalization
     val maxValue = histogram.maxOrNull()?.toFloat() ?: 1f
     if (maxValue == 0f) return
-    
+
     val path = Path()
     val barWidth = width / 256f
-    
-    // 从底部开始
+
+    // Start from bottom
     path.moveTo(0f, height)
-    
-    // 绘制直方图曲线
+
+    // Draw histogram curve
     histogram.forEachIndexed { index, value ->
         val x = index * barWidth
         val normalizedHeight = (value.toFloat() / maxValue) * height
         val y = height - normalizedHeight
-        
+
         if (index == 0) {
             path.lineTo(x, y)
         } else {
             path.lineTo(x, y)
         }
     }
-    
-    // 回到底部闭合路径
+
+    // Close path at bottom
     path.lineTo(width, height)
     path.close()
-    
-    // 填充路径
+
+    // Fill path
     drawPath(
         path = path,
         color = color
@@ -205,23 +226,25 @@ private fun DrawScope.drawHistogramChannel(
 }
 
 /**
- * 通道指示器
+ * Channel indicator
  */
 @Composable
 private fun ChannelIndicator(label: String, color: Color) {
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         Box(
             modifier = Modifier
-                .size(8.dp)
-                .background(color, RoundedCornerShape(2.dp))
+                .size(Spacing.sm)
+                .background(color, RoundedCornerShape(CornerRadius.xs))
         )
         Text(
             text = label,
-            color = Color.Gray,
-            fontSize = 10.sp
+            color = labelColor,
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }

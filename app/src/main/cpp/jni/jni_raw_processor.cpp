@@ -1,6 +1,6 @@
 #include "jni_common.h"
-#include "../include/raw_processor.h"
-#include "../include/raw_decoder.h"
+#include "../raw/raw_processor.h"
+#include "../raw/raw_decoder.h"
 #include <string>
 #include <vector>
 

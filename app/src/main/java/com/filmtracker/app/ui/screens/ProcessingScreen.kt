@@ -204,7 +204,7 @@ fun ProcessingScreen(
                 isModified = editSession?.isModified ?: false
             )
         },
-        containerColor = Color.Black
+        containerColor = MaterialTheme.colorScheme.scrim
     ) { padding ->
         Box(
             modifier = modifier
@@ -275,7 +275,7 @@ fun ProcessingScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(panelHeight)
-                            .background(Color(0xFF1C1C1E))
+                            .background(MaterialTheme.colorScheme.surfaceContainer)
                     ) {
                         when (selectedPrimaryTool) {
                             PrimaryTool.AI -> AIAssistPanel(

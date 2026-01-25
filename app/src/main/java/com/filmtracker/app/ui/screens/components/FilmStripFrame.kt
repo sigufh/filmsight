@@ -104,7 +104,7 @@ fun FilmStripFrame(
                         if (imageBitmap != null) {
                             Image(
                                 bitmap = imageBitmap,
-                                contentDescription = "Frame $frameNumber",
+                                contentDescription = "帧 $frameNumber",
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(2.dp)),
@@ -127,7 +127,7 @@ fun FilmStripFrame(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Frame $frameNumber",
+                                text = "帧 $frameNumber",
                                 color = FilmDarkGray,
                                 fontSize = 14.sp
                             )

@@ -2,12 +2,12 @@ package com.filmtracker.app.ui.screens.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.graphics.Color
-import com.filmtracker.app.data.BasicAdjustmentParams
-import com.filmtracker.app.domain.model.AdjustmentParams
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,14 +28,17 @@ fun ProcessingTopBar(
     isModified: Boolean = false
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
-    
+
+    val containerColor = MaterialTheme.colorScheme.surface
+    val contentColor = contentColorFor(containerColor)
+    val disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+
     TopAppBar(
         title = {
-            // 显示修改状态指示器
             if (isModified) {
                 Text(
                     text = "●",
-                    color = Color(0xFFFFD700), // 金色圆点表示已修改
+                    color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.titleLarge
                 )
             }
@@ -43,49 +46,47 @@ fun ProcessingTopBar(
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "返回",
-                    tint = Color.White
+                    tint = contentColor
                 )
             }
         },
         actions = {
-            // 撤销按钮
             IconButton(
                 onClick = onUndo,
                 enabled = canUndo
             ) {
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowLeft,
+                    imageVector = Icons.AutoMirrored.Filled.Undo,
                     contentDescription = "撤销",
-                    tint = if (canUndo) Color.White else Color.Gray
+                    tint = if (canUndo) contentColor else disabledContentColor
                 )
             }
-            
-            // 重做按钮
+
             IconButton(
                 onClick = onRedo,
                 enabled = canRedo
             ) {
                 Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
+                    imageVector = Icons.AutoMirrored.Filled.Redo,
                     contentDescription = "重做",
-                    tint = if (canRedo) Color.White else Color.Gray
+                    tint = if (canRedo) contentColor else disabledContentColor
                 )
             }
-            
+
             IconButton(onClick = onResetParams) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
                     contentDescription = "复位",
-                    tint = Color.White
+                    tint = contentColor
                 )
             }
             IconButton(onClick = onShowImageInfo) {
                 Icon(
                     imageVector = Icons.Default.Info,
                     contentDescription = "图像信息",
-                    tint = Color.White
+                    tint = contentColor
                 )
             }
             Box {
@@ -93,7 +94,7 @@ fun ProcessingTopBar(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "更多",
-                        tint = Color.White
+                        tint = contentColor
                     )
                 }
                 DropdownMenu(
@@ -110,7 +111,7 @@ fun ProcessingTopBar(
                             Icon(Icons.Default.Share, contentDescription = null)
                         }
                     )
-                    Divider()
+                    HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("复制参数") },
                         onClick = {
@@ -118,7 +119,7 @@ fun ProcessingTopBar(
                             onCopyParams()
                         },
                         leadingIcon = {
-                            Icon(Icons.Default.Add, contentDescription = null)
+                            Icon(Icons.Default.ContentCopy, contentDescription = null)
                         }
                     )
                     DropdownMenuItem(
@@ -129,10 +130,10 @@ fun ProcessingTopBar(
                         },
                         enabled = canPaste,
                         leadingIcon = {
-                            Icon(Icons.Default.Add, contentDescription = null)
+                            Icon(Icons.Default.ContentPaste, contentDescription = null)
                         }
                     )
-                    Divider()
+                    HorizontalDivider()
                     DropdownMenuItem(
                         text = { Text("创建预设") },
                         onClick = {
@@ -157,7 +158,7 @@ fun ProcessingTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Black
+            containerColor = containerColor
         )
     )
 }
