@@ -1,5 +1,9 @@
 package com.filmtracker.app.domain.model
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.ui.graphics.vector.ImageVector
+
 /**
  * 胶卷画幅格式
  * 
@@ -91,7 +95,8 @@ sealed class FilmStock(
     val displayName: String,
     val englishName: String,
     val type: FilmType,
-    val description: String
+    val description: String,
+    val icon: ImageVector  // 图标
 ) {
     /**
      * 获取该胶卷型号的预设参数
@@ -106,7 +111,8 @@ sealed class FilmStock(
         displayName = "柯达 Portra 400",
         englishName = "Kodak Portra 400",
         type = FilmType.NEGATIVE,
-        description = "人像经典 温暖肤色"
+        description = "人像经典 温暖肤色",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 8f,
@@ -157,7 +163,8 @@ sealed class FilmStock(
         displayName = "富士 Pro 400H",
         englishName = "Fujifilm Pro 400H",
         type = FilmType.NEGATIVE,
-        description = "清新通透 柔和色调"
+        description = "清新通透 柔和色调",
+        icon = Icons.Default.FilterVintage
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = -5f,
@@ -210,7 +217,8 @@ sealed class FilmStock(
         displayName = "柯达 E100",
         englishName = "Kodak Ektachrome E100",
         type = FilmType.REVERSAL,
-        description = "反转片经典 高饱和度"
+        description = "反转片经典 高饱和度",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 1f,
@@ -265,7 +273,8 @@ sealed class FilmStock(
         displayName = "富士 Velvia 50",
         englishName = "Fujifilm Velvia 50",
         type = FilmType.REVERSAL,
-        description = "风光之王 极致色彩"
+        description = "风光之王 极致色彩",
+        icon = Icons.Default.FilterVintage
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = -3f,
@@ -321,7 +330,8 @@ sealed class FilmStock(
         displayName = "爱克发 Chrome",
         englishName = "Agfa Chrome",
         type = FilmType.REVERSAL,
-        description = "欧系风格 中性色调"
+        description = "欧系风格 中性色调",
+        icon = Icons.Default.Camera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 3f,
@@ -378,7 +388,8 @@ sealed class FilmStock(
         displayName = "柯达 Vision3 500T",
         englishName = "Kodak Vision3 500T",
         type = FilmType.CINEMA,
-        description = "电影质感 宽容度高"
+        description = "电影质感 宽容度高",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 15f,
@@ -435,7 +446,8 @@ sealed class FilmStock(
         displayName = "柯达 Gold 200",
         englishName = "Kodak Gold 200",
         type = FilmType.NEGATIVE,
-        description = "经典暖色 怀旧日常"
+        description = "经典暖色 怀旧日常",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 12f,
@@ -489,7 +501,8 @@ sealed class FilmStock(
         displayName = "柯达 Ektar 100",
         englishName = "Kodak Ektar 100",
         type = FilmType.NEGATIVE,
-        description = "极致锐利 高饱和度"
+        description = "极致锐利 高饱和度",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 5f,
@@ -543,7 +556,8 @@ sealed class FilmStock(
         displayName = "富士 Superia 400",
         englishName = "Fujifilm Superia 400",
         type = FilmType.NEGATIVE,
-        description = "日系清新 平衡表现"
+        description = "日系清新 平衡表现",
+        icon = Icons.Default.FilterVintage
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = -4f,
@@ -599,7 +613,8 @@ sealed class FilmStock(
         displayName = "富士 C200",
         englishName = "Fujifilm C200",
         type = FilmType.NEGATIVE,
-        description = "清新通透 入门首选"
+        description = "清新通透 入门首选",
+        icon = Icons.Default.FilterVintage
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 0f,
@@ -655,7 +670,8 @@ sealed class FilmStock(
         displayName = "柯达 Tri-X 400",
         englishName = "Kodak Tri-X 400",
         type = FilmType.NEGATIVE,
-        description = "经典黑白 街拍利器"
+        description = "经典黑白 街拍利器",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 0f,
@@ -706,7 +722,8 @@ sealed class FilmStock(
         displayName = "富士 Provia 100F",
         englishName = "Fujifilm Provia 100F",
         type = FilmType.REVERSAL,
-        description = "中性色彩 精准还原"
+        description = "中性色彩 精准还原",
+        icon = Icons.Default.FilterVintage
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = -1f,
@@ -762,7 +779,8 @@ sealed class FilmStock(
         displayName = "柯达 Portra 160",
         englishName = "Kodak Portra 160",
         type = FilmType.NEGATIVE,
-        description = "细腻肤色 婚礼首选"
+        description = "细腻肤色 婚礼首选",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 4f,
@@ -817,7 +835,8 @@ sealed class FilmStock(
         displayName = "柯达 Portra 800",
         englishName = "Kodak Portra 800",
         type = FilmType.NEGATIVE,
-        description = "高感光度 弱光利器"
+        description = "高感光度 弱光利器",
+        icon = Icons.Default.PhotoCamera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 10f,
@@ -871,7 +890,8 @@ sealed class FilmStock(
         displayName = "爱克发 Vista 400",
         englishName = "Agfa Vista 400",
         type = FilmType.NEGATIVE,
-        description = "复古色调 欧系风格"
+        description = "复古色调 欧系风格",
+        icon = Icons.Default.Camera
     ) {
         override fun getPreset() = com.filmtracker.app.data.BasicAdjustmentParams(
             temperature = 8f,

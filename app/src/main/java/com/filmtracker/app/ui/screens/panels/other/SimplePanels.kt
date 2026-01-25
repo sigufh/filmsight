@@ -66,15 +66,15 @@ fun CreativeFilterPanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(Spacing.md)
     ) {
         // 分类选择
         CategoryTabs(
             selectedCategory = selectedCategory,
             onCategorySelected = { selectedCategory = it }
         )
-        
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.md))
         
         // 预设网格
         val filteredPresets = remember(selectedCategory, allPresets) {
@@ -91,7 +91,7 @@ fun CreativeFilterPanel(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color.White)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
             filteredPresets.isEmpty() -> {
@@ -101,7 +101,7 @@ fun CreativeFilterPanel(
                 ) {
                     Text(
                         text = "暂无预设",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
@@ -109,8 +109,8 @@ fun CreativeFilterPanel(
             else -> {
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(3),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     items(filteredPresets) { preset ->
                         PresetCard(
@@ -142,7 +142,7 @@ private fun CategoryTabs(
     ScrollableTabRow(
         selectedTabIndex = categories.indexOfFirst { it.first == selectedCategory },
         containerColor = Color.Transparent,
-        contentColor = Color.White,
+        contentColor = MaterialTheme.colorScheme.onSurface,
         edgePadding = 0.dp
     ) {
         categories.forEach { (category, label) ->
@@ -171,7 +171,7 @@ private fun PresetCard(
             .aspectRatio(1f)
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF2C2C2E)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         )
     ) {
         Box(
@@ -193,16 +193,16 @@ private fun PresetCard(
                         else -> Icons.Default.Settings
                     },
                     contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(IconSize.lg)
                 )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
                 Text(
                     text = preset.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -246,7 +246,7 @@ fun AIAssistPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.9f),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(Spacing.md),
                 color = MaterialTheme.colorScheme.surface
             ) {
                 com.filmtracker.app.ui.screens.AISettingsScreen(
@@ -261,8 +261,8 @@ fun AIAssistPanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(FilmTrackerDark)
-            .padding(16.dp)
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(Spacing.md)
     ) {
         // 顶部：仅设置按钮
         Row(
@@ -274,45 +274,44 @@ fun AIAssistPanel(
                 Icon(
                     Icons.Default.Settings,
                     "设置",
-                    tint = Color.White
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
         
         if (!isConfigured) {
             // 未配置提示
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = FilmTrackerSurface
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(Spacing.md),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        "💡 首次使用",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        "首次使用",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     Text(
                         "请点击右上角设置按钮配置 AI API",
-                        fontSize = 12.sp,
-                        color = Color.Gray
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     Button(
                         onClick = { showSettings = true },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmTrackerPrimary
+                            containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("立即配置", color = FilmTrackerDark)
+                        Text("立即配置", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
             }
@@ -349,7 +348,7 @@ private fun ProAIAssistantContent(
         // 快捷操作按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Button(
                 onClick = {
@@ -363,13 +362,17 @@ private fun ProAIAssistantContent(
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = FilmTrackerPrimary
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 enabled = currentImage != null && !isLoading
             ) {
-                Text("分析图片", fontSize = 12.sp, color = FilmTrackerDark)
+                Text(
+                    "分析图片",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
-            
+
             Button(
                 onClick = {
                     val paramsDesc = buildString {
@@ -387,15 +390,19 @@ private fun ProAIAssistantContent(
                 },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = FilmTrackerAccent
+                    containerColor = MaterialTheme.colorScheme.secondary
                 ),
                 enabled = !isLoading
             ) {
-                Text("优化参数", fontSize = 12.sp, color = Color.White)
+                Text(
+                    "优化参数",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondary
+                )
             }
         }
-        
-        Spacer(modifier = Modifier.height(12.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
         
         // 对话历史
         if (messages.isEmpty()) {
@@ -407,19 +414,16 @@ private fun ProAIAssistantContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Text("✨", fontSize = 48.sp)
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "AI 调色助手",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
                     "分析图片获取专业调色建议",
-                    fontSize = 12.sp,
-                    color = Color.Gray
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
@@ -428,7 +432,7 @@ private fun ProAIAssistantContent(
                     .weight(1f)
                     .fillMaxWidth(),
                 state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 items(messages) { message ->
                     ProChatBubble(
@@ -462,31 +466,37 @@ private fun ProAIAssistantContent(
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
+
         // 输入框
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             OutlinedTextField(
                 value = inputText,
                 onValueChange = { inputText = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("描述你的需求...", fontSize = 12.sp, color = Color.Gray) },
+                placeholder = {
+                    Text(
+                        "描述你的需求...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 shape = RoundedCornerShape(20.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = FilmTrackerPrimary,
-                    unfocusedBorderColor = FilmTrackerSecondary,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    cursorColor = FilmTrackerPrimary
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    cursorColor = MaterialTheme.colorScheme.primary
                 ),
-                textStyle = LocalTextStyle.current.copy(fontSize = 13.sp)
+                textStyle = MaterialTheme.typography.bodySmall
             )
-            
+
             IconButton(
                 onClick = {
                     if (inputText.isNotBlank() && !isLoading) {
@@ -504,12 +514,20 @@ private fun ProAIAssistantContent(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(if (inputText.isNotBlank()) FilmTrackerPrimary else FilmTrackerSecondary)
+                    .background(
+                        if (inputText.isNotBlank())
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant
+                    )
             ) {
                 Icon(
                     Icons.Default.Send,
                     "发送",
-                    tint = if (inputText.isNotBlank()) FilmTrackerDark else Color.White,
+                    tint = if (inputText.isNotBlank())
+                        MaterialTheme.colorScheme.onPrimary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -531,28 +549,28 @@ private fun ProChatBubble(
     ) {
         Column(modifier = Modifier.widthIn(max = 250.dp)) {
             Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = if (message.isUser) 
-                    FilmTrackerSurface 
-                else 
-                    Color(0xFF3C3C3E),
+                shape = RoundedCornerShape(CornerRadius.sm),
+                color = if (message.isUser)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceVariant,
                 shadowElevation = 2.dp
             ) {
-                Column(modifier = Modifier.padding(10.dp)) {
+                Column(modifier = Modifier.padding(Spacing.sm)) {
                     // 仅显示文字内容，不显示图片
                     if (message.content.isNotBlank() && message.content != "[图片]") {
                         if (message.isUser) {
                             Text(
                                 text = message.content,
-                                fontSize = 12.sp,
-                                color = Color.White
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
                             )
                         } else {
                             com.filmtracker.app.ui.components.MarkdownText(
                                 markdown = message.content,
                                 style = androidx.compose.ui.text.TextStyle(
                                     fontSize = 12.sp,
-                                    color = Color.White
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
@@ -562,24 +580,28 @@ private fun ProChatBubble(
             
             // AI 消息底部显示"应用参数"按钮
             if (!message.isUser && message.suggestion != null && onApplySuggestion != null) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(Spacing.xs))
                 Button(
                     onClick = { onApplySuggestion(message.suggestion) },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmTrackerPrimary
+                        containerColor = MaterialTheme.colorScheme.primary
                     ),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(vertical = 8.dp)
+                    shape = RoundedCornerShape(CornerRadius.sm),
+                    contentPadding = PaddingValues(vertical = Spacing.sm)
                 ) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = FilmTrackerDark
+                        modifier = Modifier.size(IconSize.sm),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("应用参数", color = FilmTrackerDark, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(Spacing.xs))
+                    Text(
+                        "应用参数",
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        style = MaterialTheme.typography.labelSmall
+                    )
                 }
             }
         }
@@ -596,20 +618,20 @@ private fun ProLoadingIndicator() {
         horizontalArrangement = Arrangement.Start
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFF3C3C3E),
+            shape = RoundedCornerShape(CornerRadius.sm),
+            color = MaterialTheme.colorScheme.surfaceVariant,
             shadowElevation = 2.dp
         ) {
             Row(
-                modifier = Modifier.padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.padding(Spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 repeat(3) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(FilmTrackerPrimary.copy(alpha = 0.6f))
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))
                     )
                 }
             }
@@ -626,7 +648,7 @@ fun CropRotatePanel(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
     ) {
         // 旋转滑条
         Row(
@@ -635,18 +657,18 @@ fun CropRotatePanel(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "旋转", 
-                color = Color.White, 
+                text = "旋转",
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = formatAngle(params.rotation), 
-                color = Color.LightGray, 
+                text = formatAngle(params.rotation),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
         }
-        
-        Spacer(modifier = Modifier.height(8.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
         
         Slider(
             value = params.rotation.coerceIn(-180f, 180f),
@@ -660,13 +682,13 @@ fun CropRotatePanel(
             valueRange = -180f..180f,
             modifier = Modifier.fillMaxWidth()
         )
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
+
         // 快捷旋转按钮
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             Button(
                 onClick = { 
@@ -702,9 +724,9 @@ fun CropRotatePanel(
                 Text(text = "+90°")
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
+
+        Spacer(modifier = Modifier.height(Spacing.md))
+
         // 裁剪开关和重置
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -713,11 +735,11 @@ fun CropRotatePanel(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 Text(
-                    text = "裁剪", 
-                    color = Color.White, 
+                    text = "裁剪",
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 FilterChip(
@@ -775,20 +797,20 @@ fun MaskPanel() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(Spacing.md),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Default.Edit,
             contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(48.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(IconSize.xl)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Text(
             text = "蒙版功能开发中",
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyLarge
         )
     }
@@ -799,20 +821,20 @@ fun HealPanel() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(Spacing.md),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
             imageVector = Icons.Default.Build,
             contentDescription = null,
-            tint = Color.Gray,
-            modifier = Modifier.size(48.dp)
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(IconSize.xl)
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(Spacing.md))
         Text(
             text = "修补消除功能开发中",
-            color = Color.Gray,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyLarge
         )
     }
@@ -949,7 +971,7 @@ fun DepthOfFieldPanel(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(Spacing.md)
     ) {
         // 标题和模式选择
         Row(
@@ -959,45 +981,45 @@ fun DepthOfFieldPanel(
         ) {
             Text(
                 text = "景深模拟",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 FilterChip(
                     selected = useCloudAI,
                     onClick = { useCloudAI = true },
-                    label = { Text("云端 AI", fontSize = 11.sp) },
+                    label = { Text("云端 AI", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.height(32.dp)
                 )
                 FilterChip(
                     selected = !useCloudAI,
                     onClick = { useCloudAI = false },
-                    label = { Text("本地", fontSize = 11.sp) },
+                    label = { Text("本地", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.height(32.dp)
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(12.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
         
         // 错误提示
         if (errorMessage != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0x33FF5252)
+                    containerColor = MaterialTheme.colorScheme.errorContainer
                 )
             ) {
                 Text(
                     text = errorMessage!!,
-                    color = Color(0xFFFF5252),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier.padding(Spacing.sm)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
         }
         
         if (isProcessing) {
@@ -1007,12 +1029,12 @@ fun DepthOfFieldPanel(
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
-                    CircularProgressIndicator(color = FilmTrackerPrimary)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Text(
                         text = "正在分析图像深度...",
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -1026,31 +1048,31 @@ fun DepthOfFieldPanel(
             ) {
                 Text(
                     text = "模糊强度",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = "${blurAmount.toInt()}",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
             
             Slider(
                 value = blurAmount,
-                onValueChange = { 
+                onValueChange = {
                     blurAmount = it
                     scheduleApplyEffect()
                 },
                 valueRange = 0f..100f,
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
-                    thumbColor = FilmTrackerPrimary,
-                    activeTrackColor = FilmTrackerPrimary
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
-            
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.md))
             
             // 生成深度图按钮或控制按钮
             if (depthMap == null) {
@@ -1058,20 +1080,19 @@ fun DepthOfFieldPanel(
                     onClick = { generateDepthMap() },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmTrackerAccent
+                        containerColor = MaterialTheme.colorScheme.secondary
                     ),
                     enabled = currentImage != null && !isProcessing
                 ) {
-                    Text("分析深度", color = Color.White)
+                    Text("分析深度", color = MaterialTheme.colorScheme.onSecondary)
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
                 Text(
-                    text = "💡 ${if (useCloudAI) "使用 AI 自动识别主体并生成精确轮廓" else "使用本地算法生成深度图"}",
-                    color = Color.Gray,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 11.sp
+                    text = if (useCloudAI) "使用 AI 自动识别主体并生成精确轮廓" else "使用本地算法生成深度图",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
                 )
             } else {
                 // 显示主体范围开关
@@ -1082,25 +1103,25 @@ fun DepthOfFieldPanel(
                 ) {
                     Text(
                         text = "显示主体范围",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Switch(
                         checked = showMaskOverlay,
                         onCheckedChange = onShowMaskOverlayChange,
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = FilmTrackerPrimary,
-                            checkedTrackColor = FilmTrackerPrimary.copy(alpha = 0.5f)
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         )
                     )
                 }
-                
-                Spacer(modifier = Modifier.height(12.dp))
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 
                 // 应用按钮
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     OutlinedButton(
                         onClick = { 
@@ -1121,20 +1142,19 @@ fun DepthOfFieldPanel(
                         },
                         modifier = Modifier.weight(1f),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmTrackerPrimary
+                            containerColor = MaterialTheme.colorScheme.primary
                         )
                     ) {
-                        Text("应用效果", color = FilmTrackerDark)
+                        Text("应用效果", color = MaterialTheme.colorScheme.onPrimary)
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.sm))
+
                 Text(
-                    text = "✓ AI 已自动识别主体，${if (showMaskOverlay) "绿色区域为精确识别的主体轮廓" else "调整模糊强度查看效果"}",
-                    color = FilmTrackerPrimary,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 11.sp
+                    text = if (showMaskOverlay) "AI 已自动识别主体，绿色区域为精确识别的主体轮廓" else "AI 已自动识别主体，调整模糊强度查看效果",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall
                 )
             }
         }
@@ -1168,7 +1188,7 @@ fun CutoutPanel(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(Spacing.md)
     ) {
         // 标题和 AI 模式选择
         Row(
@@ -1178,81 +1198,81 @@ fun CutoutPanel(
         ) {
             Text(
                 text = "智能抠图",
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 FilterChip(
                     selected = useCloudAI,
                     onClick = { useCloudAI = true },
-                    label = { Text("云端 AI", fontSize = 11.sp) },
+                    label = { Text("云端 AI", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.height(32.dp)
                 )
                 FilterChip(
                     selected = !useCloudAI,
                     onClick = { useCloudAI = false },
-                    label = { Text("本地", fontSize = 11.sp) },
+                    label = { Text("本地", style = MaterialTheme.typography.labelSmall) },
                     modifier = Modifier.height(32.dp)
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(12.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.sm))
         
         // 错误提示
         if (errorMessage != null) {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0x33FF5252)
+                    containerColor = MaterialTheme.colorScheme.errorContainer
                 )
             ) {
                 Text(
                     text = errorMessage!!,
-                    color = Color(0xFFFF5252),
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(8.dp)
+                    modifier = Modifier.padding(Spacing.sm)
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(Spacing.sm))
         }
         
         // 模式选择
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
         ) {
             FilterChip(
                 selected = cutoutMode == CutoutMode.AUTO,
                 onClick = { cutoutMode = CutoutMode.AUTO },
-                label = { Text("自动识别", fontSize = 12.sp) },
+                label = { Text("自动识别", style = MaterialTheme.typography.labelMedium) },
                 modifier = Modifier.weight(1f)
             )
             FilterChip(
                 selected = cutoutMode == CutoutMode.MANUAL,
                 onClick = { cutoutMode = CutoutMode.MANUAL },
-                label = { Text("手动选择", fontSize = 12.sp) },
+                label = { Text("手动选择", style = MaterialTheme.typography.labelMedium) },
                 modifier = Modifier.weight(1f)
             )
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.md))
         
         when (cutoutMode) {
             CutoutMode.AUTO -> {
                 // 自动识别模式
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     Text(
                         text = "自动识别主体",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    
+
                     Button(
                         onClick = {
                             if (currentImage != null) {
@@ -1275,29 +1295,28 @@ fun CutoutPanel(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmTrackerPrimary
+                            containerColor = MaterialTheme.colorScheme.primary
                         ),
                         enabled = currentImage != null && !isProcessing
                     ) {
                         if (isProcessing) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = FilmTrackerDark,
+                                modifier = Modifier.size(IconSize.sm),
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Spacing.sm))
                         }
                         Text(
                             text = if (isProcessing) "识别中..." else "开始识别",
-                            color = FilmTrackerDark
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                    
+
                     Text(
-                        text = "💡 自动识别图片中的主要物体并抠图",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 11.sp
+                        text = "自动识别图片中的主要物体并抠图",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
@@ -1306,14 +1325,14 @@ fun CutoutPanel(
                 // 手动选择模式
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     Text(
                         text = "点击选择物体",
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    
+
                     // 显示已选择的点数
                     if (selectedPoints.isNotEmpty()) {
                         Row(
@@ -1323,13 +1342,13 @@ fun CutoutPanel(
                         ) {
                             Text(
                                 text = "已选择 ${selectedPoints.size} 个点",
-                                color = Color.LightGray,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall
                             )
                             TextButton(
                                 onClick = { selectedPoints = emptyList() }
                             ) {
-                                Text("清除", color = FilmTrackerAccent)
+                                Text("清除", color = MaterialTheme.colorScheme.secondary)
                             }
                         }
                     }
@@ -1343,7 +1362,7 @@ fun CutoutPanel(
                                     try {
                                         val segmenter = com.filmtracker.app.processing.SubjectSegmenter(context)
                                         val mask = segmenter.segmentWithPoints(
-                                            currentImage, 
+                                            currentImage,
                                             selectedPoints,
                                             useCloud = useCloudAI
                                         )
@@ -1360,50 +1379,49 @@ fun CutoutPanel(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmTrackerPrimary
+                            containerColor = MaterialTheme.colorScheme.primary
                         ),
                         enabled = currentImage != null && selectedPoints.isNotEmpty() && !isProcessing
                     ) {
                         if (isProcessing) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = FilmTrackerDark,
+                                modifier = Modifier.size(IconSize.sm),
+                                color = MaterialTheme.colorScheme.onPrimary,
                                 strokeWidth = 2.dp
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(Spacing.sm))
                         }
                         Text(
                             text = if (isProcessing) "处理中..." else "生成抠图",
-                            color = FilmTrackerDark
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
-                    
+
                     Text(
-                        text = "💡 ${if (useCloudAI) "使用 AI 识别点击位置的物体" else "使用本地算法生成蒙版"}",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontSize = 11.sp
+                        text = if (useCloudAI) "使用 AI 识别点击位置的物体" else "使用本地算法生成蒙版",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
+
+        Spacer(modifier = Modifier.height(Spacing.md))
         
         // 如果有分割结果，显示应用按钮
         if (segmentationMask != null) {
-            Divider(color = Color.Gray.copy(alpha = 0.3f))
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            Spacer(modifier = Modifier.height(Spacing.md))
+
             Text(
                 text = "抠图完成",
-                color = FilmTrackerPrimary,
+                color = MaterialTheme.colorScheme.primary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold
             )
-            
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
             
             // 显示蒙版开关
             Row(
@@ -1413,20 +1431,20 @@ fun CutoutPanel(
             ) {
                 Text(
                     text = "显示选区范围",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Switch(
                     checked = showMaskOverlay,
                     onCheckedChange = onShowMaskOverlayChange,
                     colors = SwitchDefaults.colors(
-                        checkedThumbColor = FilmTrackerPrimary,
-                        checkedTrackColor = FilmTrackerPrimary.copy(alpha = 0.5f)
+                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                     )
                 )
             }
-            
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
             
             // 边缘羽化
             Row(
@@ -1436,41 +1454,40 @@ fun CutoutPanel(
             ) {
                 Text(
                     text = "边缘羽化",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
                     text = "$featherRadius px",
-                    color = Color.LightGray,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
-            
+
             Slider(
                 value = featherRadius.toFloat(),
                 onValueChange = { featherRadius = it.toInt() },
                 valueRange = 0f..20f,
                 modifier = Modifier.fillMaxWidth(),
                 colors = SliderDefaults.colors(
-                    thumbColor = FilmTrackerPrimary,
-                    activeTrackColor = FilmTrackerPrimary
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary
                 )
             )
-            
-            Spacer(modifier = Modifier.height(8.dp))
-            
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
+
             Text(
-                text = "💡 ${if (showMaskOverlay) "绿色区域为选中的主体" else "增加羽化值可使边缘更柔和"}",
-                color = Color.Gray,
-                style = MaterialTheme.typography.bodySmall,
-                fontSize = 11.sp
+                text = if (showMaskOverlay) "绿色区域为选中的主体" else "增加羽化值可使边缘更柔和",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
             )
-            
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.sm))
             
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 OutlinedButton(
                     onClick = {
@@ -1480,12 +1497,12 @@ fun CutoutPanel(
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color.White
+                        contentColor = MaterialTheme.colorScheme.onSurface
                     )
                 ) {
                     Text("重新抠图")
                 }
-                
+
                 Button(
                     onClick = {
                         segmentationMask?.let { mask ->
@@ -1508,10 +1525,10 @@ fun CutoutPanel(
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmTrackerPrimary
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
-                    Text("应用抠图", color = FilmTrackerDark)
+                    Text("应用抠图", color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

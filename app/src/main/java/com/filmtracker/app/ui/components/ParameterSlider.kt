@@ -1,15 +1,22 @@
 package com.filmtracker.app.ui.components
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.filmtracker.app.ui.theme.Spacing
 
 /**
- * 参数滑块组件
- * 用于调整胶片参数
+ * Parameter slider component for adjusting film parameters.
+ * Follows Material Design 3 guidelines for styling and spacing.
  */
 @Composable
 fun ParameterSlider(
@@ -23,7 +30,7 @@ fun ParameterSlider(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -32,21 +39,29 @@ fun ParameterSlider(
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyMedium
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = String.format("%.2f", value),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary
             )
         }
-        
+
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = valueRange,
             steps = steps,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = MaterialTheme.colorScheme.primary,
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                activeTickColor = MaterialTheme.colorScheme.onPrimary,
+                inactiveTickColor = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         )
     }
 }

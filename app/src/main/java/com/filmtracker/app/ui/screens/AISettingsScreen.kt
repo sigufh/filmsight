@@ -5,19 +5,17 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.filmtracker.app.ai.AIProvider
 import com.filmtracker.app.ai.ColorStyle
-import com.filmtracker.app.ui.theme.*
+import com.filmtracker.app.ui.theme.CornerRadius
+import com.filmtracker.app.ui.theme.Spacing
 
 /**
- * AI助手设置界面 - Ins风格轻复古
+ * AI Assistant Settings Screen - Material Design 3 compliant
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +26,7 @@ fun AISettingsScreen(
 ) {
     val currentPreferences by viewModel.userPreferences.collectAsState()
     val savedConfig by viewModel.apiConfig.collectAsState()
-    
+
     var selectedProvider by remember { mutableStateOf(savedConfig?.provider ?: AIProvider.OPENAI) }
     var apiKey by remember { mutableStateOf(savedConfig?.apiKey ?: "") }
     var modelName by remember { mutableStateOf(savedConfig?.model ?: "gpt-4o") }
@@ -37,8 +35,8 @@ fun AISettingsScreen(
     var contrastPref by remember { mutableStateOf(currentPreferences.contrastPreference) }
     var saturationPref by remember { mutableStateOf(currentPreferences.saturationPreference) }
     var customRules by remember { mutableStateOf(currentPreferences.customRules) }
-    
-    // 当保存的配置改变时更新界面
+
+    // Update UI when saved config changes
     LaunchedEffect(savedConfig) {
         savedConfig?.let { config ->
             selectedProvider = config.provider
@@ -46,8 +44,8 @@ fun AISettingsScreen(
             modelName = config.model
         }
     }
-    
-    // 当提供商改变时更新默认模型（仅当模型为空或为默认值时）
+
+    // Update default model when provider changes (only when model is empty or default)
     LaunchedEffect(selectedProvider) {
         if (modelName.isEmpty() || modelName in listOf("gpt-4o", "claude-3-5-sonnet-20241022", "qwen-plus", "qwen-turbo", "qwen-max", "qwen3-vl-30b-a3b-instruct", "glm-4v-flash", "glm-4.6v-flash")) {
             modelName = when (selectedProvider) {
@@ -58,212 +56,306 @@ fun AISettingsScreen(
             }
         }
     }
-    
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("AI助手设置", color = FilmInkBlack) },
+                title = {
+                    Text(
+                        text = "AI助手设置",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, "返回", tint = FilmInkBlack)
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回"
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = FilmWhiteGlass,
-                    titleContentColor = FilmInkBlack
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = FilmWarmBeige
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(Spacing.md),
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            // API配置
+            // API Configuration
             SettingsSection(title = "API配置") {
-                // 模型提供商
-                Text("模型提供商", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = FilmInkBlack)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Model Provider
+                Text(
+                    text = "模型提供商",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     AIProvider.entries.forEach { provider ->
                         FilterChip(
                             selected = selectedProvider == provider,
                             onClick = { selectedProvider = provider },
-                            label = { Text(provider.name, color = if (selectedProvider == provider) FilmWhite else FilmInkBlack) },
+                            label = {
+                                Text(
+                                    text = provider.name,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = FilmCaramelOrange,
-                                selectedLabelColor = FilmWhite
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.md))
+
                 // API Key
                 OutlinedTextField(
                     value = apiKey,
                     onValueChange = { apiKey = it },
-                    label = { Text("API Key", color = FilmDarkGray) },
+                    label = {
+                        Text(
+                            text = "API Key",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = FilmInkBlack,
-                        unfocusedTextColor = FilmInkBlack,
-                        focusedBorderColor = FilmCaramelOrange,
-                        unfocusedBorderColor = FilmLightGray
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 模型名称
+
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // Model Name
                 OutlinedTextField(
                     value = modelName,
                     onValueChange = { modelName = it },
-                    label = { Text("模型名称", color = FilmDarkGray) },
+                    label = {
+                        Text(
+                            text = "模型名称",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { 
+                    placeholder = {
                         Text(
-                            when (selectedProvider) {
+                            text = when (selectedProvider) {
                                 AIProvider.OPENAI -> "例如: gpt-4o"
                                 AIProvider.CLAUDE -> "例如: claude-3-5-sonnet-20241022"
                                 AIProvider.QWEN -> "例如: qwen3-vl-30b-a3b-instruct"
                                 AIProvider.GLM -> "例如: glm-4.6v-flash"
                             },
-                            color = FilmDarkGray
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = FilmInkBlack,
-                        unfocusedTextColor = FilmInkBlack,
-                        focusedBorderColor = FilmCaramelOrange,
-                        unfocusedBorderColor = FilmLightGray
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
             
-            // 调色偏好
+            // Color Preferences
             SettingsSection(title = "调色偏好") {
-                // 调色风格
-                Text("调色风格", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = FilmInkBlack)
-                Spacer(modifier = Modifier.height(8.dp))
+                // Color Style
+                Text(
+                    text = "调色风格",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 ColorStyle.entries.chunked(3).forEach { row ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
                         row.forEach { style ->
                             FilterChip(
                                 selected = selectedStyle == style,
                                 onClick = { selectedStyle = style },
-                                label = { Text(style.displayName, fontSize = 12.sp, color = if (selectedStyle == style) FilmWhite else FilmInkBlack) },
+                                label = {
+                                    Text(
+                                        text = style.displayName,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                },
                                 modifier = Modifier.weight(1f),
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = FilmCaramelOrange,
-                                    selectedLabelColor = FilmWhite
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             )
                         }
-                        // 填充空白
+                        // Fill empty space
                         repeat(3 - row.size) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 色彩倾向
+
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // Color Tendency
                 OutlinedTextField(
                     value = colorTendency,
                     onValueChange = { colorTendency = it },
-                    label = { Text("色彩倾向", color = FilmDarkGray) },
+                    label = {
+                        Text(
+                            text = "色彩倾向",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("例如: 偏暖色调、清新通透", color = FilmDarkGray) },
+                    placeholder = {
+                        Text(
+                            text = "例如: 偏暖色调、清新通透",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = FilmInkBlack,
-                        unfocusedTextColor = FilmInkBlack,
-                        focusedBorderColor = FilmCaramelOrange,
-                        unfocusedBorderColor = FilmLightGray
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 对比度偏好
-                Text("对比度偏好", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = FilmInkBlack)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // Contrast Preference
+                Text(
+                    text = "对比度偏好",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     listOf("低", "适中", "高").forEach { pref ->
                         FilterChip(
                             selected = contrastPref == pref,
                             onClick = { contrastPref = pref },
-                            label = { Text(pref, color = if (contrastPref == pref) FilmWhite else FilmInkBlack) },
+                            label = {
+                                Text(
+                                    text = pref,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = FilmCaramelOrange,
-                                selectedLabelColor = FilmWhite
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 饱和度偏好
-                Text("饱和度偏好", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = FilmInkBlack)
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // Saturation Preference
+                Text(
+                    text = "饱和度偏好",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(Spacing.sm))
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     listOf("低", "适中", "高").forEach { pref ->
                         FilterChip(
                             selected = saturationPref == pref,
                             onClick = { saturationPref = pref },
-                            label = { Text(pref, color = if (saturationPref == pref) FilmWhite else FilmInkBlack) },
+                            label = {
+                                Text(
+                                    text = pref,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = FilmCaramelOrange,
-                                selectedLabelColor = FilmWhite
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                labelColor = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // 自定义规则
+                Spacer(modifier = Modifier.height(Spacing.md))
+
+                // Custom Rules
                 OutlinedTextField(
                     value = customRules,
                     onValueChange = { customRules = it },
-                    label = { Text("自定义规则", color = FilmDarkGray) },
+                    label = {
+                        Text(
+                            text = "自定义规则",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 3,
-                    placeholder = { Text("输入你的特殊要求，例如：\n- 保持肤色自然\n- 避免过度饱和\n- 偏好胶片质感", color = FilmDarkGray) },
+                    placeholder = {
+                        Text(
+                            text = "输入你的特殊要求，例如：\n- 保持肤色自然\n- 避免过度饱和\n- 偏好胶片质感",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = FilmInkBlack,
-                        unfocusedTextColor = FilmInkBlack,
-                        focusedBorderColor = FilmCaramelOrange,
-                        unfocusedBorderColor = FilmLightGray
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
             
-            // 保存按钮
+            // Save Button
             Button(
                 onClick = {
-                    // 保存API配置
+                    // Save API configuration
                     val config = com.filmtracker.app.ai.AIConfig(
                         provider = selectedProvider,
                         apiKey = apiKey,
                         model = modelName
                     )
                     viewModel.initializeAI(config)
-                    
-                    // 保存用户偏好
+
+                    // Save user preferences
                     val preferences = com.filmtracker.app.ai.UserPreferences(
                         colorStyle = selectedStyle,
                         colorTendency = colorTendency,
@@ -272,20 +364,27 @@ fun AISettingsScreen(
                         customRules = customRules
                     )
                     viewModel.updatePreferences(preferences)
-                    
+
                     onBack()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = FilmCaramelOrange)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
-                Text("保存设置", modifier = Modifier.padding(vertical = 8.dp), color = FilmWhite)
+                Text(
+                    text = "保存设置",
+                    modifier = Modifier.padding(vertical = Spacing.sm),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }
 }
 
 /**
- * 设置分组 - 胶片质感卡片
+ * Settings Section - Material Design 3 Card
  */
 @Composable
 private fun SettingsSection(
@@ -294,20 +393,19 @@ private fun SettingsSection(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(CornerRadius.lg),
         colors = CardDefaults.cardColors(
-            containerColor = FilmWhiteGlass
+            containerColor = MaterialTheme.colorScheme.surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = Spacing.xs)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.md)) {
             Text(
-                title,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = FilmInkBlack
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(Spacing.md))
             content()
         }
     }

@@ -8,10 +8,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.ui.screens.components.AdjustmentSlider
+import com.filmtracker.app.ui.theme.IconSize
+import com.filmtracker.app.ui.theme.Spacing
 
 @Composable
 fun ColorAdjustContent(
@@ -38,7 +38,7 @@ fun ColorAdjustContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 AdjustmentSlider(
                     label = "色温",
@@ -68,40 +68,46 @@ fun ColorAdjustContent(
                     valueRange = -100f..100f
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(Spacing.sm))
                 
                 Button(
                     onClick = { subScreen = "grading" },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2C2C2E)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "分级",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(IconSize.sm)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("分级", color = Color.White)
+                    Spacer(modifier = Modifier.width(Spacing.sm))
+                    Text(
+                        text = "分级",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
                 
                 Button(
                     onClick = { subScreen = "mixer" },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2C2C2E)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         contentDescription = "混合",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(IconSize.sm)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("混合", color = Color.White)
+                    Spacer(modifier = Modifier.width(Spacing.sm))
+                    Text(
+                        text = "混合",
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }

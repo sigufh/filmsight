@@ -1,13 +1,15 @@
 package com.filmtracker.app.ui.screens.panels.color
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import com.filmtracker.app.data.BasicAdjustmentParams
 import com.filmtracker.app.ui.screens.components.AdjustmentSlider
+import com.filmtracker.app.ui.theme.Spacing
 
 @Composable
 fun EffectsAdjustContent(
@@ -18,7 +20,7 @@ fun EffectsAdjustContent(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         AdjustmentSlider(
             label = "纹理",
@@ -26,21 +28,21 @@ fun EffectsAdjustContent(
             onValueChange = { onParamsChange(params.copy(texture = it)) },
             valueRange = -100f..100f
         )
-        
+
         AdjustmentSlider(
             label = "去雾",
             value = params.dehaze,
             onValueChange = { onParamsChange(params.copy(dehaze = it)) },
             valueRange = -100f..100f
         )
-        
+
         AdjustmentSlider(
             label = "晕影",
             value = params.vignette,
             onValueChange = { onParamsChange(params.copy(vignette = it)) },
             valueRange = -100f..100f
         )
-        
+
         AdjustmentSlider(
             label = "颗粒",
             value = params.grain,

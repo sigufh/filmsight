@@ -4,10 +4,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import com.filmtracker.app.ui.theme.Spacing
 
 /**
- * 参数分组容器
+ * Parameter group container
  */
 @Composable
 fun ParameterSection(
@@ -18,7 +18,7 @@ fun ParameterSection(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = Spacing.md, vertical = Spacing.sm),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
@@ -26,13 +26,13 @@ fun ParameterSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(Spacing.md)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 12.dp)
+                modifier = Modifier.padding(bottom = Spacing.md)
             )
             content()
         }

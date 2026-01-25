@@ -7,9 +7,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +19,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -27,10 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.filmtracker.app.ai.AISettingsManager
 import com.filmtracker.app.ai.ColorGradingSuggestion
@@ -251,9 +247,9 @@ fun AIColorScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        FilmWarmBeige,
-                        Color(0xFFF8F4EC),
-                        FilmWarmBeige.copy(alpha = 0.95f)
+                        MaterialTheme.colorScheme.surface,
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.surface
                     )
                 )
             )
@@ -261,7 +257,7 @@ fun AIColorScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
+                .padding(Spacing.lg)
         ) {
             // 顶部栏
             TopBar(
@@ -270,14 +266,14 @@ fun AIColorScreen(
                 isConfigured = isConfigured
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
-            
+            Spacer(modifier = Modifier.height(Spacing.lg))
+
             // 图片选择区域（上下布局）
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // 参考图
                 ImagePickerCard(
@@ -303,14 +299,17 @@ fun AIColorScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
                     ) {
-                        Text("↓", fontSize = 32.sp, color = FilmCaramelOrange)
+                        Text(
+                            "↓",
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                         Text(
                             "色彩匹配",
-                            fontSize = 12.sp,
-                            color = FilmDarkGray,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -384,7 +383,7 @@ fun AIColorScreen(
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(Spacing.lg))
             
             // 操作按钮
             ActionButtons(
@@ -543,31 +542,30 @@ private fun TopBar(
             Icon(
                 Icons.Default.ArrowBack,
                 contentDescription = "返回",
-                tint = FilmInkBlack
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
-        
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 text = "AI 仿色",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = FilmInkBlack
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
             )
             if (!isConfigured) {
                 Text(
                     text = "未配置",
-                    fontSize = 12.sp,
-                    color = Color.Red
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
         }
-        
+
         IconButton(onClick = onSettings) {
             Icon(
                 Icons.Default.Settings,
                 contentDescription = "设置",
-                tint = FilmInkBlack
+                tint = MaterialTheme.colorScheme.onSurface
             )
         }
     }
@@ -581,12 +579,12 @@ private fun ProcessingOverlay(progress: Float) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.7f)),
+            .background(MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             // 动画图标
             val infiniteTransition = rememberInfiniteTransition(label = "processing")
@@ -599,39 +597,38 @@ private fun ProcessingOverlay(progress: Float) {
                 ),
                 label = "scale"
             )
-            
+
             Text(
                 "🎨",
-                fontSize = 48.sp,
+                style = MaterialTheme.typography.displaySmall,
                 modifier = Modifier.scale(scale)
             )
-            
+
             // 进度条
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.sm)
             ) {
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier
                         .width(200.dp)
                         .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp)),
-                    color = FilmCaramelOrange,
-                    trackColor = FilmWhite.copy(alpha = 0.3f)
+                        .clip(RoundedCornerShape(CornerRadius.xs)),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
-                
+
                 Text(
                     "AI 正在分析色彩特点...",
-                    color = FilmWhite,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
+                    color = MaterialTheme.colorScheme.onSurface,
+                    style = MaterialTheme.typography.bodyMedium
                 )
-                
+
                 Text(
                     "${(progress * 100).toInt()}%",
-                    color = FilmWhite.copy(alpha = 0.7f),
-                    fontSize = 12.sp
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.labelSmall
                 )
             }
         }
@@ -649,8 +646,11 @@ private fun ProcessedPreviewCard(
 ) {
     Card(
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        shape = RoundedCornerShape(CornerRadius.lg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             // 预览图
@@ -660,7 +660,7 @@ private fun ProcessedPreviewCard(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            
+
             // 渐变遮罩
             Box(
                 modifier = Modifier
@@ -669,86 +669,92 @@ private fun ProcessedPreviewCard(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.7f)
+                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f)
                             ),
                             startY = 200f
                         )
                     )
             )
-            
+
             // 底部操作区
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // 完成提示
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = null,
-                        tint = FilmMintGreen,
-                        modifier = Modifier.size(24.dp)
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(IconSize.md)
                     )
                     Text(
                         "仿色完成",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = FilmWhite
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 
                 // 操作按钮
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // 导出按钮
                     OutlinedButton(
                         onClick = onExport,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
+                            .height(ComponentSize.buttonHeight),
+                        shape = RoundedCornerShape(CornerRadius.xl),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = FilmWhite
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, FilmWhite)
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
                     ) {
                         Icon(
                             Icons.Default.Share,
                             contentDescription = null,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(IconSize.sm)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("导出", fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(Spacing.sm))
+                        Text(
+                            "导出",
+                            style = MaterialTheme.typography.labelLarge
+                        )
                     }
-                    
+
                     // 继续调整按钮
                     Button(
                         onClick = onEdit,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp),
+                            .height(ComponentSize.buttonHeight),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = FilmCaramelOrange
+                            containerColor = MaterialTheme.colorScheme.primary
                         ),
-                        shape = RoundedCornerShape(24.dp)
+                        shape = RoundedCornerShape(CornerRadius.xl)
                     ) {
                         Icon(
                             Icons.Default.Edit,
                             contentDescription = null,
-                            tint = FilmWhite,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(IconSize.sm)
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("继续调整", fontSize = 14.sp, color = FilmWhite)
+                        Spacer(modifier = Modifier.width(Spacing.sm))
+                        Text(
+                            "继续调整",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
                 }
             }
@@ -771,8 +777,11 @@ private fun ImagePickerCard(
     Card(
         modifier = modifier
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        shape = RoundedCornerShape(CornerRadius.lg),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        )
     ) {
         Box(
             modifier = Modifier
@@ -781,8 +790,8 @@ private fun ImagePickerCard(
                     if (bitmap == null) {
                         Brush.verticalGradient(
                             colors = listOf(
-                                FilmWhite,
-                                FilmLightGray.copy(alpha = 0.3f)
+                                MaterialTheme.colorScheme.surface,
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
                             )
                         )
                     } else {
@@ -798,21 +807,20 @@ private fun ImagePickerCard(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                
+
                 // 标签
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(12.dp),
-                    color = FilmWhite.copy(alpha = 0.9f),
-                    shape = RoundedCornerShape(8.dp)
+                        .padding(Spacing.md),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(CornerRadius.sm)
                 ) {
                     Text(
                         title,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = FilmInkBlack
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             } else {
@@ -820,29 +828,31 @@ private fun ImagePickerCard(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
+                        .padding(Spacing.md),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Text(icon, fontSize = 40.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        icon,
+                        style = MaterialTheme.typography.displaySmall
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.sm))
                     Text(
                         title,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = FilmInkBlack
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         subtitle,
-                        fontSize = 12.sp,
-                        color = FilmDarkGray
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(Spacing.md))
                     Icon(
                         Icons.Default.Add,
                         contentDescription = null,
-                        tint = FilmCaramelOrange,
-                        modifier = Modifier.size(28.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(IconSize.lg)
                     )
                 }
             }
@@ -866,23 +876,26 @@ private fun ActionButtons(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         OutlinedButton(
             onClick = onReset,
             modifier = Modifier
                 .weight(1f)
                 .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
+            shape = RoundedCornerShape(CornerRadius.xl),
             colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = FilmInkBlack
+                contentColor = MaterialTheme.colorScheme.onSurface
             )
         ) {
             Icon(Icons.Default.Refresh, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("重新选择", fontSize = 14.sp)
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                "重新选择",
+                style = MaterialTheme.typography.labelLarge
+            )
         }
-        
+
         Button(
             onClick = onAnalyze,
             modifier = Modifier
@@ -890,13 +903,21 @@ private fun ActionButtons(
                 .height(56.dp),
             enabled = hasReferenceImage && hasTargetImage && isConfigured && !isLoading && !isProcessing && !hasProcessedImage,
             colors = ButtonDefaults.buttonColors(
-                containerColor = FilmCaramelOrange
+                containerColor = MaterialTheme.colorScheme.primary
             ),
-            shape = RoundedCornerShape(28.dp)
+            shape = RoundedCornerShape(CornerRadius.xl)
         ) {
-            Icon(Icons.Default.Star, contentDescription = null, tint = FilmWhite)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("开始仿色", fontSize = 14.sp, color = FilmWhite)
+            Icon(
+                Icons.Default.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary
+            )
+            Spacer(modifier = Modifier.width(Spacing.sm))
+            Text(
+                "开始仿色",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onPrimary
+            )
         }
     }
 }

@@ -10,21 +10,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.filmtracker.app.domain.model.FilmFormat
 import com.filmtracker.app.domain.model.FilmStock
-import com.filmtracker.app.ui.screens.components.AIDialogPanel
 import com.filmtracker.app.ui.screens.components.ViewfinderAnimation
-import com.filmtracker.app.ui.theme.*
+import com.filmtracker.app.ui.theme.CornerRadius
+import com.filmtracker.app.ui.theme.Spacing
 import kotlinx.coroutines.launch
 
 /**
@@ -149,21 +147,21 @@ fun FilmCountSelectionScreen(
             onDismissRequest = { showLimitWarning = false },
             title = {
                 Text(
-                    text = "⚠️ 照片数量限制",
-                    fontWeight = FontWeight.Bold
+                    text = "照片数量限制",
+                    style = MaterialTheme.typography.headlineSmall
                 )
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Text(
                         text = "您选择了 $originalSelectionCount 张照片，但 ${filmFormat.displayName} 最多只能拍摄 $selectedCount 张。",
-                        fontSize = 14.sp
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "已自动保留前 $selectedCount 张照片。",
-                        fontSize = 14.sp,
-                        color = FilmMintGreen,
-                        fontWeight = FontWeight.Medium
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.tertiary
                     )
                 }
             },
@@ -171,11 +169,11 @@ fun FilmCountSelectionScreen(
                 TextButton(
                     onClick = { showLimitWarning = false }
                 ) {
-                    Text("知道了", color = FilmCaramelOrange)
+                    Text("知道了")
                 }
             },
-            containerColor = FilmWhite,
-            shape = RoundedCornerShape(16.dp)
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(CornerRadius.lg)
         )
     }
     
@@ -186,14 +184,13 @@ fun FilmCountSelectionScreen(
                     Column {
                         Text(
                             text = filmFormat.displayName,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.titleMedium
                         )
                         filmStock?.let {
                             Text(
                                 text = it.displayName,
-                                fontSize = 12.sp,
-                                color = FilmDarkGray
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -201,85 +198,83 @@ fun FilmCountSelectionScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "返回",
-                            tint = FilmInkBlack
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回"
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = FilmWhiteGlass,
-                    titleContentColor = FilmInkBlack
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onSurface
                 )
             )
         },
-        containerColor = FilmWarmBeige
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+            verticalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-            
+            Spacer(modifier = Modifier.height(Spacing.md))
+
             // 标题
             Text(
                 text = "选择照片",
                 style = MaterialTheme.typography.headlineMedium,
-                color = FilmInkBlack,
-                fontWeight = FontWeight.Light
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             // 提示信息卡片
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(CornerRadius.lg),
                 colors = CardDefaults.cardColors(
-                    containerColor = FilmMilkyBlue.copy(alpha = 0.3f)
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(Spacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "ℹ️",
-                        fontSize = 24.sp
+                        text = "i",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text(
                             text = "照片数量限制",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = FilmInkBlack
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         Text(
                             text = "${filmFormat.displayName} 最多可选择 $selectedCount 张照片",
-                            fontSize = 13.sp,
-                            color = FilmDarkGray
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
                         if (selectedImageUris.isNotEmpty()) {
                             Text(
                                 text = "已选择：${selectedImageUris.size}/$selectedCount 张",
-                                fontSize = 12.sp,
-                                color = FilmMintGreen,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.tertiary
                             )
                         }
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
+            Spacer(modifier = Modifier.height(Spacing.md))
+
             // 选择照片按钮
             Button(
                 onClick = {
@@ -288,24 +283,23 @@ fun FilmCountSelectionScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
+                shape = RoundedCornerShape(CornerRadius.xl),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = FilmCaramelOrange,
-                    contentColor = FilmWhite
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 )
             ) {
                 Text(
                     text = if (selectedImageUris.isEmpty()) {
-                        "📷 选择照片"
+                        "选择照片"
                     } else {
-                        "📷 重新选择照片"
+                        "重新选择照片"
                     },
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.labelLarge
                 )
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.md))
             
             // 取景器区域（仅在选择照片后显示）
             if (selectedImageUris.isNotEmpty() && !isReadyToNavigate) {
@@ -317,48 +311,46 @@ fun FilmCountSelectionScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 32.dp)
+                        .padding(horizontal = Spacing.xl)
                 )
-                
+
                 // 提示文字 - 根据状态显示不同信息
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     if (isLoadingImages) {
                         Text(
                             text = "正在加载照片...",
-                            fontSize = 16.sp,
-                            color = FilmCaramelOrange,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "$loadedImagesCount / ${selectedImageUris.size}",
-                            fontSize = 14.sp,
-                            color = FilmDarkGray
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         // 进度条
                         LinearProgressIndicator(
-                            progress = loadingProgress,
+                            progress = { loadingProgress },
                             modifier = Modifier
                                 .width(200.dp)
-                                .padding(top = 8.dp),
-                            color = FilmCaramelOrange,
-                            trackColor = FilmLightGray
+                                .padding(top = Spacing.sm),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     } else if (isAnimationPlaying) {
                         Text(
                             text = "取景中...",
-                            fontSize = 16.sp,
-                            color = FilmDarkGray,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
-            
+            Spacer(modifier = Modifier.height(Spacing.md))
+
             // 开始拍摄按钮（仅在选择照片后显示）
             if (selectedImageUris.isNotEmpty() && !isAnimationPlaying && !isLoadingImages) {
                 Button(
@@ -370,16 +362,15 @@ fun FilmCountSelectionScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
+                    shape = RoundedCornerShape(CornerRadius.xl),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = FilmMintGreen,
-                        contentColor = FilmWhite
+                        containerColor = MaterialTheme.colorScheme.tertiary,
+                        contentColor = MaterialTheme.colorScheme.onTertiary
                     )
                 ) {
                     Text(
-                        text = "🎬 开始拍摄",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        text = "开始拍摄",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -397,21 +388,29 @@ private fun CountOption(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val containerColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
     Box(
         modifier = modifier
             .size(64.dp)
             .clip(CircleShape)
-            .background(
-                if (isSelected) FilmCaramelOrange else FilmWhite
-            )
+            .background(containerColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = count.toString(),
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isSelected) FilmWhite else FilmInkBlack
+            style = MaterialTheme.typography.headlineSmall,
+            color = contentColor
         )
     }
 }

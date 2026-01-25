@@ -9,12 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.filmtracker.app.ui.theme.*
 
@@ -40,15 +37,17 @@ fun HomeScreen(
     onAIAssistantClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val backgroundColor = MaterialTheme.colorScheme.background
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        FilmWarmBeige,
-                        Color(0xFFF8F4EC),
-                        FilmWarmBeige.copy(alpha = 0.95f)
+                        backgroundColor,
+                        backgroundColor.copy(alpha = 0.98f),
+                        backgroundColor.copy(alpha = 0.95f)
                     )
                 )
             )
@@ -56,25 +55,25 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(Spacing.lg),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(Spacing.xxl))
             
             // 品牌标题
             BrandHeader()
             
-            Spacer(modifier = Modifier.height(48.dp))
-            
+            Spacer(modifier = Modifier.height(Spacing.xxl))
+
             // 功能卡片 - 田字格布局
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 // 第一行：数字暗房 + 专业修图
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // 数字暗房
                     FeatureCardCompact(
@@ -110,7 +109,7 @@ fun HomeScreen(
                 // 第二行：AI助手 + AI仿色
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md)
                 ) {
                     // AI助手
                     FeatureCardCompact(
@@ -148,8 +147,8 @@ fun HomeScreen(
             
             // 底部信息
             FooterInfo()
-            
-            Spacer(modifier = Modifier.height(24.dp))
+
+            Spacer(modifier = Modifier.height(Spacing.lg))
         }
     }
 }
@@ -161,7 +160,7 @@ fun HomeScreen(
 private fun BrandHeader() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.sm)
     ) {
         // Logo 动画
         val infiniteTransition = rememberInfiniteTransition(label = "logo")
@@ -174,26 +173,24 @@ private fun BrandHeader() {
             ),
             label = "logo_scale"
         )
-        
+
         Text(
             text = "🎞",
             fontSize = 64.sp,
             modifier = Modifier.scale(scale)
         )
-        
+
         Text(
             text = "FilmSight",
-            fontSize = 36.sp,
-            fontWeight = FontWeight.Light,
-            color = FilmInkBlack,
+            style = MaterialTheme.typography.headlineLarge,
+            color = MaterialTheme.colorScheme.onBackground,
             letterSpacing = 2.sp
         )
-        
+
         Text(
             text = "数字暗房 · 胶片美学",
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Light,
-            color = FilmDarkGray,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 1.sp
         )
     }
@@ -221,8 +218,8 @@ private fun FeatureCardCompact(
         ),
         label = "card_scale"
     )
-    
-    Card(
+
+    ElevatedCard(
         modifier = modifier
             .aspectRatio(1f)
             .scale(scale)
@@ -234,11 +231,7 @@ private fun FeatureCardCompact(
                     }
                 }
             ),
-        shape = RoundedCornerShape(20.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 6.dp,
-            pressedElevation = 3.dp
-        )
+        shape = RoundedCornerShape(CornerRadius.lg + CornerRadius.xs)
     ) {
         Box(
             modifier = Modifier
@@ -248,7 +241,7 @@ private fun FeatureCardCompact(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(20.dp),
+                    .padding(Spacing.md + Spacing.xs),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -257,43 +250,40 @@ private fun FeatureCardCompact(
                     text = icon,
                     fontSize = 40.sp
                 )
-                
-                Spacer(modifier = Modifier.height(12.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.md - Spacing.xs))
+
                 // 标题
                 Text(
                     text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = FilmWhite
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                
+
+                Spacer(modifier = Modifier.height(Spacing.xs))
+
                 // 副标题或即将推出标签
                 if (comingSoon) {
                     Surface(
-                        color = FilmWhite.copy(alpha = 0.3f),
-                        shape = RoundedCornerShape(8.dp)
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(CornerRadius.sm)
                     ) {
                         Text(
                             text = "即将推出",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = FilmWhite,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                         )
                     }
                 } else {
                     Text(
                         text = subtitle,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Light,
-                        color = FilmWhite.copy(alpha = 0.9f)
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
                     )
                 }
             }
-            
+
             // 装饰性渐变
             Box(
                 modifier = Modifier
@@ -333,11 +323,11 @@ private fun FeatureCard(
         ),
         label = "card_scale"
     )
-    
-    Card(
+
+    ElevatedCard(
         modifier = modifier
             .fillMaxWidth()
-            .height(140.dp)
+            .height(ComponentSize.cardMinHeight + Spacing.xl + Spacing.sm)
             .scale(scale)
             .clickable(
                 enabled = !comingSoon,
@@ -347,11 +337,7 @@ private fun FeatureCard(
                     }
                 }
             ),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 8.dp,
-            pressedElevation = 4.dp
-        )
+        shape = RoundedCornerShape(CornerRadius.lg + CornerRadius.sm)
     ) {
         Box(
             modifier = Modifier
@@ -361,29 +347,27 @@ private fun FeatureCard(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(28.dp),
+                    .padding(Spacing.lg + Spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // 左侧文字
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.sm)
                 ) {
                     Text(
                         text = title,
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = FilmWhite
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                     Text(
                         text = subtitle,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Light,
-                        color = FilmWhite.copy(alpha = 0.9f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                         letterSpacing = 0.5.sp
                     )
                 }
-                
+
                 // 右侧图标
                 Box(
                     contentAlignment = Alignment.Center
@@ -391,15 +375,17 @@ private fun FeatureCard(
                     if (comingSoon) {
                         // 即将推出标签
                         Surface(
-                            color = FilmWhite.copy(alpha = 0.2f),
-                            shape = RoundedCornerShape(12.dp)
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(CornerRadius.md)
                         ) {
                             Text(
                                 text = "即将推出",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = FilmWhite,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(
+                                    horizontal = Spacing.md - Spacing.xs,
+                                    vertical = Spacing.sm - Spacing.xs
+                                )
                             )
                         }
                     } else {
@@ -410,7 +396,7 @@ private fun FeatureCard(
                     }
                 }
             }
-            
+
             // 装饰性渐变叠加
             Box(
                 modifier = Modifier
@@ -435,19 +421,17 @@ private fun FeatureCard(
 private fun FooterInfo() {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.xs)
     ) {
         Text(
             text = "专业级 RAW 图像处理",
-            fontSize = 12.sp,
-            color = FilmDarkGray.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Light
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
         Text(
             text = "非破坏性编辑 · 胶片银盐模拟",
-            fontSize = 12.sp,
-            color = FilmDarkGray.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Light
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         )
     }
 }
