@@ -1,6 +1,6 @@
 #include "jni_common.h"
-#include "../include/image_processor_engine.h"
-#include "../include/basic_adjustment_params.h"
+#include "../core/image_processor_engine.h"
+#include "../color/basic_adjustment_params.h"
 
 using namespace filmtracker;
 

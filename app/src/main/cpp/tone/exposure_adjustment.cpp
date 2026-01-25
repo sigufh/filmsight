@@ -1,4 +1,4 @@
-#include "include/exposure_adjustment.h"
+#include "exposure_adjustment.h"
 #include <cmath>
 #include <algorithm>
 

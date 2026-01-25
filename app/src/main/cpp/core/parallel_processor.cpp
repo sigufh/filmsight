@@ -1,9 +1,9 @@
-#include "include/parallel_processor.h"
-#include "contrast_adjustment.h"
-#include "include/exposure_adjustment.h"
-#include "include/saturation_adjustment.h"
-#include "include/grain_effect.h"
-#include "include/vignette_effect.h"
+#include "parallel_processor.h"
+#include "../tone/contrast_adjustment.h"
+#include "../tone/exposure_adjustment.h"
+#include "../color/saturation_adjustment.h"
+#include "../effects/grain_effect.h"
+#include "../effects/vignette_effect.h"
 #include <thread>
 #include <vector>
 #include <cmath>

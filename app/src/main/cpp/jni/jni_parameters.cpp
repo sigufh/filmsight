@@ -1,5 +1,5 @@
 #include "jni_common.h"
-#include "../include/basic_adjustment_params.h"
+#include "../color/basic_adjustment_params.h"
 #include <algorithm>
 
 using namespace filmtracker;

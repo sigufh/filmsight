@@ -1,5 +1,5 @@
 #include "jni_common.h"
-#include "../include/bilateral_filter.h"
+#include "../filters/bilateral_filter.h"
 
 using namespace filmtracker;
 

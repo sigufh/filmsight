@@ -1,6 +1,6 @@
 #include "jni_common.h"
-#include "../include/parallel_processor.h"
-#include "../include/basic_adjustment_params.h"
+#include "../core/parallel_processor.h"
+#include "../color/basic_adjustment_params.h"
 
 extern "C" {
 
